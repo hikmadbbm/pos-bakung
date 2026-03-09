@@ -28,8 +28,8 @@ import { PrinterProvider } from "../lib/printer-context";
 
 export default function RootLayout({ children }) {
   return (
-    <html lang="en">
-      <body>
+    <html lang="en" translate="no" className="notranslate">
+      <body className="notranslate">
         <ToastProvider>
           <PrinterProvider>
             {children}

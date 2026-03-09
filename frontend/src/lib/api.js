@@ -1,11 +1,19 @@
 import axios from "axios";
 
 const BASE = (() => {
-  if (typeof window !== "undefined" && window.location.hostname.includes("vercel.app")) {
-    return "/api";
+  if (typeof window !== "undefined") {
+    const host = window.location.hostname;
+    // Use relative path for any non-localhost environment (Vercel, custom domain, etc.)
+    if (host !== "localhost" && host !== "127.0.0.1") {
+      return "/api";
+    }
   }
   return process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/api";
 })();
+
+if (typeof window !== "undefined") {
+  console.log("API Configured Base URL:", BASE);
+}
 
 const apiClient = axios.create({
   baseURL: BASE,
