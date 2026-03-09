@@ -41,11 +41,11 @@ export default function ReportsPage() {
       loadCashierReport();
       loadReconHistory();
     }
-  }, [activeTab]);
+  }, [activeTab, load, loadCashierReport]);
 
   useEffect(() => {
     if (activeTab === "cashier") loadCashierReport();
-  }, [cashierDate]);
+  }, [cashierDate, activeTab, loadCashierReport]);
 
   async function load() {
     setLoading(true);

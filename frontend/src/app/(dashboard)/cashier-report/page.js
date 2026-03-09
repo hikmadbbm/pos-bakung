@@ -27,7 +27,7 @@ export default function CashierReportPage() {
 
   useEffect(() => {
     loadReport();
-  }, [date]);
+  }, [date, loadReport]);
 
   const loadReport = async () => {
     setLoading(true);

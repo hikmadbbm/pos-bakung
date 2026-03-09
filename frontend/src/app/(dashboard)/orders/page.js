@@ -157,7 +157,7 @@ export default function OrdersPage() {
         return item;
       }));
     }
-  }, [selectedPlatform, menus]);
+  }, [selectedPlatform, menus, cart.length, getPrice]);
 
   const subtotal = cart.reduce((acc, item) => acc + item.price * item.qty, 0);
   const discountVal = discount ? parseInt(discount) : 0;

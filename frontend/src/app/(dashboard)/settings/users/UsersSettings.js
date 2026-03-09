@@ -35,7 +35,7 @@ export default function UsersSettings() {
 
   useEffect(() => {
     loadUsers();
-  }, []);
+  }, [loadUsers]);
 
   const loadUsers = async () => {
     setLoading(true);
