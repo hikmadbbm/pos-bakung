@@ -1,0 +1,11 @@
+/*
+  Warnings:
+
+  - A unique constraint covering the columns `[order_number]` on the table `order` will be added. If there are existing duplicate values, this will fail.
+
+*/
+-- AlterTable
+ALTER TABLE `order` ADD COLUMN `order_number` VARCHAR(191) NULL;
+
+-- CreateIndex
+CREATE UNIQUE INDEX `order_order_number_key` ON `order`(`order_number`);

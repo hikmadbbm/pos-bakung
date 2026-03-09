@@ -1,0 +1,30 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html, body, :root {
+  height: 100%;
+}
+
+body {
+  @apply bg-gray-50 text-gray-900;
+}
+
+/* Mobile-first dialog typography and layout safeguards */
+@media (max-width: 768px) {
+  .traedialog {
+    /* Ensure content never causes horizontal scrolling */
+    max-width: 92vw;
+    overflow-x: hidden;
+    -webkit-overflow-scrolling: touch;
+  }
+  .traedialog * {
+    min-width: 0;
+    word-break: break-word;
+  }
+  .traedialog input,
+  .traedialog select,
+  .traedialog textarea {
+    width: 100%;
+  }
+}

@@ -1,0 +1,207 @@
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            Int      @id @default(autoincrement())
+  name          String
+  username      String   @unique
+  email         String?
+  password      String
+  role          Role     @default(CASHIER)
+  pin           String?  // PIN for quick login
+  phone_number  String?
+  status        String   @default("ACTIVE") // ACTIVE, INACTIVE
+  profile_photo String?
+  employee_id   String?
+  notes         String?
+  last_login    DateTime?
+  created_at    DateTime @default(now())
+  updated_at    DateTime @updatedAt
+
+  shifts        UserShift[]
+  activityLogs  UserActivityLog[]
+
+  @@map("user")
+}
+
+model UserActivityLog {
+  id          Int      @id @default(autoincrement())
+  user_id     Int
+  action_type String   // LOGIN, LOGOUT, ORDER_CREATE, etc.
+  description String?
+  ip_address  String?
+  timestamp   DateTime @default(now())
+  
+  user        User     @relation(fields: [user_id], references: [id])
+
+  @@map("user_activity_log")
+}
+
+model UserShift {
+  id            Int      @id @default(autoincrement())
+  user_id       Int
+  start_time    DateTime @default(now())
+  end_time      DateTime?
+  starting_cash Int      @default(0)
+  ending_cash   Int?
+  expected_cash Int?     @default(0)
+  discrepancy   Int?     @default(0)
+  note          String?
+  cash_breakdown Json?
+  total_sales   Int      @default(0)
+  status        String   @default("OPEN") // OPEN, CLOSED
+  
+  user          User     @relation(fields: [user_id], references: [id])
+
+  @@map("user_shift")
+}
+
+model StoreConfig {
+  id              Int      @id @default(autoincrement())
+  store_name      String   @default("BAKMIE YOU-TJE")
+  address         String?  @default("Jl. Bakung No. 123, Jakarta")
+  phone           String?  @default("0812-3456-7890")
+  receipt_footer  String?  @default("Thank you for visiting!\nPlease come again.")
+  tax_rate        Float    @default(0) // Percentage
+  service_charge  Float    @default(0) // Percentage
+  updated_at      DateTime @updatedAt
+  @@map("storeconfig")
+}
+
+enum Role {
+  OWNER
+  MANAGER
+  CASHIER
+  KITCHEN
+  STAFF // Keeping for backward compatibility if needed, though likely unused
+}
+
+model Menu {
+  id         Int         @id @default(autoincrement())
+  name       String
+  price      Int         // Selling price (in smallest unit or IDR)
+  cost       Int         // HPP (Cost of goods)
+  created_at DateTime    @default(now())
+  orderItems OrderItem[]
+  categoryId Int?
+  category   MenuCategory? @relation(fields: [categoryId], references: [id])
+  prices     MenuPrice[]
+  @@map("menu")
+}
+
+model MenuCategory {
+  id    Int    @id @default(autoincrement())
+  name  String
+  color String // e.g. #FF0000
+  menus Menu[]
+  @@map("menucategory")
+}
+
+model Platform {
+  id              Int         @id @default(autoincrement())
+  name            String
+  type            PlatformType @default(OFFLINE)
+  commission_rate Float       @default(0) // Percentage (e.g. 20.0 for 20%)
+  created_at      DateTime    @default(now())
+  menuPrices      MenuPrice[]
+  orders          Order[]
+  @@map("platform")
+}
+
+enum PlatformType {
+  OFFLINE
+  DELIVERY
+}
+
+model MenuPrice {
+  id          Int      @id @default(autoincrement())
+  menu_id     Int
+  platform_id Int
+  price       Int
+  menu        Menu     @relation(fields: [menu_id], references: [id], onDelete: Cascade)
+  platform    Platform @relation(fields: [platform_id], references: [id], onDelete: Cascade)
+
+  @@unique([menu_id, platform_id])
+  @@map("menuprice")
+}
+
+model Order {
+  id             Int         @id @default(autoincrement())
+  order_number   String?     @unique @default(uuid())
+  date           DateTime    @default(now())
+  total          Int         // Subtotal (Gross Sales)
+  commission     Int         @default(0) // Calculated commission amount
+  net_revenue    Int         @default(0) // total - commission
+  platform_id    Int?
+  platform       Platform?   @relation(fields: [platform_id], references: [id])
+  payment_method String      @default("CASH") // "CASH", "QRIS", "BANK_TRANSFER", etc.
+  money_received Int         @default(0) // Amount received from customer
+  change_amount  Int         @default(0) // Change returned to customer
+  status         String      @default("COMPLETED") // "COMPLETED", "CANCELLED", "PENDING"
+  note           String?
+  customer_name  String?
+  discount       Int         @default(0)
+  
+  // New fields for User Tracking
+  created_by_user_id   Int?
+  processed_by_user_id Int?
+
+  orderItems     OrderItem[]
+  @@map("order")
+}
+
+model OrderItem {
+  id       Int   @id @default(autoincrement())
+  order_id Int
+  menu_id  Int
+  qty      Int
+  price    Int   // Snapshot of selling price at time of order
+  cost     Int   // Snapshot of HPP at time of order
+  
+  order    Order @relation(fields: [order_id], references: [id])
+  menu     Menu  @relation(fields: [menu_id], references: [id])
+  @@map("orderitem")
+}
+
+model Expense {
+  id          Int      @id @default(autoincrement())
+  date        DateTime @default(now())
+  item        String
+  category    String   // RAW_MATERIAL, OPERATIONAL, PACKAGING, OTHERS
+  amount      Int
+  description String?
+  @@map("expense")
+}
+
+model FixedCost {
+  id        Int      @id @default(autoincrement())
+  name      String
+  amount    Int
+  frequency String   // DAILY, WEEKLY, MONTHLY
+  is_active Boolean  @default(true)
+  @@map("fixedcost")
+}
+
+model CashierReconciliation {
+  id              Int      @id @default(autoincrement())
+  date            DateTime @unique // One report per day
+  opening_cash    Int      @default(0)
+  closing_cash    Int      @default(0) // Actual cash counted
+  total_system    Int      @default(0) // Total expected from system
+  total_actual    Int      @default(0) // Total actual from input
+  discrepancy     Int      @default(0) // actual - system
+  notes           String?
+  submitted_by    String?
+  status          String   @default("SUBMITTED") // DRAFT, SUBMITTED
+  details         Json?    // Store breakdown of payment methods { CASH: { system: 100, actual: 100 }, ... }
+  created_at      DateTime @default(now())
+  updated_at      DateTime @updatedAt
+  @@map("cashierreconciliation")
+}
