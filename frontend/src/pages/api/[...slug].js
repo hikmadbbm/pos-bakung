@@ -1,9 +1,20 @@
 import { createApp } from '../../../../backend/src/app';
 import { PrismaClient } from '@prisma/client';
 
-const prisma = new PrismaClient();
+// Use global to cache PrismaClient in development (standard practice for Next.js)
+let prisma;
+if (process.env.NODE_ENV === 'production') {
+  prisma = new PrismaClient();
+} else {
+  if (!global.prisma) {
+    global.prisma = new PrismaClient();
+  }
+  prisma = global.prisma;
+}
+
 const JWT_SECRET = process.env.JWT_SECRET || "dev-secret";
 
+// Create Express app
 const app = createApp(prisma, JWT_SECRET);
 
 export default function handler(req, res) {
@@ -13,7 +24,7 @@ export default function handler(req, res) {
   // Manually handle CORS Preflight (OPTIONS)
   // This ensures that even if Express fails to handle it, we respond correctly.
   res.setHeader('Access-Control-Allow-Credentials', 'true');
-  res.setHeader('Access-Control-Allow-Origin', '*'); // Adjust this in production if needed
+  res.setHeader('Access-Control-Allow-Origin', '*'); 
   res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
   res.setHeader(
     'Access-Control-Allow-Headers',
@@ -39,22 +50,35 @@ export default function handler(req, res) {
       console.log(`[API Proxy] Rewrote URL (fallback) to: ${req.url}`);
   }
 
-  // Forward to Express app
-  // Express app is a request listener: (req, res, next) => void
-  app(req, res, (err) => {
-    if (err) {
-      console.error("[API Proxy] Express error:", err);
-      if (!res.headersSent) {
-        res.status(500).json({ error: "Internal Server Error" });
+  // Important for Express in Serverless environment:
+  // Sometimes Express doesn't handle the response correctly if it's called as a function.
+  // We wrap it in a try-catch to be safe.
+  try {
+    app(req, res, (err) => {
+      if (err) {
+        console.error("[API Proxy] Express error:", err);
+        if (!res.headersSent) {
+          res.status(500).json({ error: "Internal Server Error", details: err.message });
+        }
+        return;
       }
-      return;
-    }
-    // If next() is called, it means no route matched
+      
+      // If next() is called, it means no route matched in Express
+      if (!res.headersSent) {
+        console.warn(`[API Proxy] 404 Not Found (Express passed): ${req.method} ${req.url}`);
+        // Instead of just 404, let's see if we can provide more info
+        res.status(404).json({ 
+          error: `Route not found: ${req.method} ${req.url}`,
+          available_methods: ["POST", "GET", "PUT", "DELETE"] // Just a hint
+        });
+      }
+    });
+  } catch (error) {
+    console.error("[API Proxy] Critical crash:", error);
     if (!res.headersSent) {
-      console.warn(`[API Proxy] 404 Not Found (Express passed): ${req.method} ${req.url}`);
-      res.status(404).json({ error: `Route not found: ${req.method} ${req.url}` });
+      res.status(500).json({ error: "API Gateway Error", message: error.message });
     }
-  });
+  }
 }
 
 export const config = {
