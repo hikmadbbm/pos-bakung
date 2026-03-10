@@ -1,6 +1,8 @@
 import axios from "axios";
 
 const BASE = (() => {
+  const envBase = process.env.NEXT_PUBLIC_API_URL;
+  if (envBase) return envBase;
   if (typeof window !== "undefined") {
     const host = window.location.hostname;
     // Use relative path for any non-localhost environment (Vercel, custom domain, etc.)
@@ -8,7 +10,7 @@ const BASE = (() => {
       return "/api";
     }
   }
-  return process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:4000/api";
+  return "http://127.0.0.1:4000/api";
 })();
 
 if (typeof window !== "undefined") {

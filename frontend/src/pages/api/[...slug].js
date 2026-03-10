@@ -1,6 +1,26 @@
 import { createApp } from '../../../../backend/src/app';
 import { PrismaClient } from '@prisma/client';
 
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function isRetryablePrismaError(err) {
+  const code = err?.code;
+  if (code && ["P1001", "P1002", "P1003", "P1017"].includes(code)) return true;
+  const name = err?.name;
+  if (name === "PrismaClientInitializationError") return true;
+  const msg = String(err?.message || "");
+  return (
+    msg.includes("Can't reach database server") ||
+    msg.includes("Timed out") ||
+    msg.includes("timeout") ||
+    msg.includes("ECONNREFUSED") ||
+    msg.includes("ENOTFOUND") ||
+    msg.includes("EAI_AGAIN")
+  );
+}
+
 // Use global to cache PrismaClient in development (standard practice for Next.js)
 let prisma;
 if (process.env.NODE_ENV === 'production') {
@@ -17,7 +37,37 @@ const JWT_SECRET = process.env.JWT_SECRET || "dev-secret";
 // Create Express app
 const app = createApp(prisma, JWT_SECRET);
 
-export default function handler(req, res) {
+let prismaReadyPromise;
+async function ensurePrismaReady() {
+  if (prismaReadyPromise) return prismaReadyPromise;
+  prismaReadyPromise = (async () => {
+    if (!process.env.DATABASE_URL) {
+      const err = new Error("DATABASE_URL is not set");
+      err.code = "MISSING_DATABASE_URL";
+      throw err;
+    }
+
+    const maxAttempts = Number(process.env.PRISMA_CONNECT_MAX_ATTEMPTS || 6);
+    const baseDelayMs = Number(process.env.PRISMA_CONNECT_BASE_DELAY_MS || 250);
+
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      try {
+        await prisma.$connect();
+        return true;
+      } catch (err) {
+        const retryable = isRetryablePrismaError(err);
+        if (!retryable || attempt === maxAttempts) throw err;
+        const backoff = Math.min(5000, baseDelayMs * 2 ** (attempt - 1));
+        const jitter = Math.floor(Math.random() * 150);
+        await sleep(backoff + jitter);
+      }
+    }
+    return true;
+  })();
+  return prismaReadyPromise;
+}
+
+export default async function handler(req, res) {
   // Debug log
   console.log(`[API Proxy] Incoming Request: ${req.method} ${req.url}`);
 
@@ -33,6 +83,20 @@ export default function handler(req, res) {
 
   if (req.method === 'OPTIONS') {
     res.status(200).end();
+    return;
+  }
+
+  try {
+    await ensurePrismaReady();
+  } catch (error) {
+    console.error("[API Proxy] Prisma init error:", error);
+    if (!res.headersSent) {
+      res.status(503).json({
+        error: "Database unavailable",
+        code: error?.code || error?.name || "PRISMA_INIT_ERROR",
+        message: process.env.NODE_ENV === "production" ? "Temporary database connectivity issue" : (error?.message || "Unknown error"),
+      });
+    }
     return;
   }
 
