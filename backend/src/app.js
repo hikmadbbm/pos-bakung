@@ -43,5 +43,19 @@ export function createApp(prisma, jwtSecret) {
     res.json({ ok: true });
   });
 
+  app.get("/api/health/db", async (_req, res) => {
+    try {
+      await prisma.$queryRaw`SELECT 1`;
+      res.json({ ok: true, db: true });
+    } catch (e) {
+      res.status(503).json({
+        ok: false,
+        db: false,
+        error: "Database unavailable",
+        code: e?.code || e?.name || "DB_ERROR",
+      });
+    }
+  });
+
   return app;
 }

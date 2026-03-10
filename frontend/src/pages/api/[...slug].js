@@ -21,6 +21,22 @@ function isRetryablePrismaError(err) {
   );
 }
 
+function sanitizeDatabaseUrl(rawUrl) {
+  if (!rawUrl) return null;
+  try {
+    const u = new URL(rawUrl);
+    return {
+      protocol: u.protocol,
+      host: u.hostname,
+      port: u.port,
+      database: u.pathname?.replace(/^\//, "") || "",
+      search: u.search || "",
+    };
+  } catch {
+    return { raw: "unparseable" };
+  }
+}
+
 // Use global to cache PrismaClient in development (standard practice for Next.js)
 let prisma;
 if (process.env.NODE_ENV === 'production') {
@@ -71,6 +87,10 @@ export default async function handler(req, res) {
   // Debug log
   console.log(`[API Proxy] Incoming Request: ${req.method} ${req.url}`);
 
+  const slugPath = req.query && req.query.slug
+    ? (Array.isArray(req.query.slug) ? req.query.slug.join('/') : req.query.slug)
+    : null;
+
   // Manually handle CORS Preflight (OPTIONS)
   // This ensures that even if Express fails to handle it, we respond correctly.
   res.setHeader('Access-Control-Allow-Credentials', 'true');
@@ -86,25 +106,29 @@ export default async function handler(req, res) {
     return;
   }
 
-  try {
-    await ensurePrismaReady();
-  } catch (error) {
-    console.error("[API Proxy] Prisma init error:", error);
-    if (!res.headersSent) {
-      res.status(503).json({
-        error: "Database unavailable",
-        code: error?.code || error?.name || "PRISMA_INIT_ERROR",
-        message: process.env.NODE_ENV === "production" ? "Temporary database connectivity issue" : (error?.message || "Unknown error"),
+  if (slugPath !== "health") {
+    try {
+      await ensurePrismaReady();
+    } catch (error) {
+      console.error("[API Proxy] Prisma init error:", error, {
+        database: sanitizeDatabaseUrl(process.env.DATABASE_URL),
+        direct: sanitizeDatabaseUrl(process.env.DIRECT_URL),
       });
+      if (!res.headersSent) {
+        res.status(503).json({
+          error: "Database unavailable",
+          code: error?.code || error?.name || "PRISMA_INIT_ERROR",
+          message: process.env.NODE_ENV === "production" ? "Temporary database connectivity issue" : (error?.message || "Unknown error"),
+        });
+      }
+      return;
     }
-    return;
   }
 
   // Ensure the URL passed to Express matches what Express expects.
   // We reconstruct the URL using the 'slug' parameter provided by Next.js
   // to guarantee it matches the '/api/...' pattern expected by the backend app.
   if (req.query && req.query.slug) {
-    const slugPath = Array.isArray(req.query.slug) ? req.query.slug.join('/') : req.query.slug;
     const queryString = req.url.split('?')[1];
     req.url = `/api/${slugPath}${queryString ? '?' + queryString : ''}`;
     console.log(`[API Proxy] Rewrote URL to: ${req.url}`);
