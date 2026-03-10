@@ -1,8 +1,8 @@
 {
   "version": 2,
-  "installCommand": "npm ci --prefix frontend",
-  "buildCommand": "npm run build --prefix frontend",
-  "devCommand": "npm run dev --prefix frontend",
-  "outputDirectory": "frontend/.next",
+  "installCommand": "npm ci",
+  "buildCommand": "npx prisma generate && npx prisma db push --accept-data-loss && npm run build",
+  "devCommand": "npm run dev",
+  "framework": "nextjs",
   "rewrites": []
 }

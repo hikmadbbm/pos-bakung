@@ -11,12 +11,11 @@ temp/
 Thumbs.db
 .vscode/
 
-frontend/.next/
-frontend/out/
-frontend/node_modules/
-frontend/.env
-frontend/.env.*
-frontend/screenshots/
+.next/
+out/
+.env
+.env.*
+screenshots/
 
 backend/node_modules/
 backend/.env
