@@ -19,6 +19,12 @@ export function createApp(prisma, jwtSecret) {
   app.use(cors());
   app.use(express.json());
 
+  // Log incoming requests for debugging
+  app.use((req, res, next) => {
+    console.log(`[Express] Received ${req.method} ${req.url}`);
+    next();
+  });
+
   app.use("/api/auth", authRouter({ prisma, JWT_SECRET: jwtSecret }));
   app.use("/api/menus", menusRouter({ prisma }));
   app.use("/api/categories", categoriesRouter({ prisma }));

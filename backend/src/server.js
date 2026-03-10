@@ -1,14 +1,10 @@
 import dotenv from "dotenv";
 import { PrismaClient } from '@prisma/client';
-import { Pool, neon } from '@neondatabase/serverless';
-import { PrismaNeon } from '@prisma/adapter-neon';
 import { createApp } from "./app.js";
 
 dotenv.config();
 
-const client = new Pool({ connectionString: process.env.DATABASE_URL });
-const adapter = new PrismaNeon(client);
-const prisma = new PrismaClient({ adapter });
+const prisma = new PrismaClient();
 const PORT = process.env.PORT || 4000;
 const JWT_SECRET = process.env.JWT_SECRET || "dev-secret";
 

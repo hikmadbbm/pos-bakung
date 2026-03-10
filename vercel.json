@@ -1,20 +1,9 @@
 {
   "version": 2,
-  "builds": [
-    {
-      "src": "frontend/next.config.mjs",
-      "use": "@vercel/next"
-    },
-    {
-      "src": "backend/package.json",
-      "use": "@vercel/node",
-      "config": { "includeFiles": ["prisma/**", "src/**"] }
-    }
-  ],
   "rewrites": [
     {
-      "source": "/api/(.*)",
-      "destination": "/api/index"
+      "source": "/api/:path*",
+      "destination": "/api/:path*"
     }
   ]
 }

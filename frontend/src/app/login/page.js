@@ -29,13 +29,28 @@ export default function LoginPage() {
       setAuth(data.token, data.user);
       setCurrentUser(data.user);
       setShowModal(true);
-      // router.push("/dashboard"); // Moved to modal
     } catch (err) {
-      console.error(err);
-      setError(err.response?.data?.error || "Login failed. Please check your credentials.");
+      console.error("Login error:", err);
+      let errorMessage = "Login failed. Please check your credentials.";
+      
+      if (err.response) {
+        // Server responded with a status code outside 2xx
+        if (err.response.data && err.response.data.error) {
+          errorMessage = err.response.data.error;
+        } else {
+          errorMessage = `Login failed (Status: ${err.response.status})`;
+        }
+      } else if (err.request) {
+        // Request was made but no response received
+        errorMessage = "Unable to connect to the server. Please check your internet connection.";
+      } else {
+        // Something happened in setting up the request
+        errorMessage = err.message;
+      }
+      
+      setError(errorMessage);
       setLoading(false);
     } finally {
-      // setLoading(false); // Keep loading true if success to prevent flickering? No, modal is overlay.
       if (!showModal) setLoading(false);
     }
   };
