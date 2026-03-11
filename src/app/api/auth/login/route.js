@@ -5,6 +5,8 @@ import { prisma } from '@/lib/prisma';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret';
 
+export const runtime = 'nodejs';
+
 export async function POST(req) {
   try {
     const body = await req.json();
