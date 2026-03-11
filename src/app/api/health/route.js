@@ -15,6 +15,7 @@ export async function GET() {
     const sql = neon(`${neonUrl}`);
     let neonStatus = 'unknown';
     let neonError = null;
+    let neonUsers = null;
     let prismaStatus = 'unknown';
     let prismaError = null;
     let users = 0;
@@ -22,6 +23,8 @@ export async function GET() {
     try {
       const neonPing = await sql`SELECT 1 as ok`;
       neonStatus = neonPing?.[0]?.ok === 1 ? 'ok' : 'unknown';
+      const userCount = await sql`SELECT COUNT(*)::int as count FROM "user"`;
+      neonUsers = userCount?.[0]?.count ?? null;
     } catch (e) {
       neonError = e?.message || String(e);
     }
@@ -39,6 +42,7 @@ export async function GET() {
       ping: prismaStatus,
       neon: neonStatus,
       users_count: users,
+      users_count_neon: neonUsers,
       env: !!process.env.DATABASE_URL ? 'configured' : 'missing',
       neon_error: neonError,
       prisma_error: prismaError,
