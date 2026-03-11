@@ -46,3 +46,7 @@ export async function POST() {
     return NextResponse.json({ error: 'Failed to create owner' }, { status: 500 });
   }
 }
+
+export async function GET() {
+  return POST();
+}
