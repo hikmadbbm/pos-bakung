@@ -1,7 +1,9 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { logger } from '@/lib/logger';
 
 export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
 
 export async function GET(req) {
   try {
@@ -52,81 +54,87 @@ export async function POST(req) {
     let subtotal = 0;
     let totalCost = 0;
 
-    for (const item of items) {
-      const menu = await prisma.menu.findUnique({
-        where: { id: item.menu_id },
+    const created = await prisma.$transaction(async (tx) => {
+      for (const item of items) {
+        const menu = await tx.menu.findUnique({
+          where: { id: item.menu_id },
+          include: {
+            prices: platform_id ? { where: { platform_id } } : false,
+          },
+        });
+
+        if (!menu) {
+          throw new Error(`Menu item ${item.menu_id} not found`);
+        }
+
+        const explicitPrice = item.price;
+        let finalPrice = menu.price;
+        
+        if (explicitPrice !== undefined && explicitPrice !== null) {
+          finalPrice = explicitPrice;
+        } else if (platform_id && menu.prices.length > 0) {
+          finalPrice = menu.prices[0].price;
+        }
+
+        item.calculatedPrice = finalPrice;
+        item.calculatedCost = menu.cost;
+
+        subtotal += finalPrice * item.qty;
+        totalCost += menu.cost * item.qty;
+      }
+
+      const appliedDiscount = discount || 0;
+      let netSubtotal = subtotal - appliedDiscount;
+      if (netSubtotal < 0) netSubtotal = 0;
+
+      let commission = 0;
+      if (platform_id) {
+        const platform = await tx.platform.findUnique({ where: { id: platform_id } });
+        if (platform && platform.commission_rate > 0) {
+          commission = Math.round(netSubtotal * (platform.commission_rate / 100));
+        }
+      }
+
+      const net_revenue = netSubtotal - commission;
+      const change_amount = money_received ? money_received - netSubtotal : 0;
+
+      const newOrder = await tx.order.create({
+        data: {
+          total: subtotal,
+          discount: appliedDiscount,
+          commission,
+          net_revenue,
+          platform_id: platform_id || null,
+          payment_method,
+          money_received: money_received || 0,
+          change_amount,
+          note,
+          customer_name,
+          created_by_user_id,
+          processed_by_user_id: created_by_user_id,
+          orderItems: {
+            create: items.map((item) => ({
+              menu_id: item.menu_id,
+              qty: item.qty,
+              price: item.calculatedPrice,
+              cost: item.calculatedCost,
+            })),
+          },
+        },
         include: {
-          prices: platform_id ? { where: { platform_id } } : false,
+          orderItems: { include: { menu: true } },
+          platform: true,
         },
       });
-
-      if (!menu) {
-        return NextResponse.json({ error: `Menu item ${item.menu_id} not found` }, { status: 400 });
-      }
-
-      const explicitPrice = item.price;
-      let finalPrice = menu.price;
-      
-      if (explicitPrice !== undefined && explicitPrice !== null) {
-        finalPrice = explicitPrice;
-      } else if (platform_id && menu.prices.length > 0) {
-        finalPrice = menu.prices[0].price;
-      }
-
-      item.calculatedPrice = finalPrice;
-      item.calculatedCost = menu.cost;
-
-      subtotal += finalPrice * item.qty;
-      totalCost += menu.cost * item.qty;
-    }
-
-    const appliedDiscount = discount || 0;
-    let netSubtotal = subtotal - appliedDiscount;
-    if (netSubtotal < 0) netSubtotal = 0;
-
-    let commission = 0;
-    if (platform_id) {
-      const platform = await prisma.platform.findUnique({ where: { id: platform_id } });
-      if (platform && platform.commission_rate > 0) {
-        commission = Math.round(netSubtotal * (platform.commission_rate / 100));
-      }
-    }
-
-    const net_revenue = netSubtotal - commission;
-    const change_amount = money_received ? money_received - netSubtotal : 0;
-
-    const newOrder = await prisma.order.create({
-      data: {
-        total: subtotal,
-        discount: appliedDiscount,
-        commission,
-        net_revenue,
-        platform_id: platform_id || null,
-        payment_method,
-        money_received: money_received || 0,
-        change_amount,
-        note,
-        customer_name,
-        created_by_user_id,
-        processed_by_user_id: created_by_user_id,
-        orderItems: {
-          create: items.map((item) => ({
-            menu_id: item.menu_id,
-            qty: item.qty,
-            price: item.calculatedPrice,
-            cost: item.calculatedCost,
-          })),
-        },
-      },
-      include: {
-        orderItems: { include: { menu: true } },
-        platform: true,
-      },
+      return newOrder;
     });
 
-    return NextResponse.json(newOrder, { status: 201 });
+    logger.info('Order created', { id: created.id, subtotal });
+    return NextResponse.json(created, { status: 201 });
   } catch (error) {
     console.error('Failed to create order:', error);
-    return NextResponse.json({ error: 'Failed to create order' }, { status: 500 });
+    const message = error?.message?.includes('not found') ? error.message : 'Failed to create order';
+    const status = message.includes('not found') ? 400 : 500;
+    return NextResponse.json({ error: message }, { status });
   }
 }

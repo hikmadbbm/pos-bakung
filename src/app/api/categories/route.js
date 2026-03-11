@@ -1,5 +1,8 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { logger } from '@/lib/logger';
+
+export const runtime = 'nodejs';
 
 export async function GET() {
   try {
@@ -18,11 +21,22 @@ export async function POST(req) {
     const body = await req.json();
     const { name, color } = body;
 
-    const newCategory = await prisma.menuCategory.create({
-      data: { name, color },
+    if (!name || typeof name !== 'string') {
+      return NextResponse.json({ error: 'name is required' }, { status: 400 });
+    }
+    if (color && typeof color !== 'string') {
+      return NextResponse.json({ error: 'color must be string' }, { status: 400 });
+    }
+
+    const result = await prisma.$transaction(async (tx) => {
+      const created = await tx.menuCategory.create({
+        data: { name, color: color || '#000000' },
+      });
+      return created;
     });
 
-    return NextResponse.json(newCategory, { status: 201 });
+    logger.info('Category created', { id: result.id, name: result.name });
+    return NextResponse.json(result, { status: 201 });
   } catch (error) {
     console.error('Failed to create category:', error);
     return NextResponse.json({ error: 'Failed to create category' }, { status: 500 });
