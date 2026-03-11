@@ -15,16 +15,8 @@ Thumbs.db
 out/
 .env
 .env.*
-screenshots/
-
-backend/node_modules/
-backend/.env
-backend/*.log
-
 .vercel
 .env*.local
-.env
-.env.*
 !**/.env.example
 !**/.env.*.example
 
