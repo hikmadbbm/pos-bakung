@@ -24,7 +24,7 @@ npm ci
 2. Configure environment:
 
 - Copy `.env.example` to `.env.local`
-- Fill `DATABASE_URL` (and `DIRECT_URL` if you use pooled/unpooled URLs)
+- Fill `DATABASE_URL`. `DIRECT_URL` is optional (not required by the schema).
 
 3. Generate Prisma client:
 
@@ -46,3 +46,9 @@ npm run dev
 - `npm run lint` run ESLint
 - `npm test` run Jest tests
 - `npm run prisma:studio` open Prisma Studio
+ - `npx prisma db push` (optional) apply schema to the database outside of Vercel builds
+
+## Deploy (Vercel)
+- Set `DATABASE_URL` in Project → Settings → Environment Variables (Production and Preview).
+- The build no longer runs `prisma db push`. Run migrations separately (locally or via CI/CD) if needed.
+- Recommended: upgrade Next.js to the latest 14.2.x release to address RSC security advisories.
