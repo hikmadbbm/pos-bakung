@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 
 export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
 
 export async function GET() {
   try {
@@ -14,7 +15,9 @@ export async function GET() {
       env: !!process.env.DATABASE_URL ? 'configured' : 'missing',
     });
   } catch (error) {
-    console.error('Health check failed:', error);
-    return NextResponse.json({ database: 'error', error: 'DB connection failed' }, { status: 500 });
+    return NextResponse.json(
+      { database: 'error', error: 'DB connection failed', detail: error?.message || 'unknown' },
+      { status: 500 }
+    );
   }
 }
