@@ -21,3 +21,6 @@ out/
 !**/.env.*.example
 
 /generated/prisma
+
+.vercel
+.env*.local
