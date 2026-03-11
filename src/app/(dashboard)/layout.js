@@ -28,15 +28,12 @@ function DashboardContent({ children }) {
   const { error } = useToast();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(false);
-  const [isChecking, setIsChecking] = useState(true);
   const { isFocusMode, setIsFocusMode } = useFocusMode();
 
   useEffect(() => {
     const token = localStorage.getItem("token");
     if (!token) {
       router.push("/login");
-    } else {
-      setIsChecking(false);
     }
   }, [router]);
 
@@ -58,7 +55,8 @@ function DashboardContent({ children }) {
     router.push("/login");
   };
 
-  if (isChecking) {
+  const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
+  if (!token) {
     return <div className="flex items-center justify-center h-screen bg-gray-100">Checking authentication...</div>;
   }
 

@@ -6,12 +6,13 @@
     "dev": "next dev -H 0.0.0.0",
     "build": "npx prisma generate && next build",
     "start": "next start",
-    "lint": "next lint",
+    "lint": "eslint .",
     "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js",
     "prisma:generate": "prisma generate",
     "prisma:push": "prisma db push",
     "prisma:studio": "prisma studio",
-    "seed:owner": "node scripts/seed-owner.js"
+    "seed:owner": "node scripts/seed-owner.js",
+    "seed:dummy": "node scripts/seed-dummy.js"
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.0.2",
@@ -38,7 +39,7 @@
     "@testing-library/jest-dom": "^6.6.3",
     "@testing-library/react": "^14.3.1",
     "autoprefixer": "^10.4.16",
-    "eslint": "^10.0.0",
+    "eslint": "^9.39.0",
     "eslint-config-next": "^16.1.6",
     "jest": "^29.7.0",
     "jest-environment-jsdom": "^30.3.0",

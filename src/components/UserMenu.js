@@ -10,15 +10,8 @@ export default function UserMenu() {
   const router = useRouter();
   const { error } = useToast();
   const [isOpen, setIsOpen] = useState(false);
-  const [user, setUser] = useState(null);
+  const [user] = useState(() => getAuth());
   const menuRef = useRef(null);
-
-  useEffect(() => {
-    const userData = getAuth();
-    if (userData) {
-      setUser(userData);
-    }
-  }, []);
 
   // Handle click outside
   useEffect(() => {

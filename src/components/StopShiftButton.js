@@ -12,6 +12,28 @@ export default function StopShiftButton() {
   const [startTime, setStartTime] = useState(null);
   const [elapsed, setElapsed] = useState("00:00:00");
 
+  const checkShiftStatus = async () => {
+    const userStr = localStorage.getItem("user");
+    if (!userStr) return;
+    
+    try {
+      const user = JSON.parse(userStr);
+      setCurrentUserId(user.id);
+
+      const res = await api.get(`/shifts/current/${user.id}`);
+      if (res) {
+        setHasActiveShift(true);
+        setStartTime(new Date(res.start_time));
+      } else {
+        setHasActiveShift(false);
+        setStartTime(null);
+      }
+    } catch (e) {
+      setHasActiveShift(false);
+      setStartTime(null);
+    }
+  };
+
   useEffect(() => {
     checkShiftStatus();
     
@@ -47,29 +69,6 @@ export default function StopShiftButton() {
     const timer = setInterval(updateTimer, 1000);
     return () => clearInterval(timer);
   }, [startTime]);
-
-  const checkShiftStatus = async () => {
-    const userStr = localStorage.getItem("user");
-    if (!userStr) return;
-    
-    try {
-      const user = JSON.parse(userStr);
-      setCurrentUserId(user.id);
-
-      const res = await api.get(`/shifts/current/${user.id}`);
-      if (res) {
-        setHasActiveShift(true);
-        setStartTime(new Date(res.start_time));
-      } else {
-        setHasActiveShift(false);
-        setStartTime(null);
-      }
-    } catch (e) {
-      // Silent error or just no shift
-      setHasActiveShift(false);
-      setStartTime(null);
-    }
-  };
 
   if (!hasActiveShift) return null;
 

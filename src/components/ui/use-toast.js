@@ -69,16 +69,16 @@ const ToastItem = ({ toast, removeToast }) => {
   };
 
   const borderColors = {
-    success: "border-green-200/70 bg-green-50/80 dark:border-green-900/50 dark:bg-green-950/30",
-    error: "border-red-200/70 bg-red-50/80 dark:border-red-900/50 dark:bg-red-950/30",
-    info: "border-blue-200/70 bg-blue-50/80 dark:border-blue-900/50 dark:bg-blue-950/30",
+    success: "border-green-200/70 bg-green-50/80",
+    error: "border-red-200/70 bg-red-50/80",
+    info: "border-blue-200/70 bg-blue-50/80",
   };
 
   return (
     <div
       className={cn(
         "pointer-events-auto flex items-start gap-3 p-4 rounded-lg border shadow-lg transition-all duration-300 transform",
-        "bg-background/95 text-foreground backdrop-blur supports-[backdrop-filter]:bg-background/80",
+        "bg-white/95 text-gray-900 backdrop-blur supports-[backdrop-filter]:bg-white/80",
         isVisible ? "translate-x-0 opacity-100" : "translate-x-full opacity-0",
         borderColors[toast.type]
       )}
@@ -90,7 +90,7 @@ const ToastItem = ({ toast, removeToast }) => {
           setIsVisible(false);
           setTimeout(() => removeToast(toast.id), 300);
         }}
-        className="shrink-0 text-muted-foreground hover:text-foreground transition-colors"
+        className="shrink-0 text-gray-500 hover:text-gray-900 transition-colors"
       >
         <X className="w-4 h-4" />
       </button>

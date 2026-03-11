@@ -22,12 +22,6 @@ export function ReceiptPreview({ isOpen, onClose, order }) {
     receipt_footer: "Thank you for visiting!\nPlease come again."
   });
 
-  useEffect(() => {
-    if (isOpen) {
-      loadStoreConfig();
-    }
-  }, [isOpen]);
-
   const loadStoreConfig = async () => {
     try {
       const res = await api.get("/settings/config");
@@ -36,6 +30,12 @@ export function ReceiptPreview({ isOpen, onClose, order }) {
       console.error("Failed to load store config", e);
     }
   };
+
+  useEffect(() => {
+    if (isOpen) {
+      loadStoreConfig();
+    }
+  }, [isOpen]);
 
   if (!order) return null;
 
