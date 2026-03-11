@@ -7,24 +7,42 @@ export const runtime = 'nodejs';
 
 export async function GET() {
   try {
-    const sql = neon(`${process.env.DATABASE_URL}`);
+    const neonUrl =
+      process.env.POSTGRES_URL_NON_POOLING ||
+      process.env.DATABASE_URL_UNPOOLED ||
+      process.env.DATABASE_URL ||
+      '';
+    const sql = neon(`${neonUrl}`);
     let neonStatus = 'unknown';
+    let neonError = null;
     let prismaStatus = 'unknown';
+    let prismaError = null;
     let users = 0;
 
-    const neonPing = await sql`SELECT 1 as ok`;
-    neonStatus = neonPing?.[0]?.ok === 1 ? 'ok' : 'unknown';
+    try {
+      const neonPing = await sql`SELECT 1 as ok`;
+      neonStatus = neonPing?.[0]?.ok === 1 ? 'ok' : 'unknown';
+    } catch (e) {
+      neonError = e?.message || String(e);
+    }
 
-    const ping = await prisma.$queryRaw`SELECT 1 as ok`;
-    prismaStatus = ping?.[0]?.ok === 1 ? 'ok' : 'unknown';
-    users = await prisma.user.count();
+    try {
+      const ping = await prisma.$queryRaw`SELECT 1 as ok`;
+      prismaStatus = ping?.[0]?.ok === 1 ? 'ok' : 'unknown';
+      users = await prisma.user.count();
+    } catch (e) {
+      prismaError = e?.message || String(e);
+    }
 
     return NextResponse.json({
-      database: 'ok',
+      database: neonStatus === 'ok' || prismaStatus === 'ok' ? 'ok' : 'error',
       ping: prismaStatus,
       neon: neonStatus,
       users_count: users,
       env: !!process.env.DATABASE_URL ? 'configured' : 'missing',
+      neon_error: neonError,
+      prisma_error: prismaError,
+      url_used: neonUrl ? 'present' : 'missing',
     });
   } catch (error) {
     return NextResponse.json(
