@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { api } from "../../../lib/api";
 import { formatIDR } from "../../../lib/format";
 import { Card, CardContent, CardHeader, CardTitle } from "../../../components/ui/card";
@@ -29,7 +29,7 @@ export default function CashierReportPage() {
     loadReport();
   }, [date, loadReport]);
 
-  const loadReport = async () => {
+  const loadReport = useCallback(async () => {
     setLoading(true);
     try {
       const res = await api.get(`/analytics/cashier-report?date=${date}`);
@@ -40,7 +40,7 @@ export default function CashierReportPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [date, error]);
 
   const handlePrint = () => {
     window.print();

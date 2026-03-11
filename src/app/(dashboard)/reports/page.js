@@ -1,6 +1,6 @@
 "use client";
-import { useEffect, useState } from "react";
-import { api } from "../../../lib/api";
+import { useEffect, useState, useCallback } from "react";
+import { api, getAuth } from "../../../lib/api";
 import { formatIDR } from "../../../lib/format";
 import { Card, CardContent, CardHeader, CardTitle } from "../../../components/ui/card";
 import { Input } from "../../../components/ui/input";
@@ -41,13 +41,13 @@ export default function ReportsPage() {
       loadCashierReport();
       loadReconHistory();
     }
-  }, [activeTab, load, loadCashierReport]);
+  }, [activeTab, load, loadCashierReport, loadReconHistory]);
 
   useEffect(() => {
     if (activeTab === "cashier") loadCashierReport();
   }, [cashierDate, activeTab, loadCashierReport]);
 
-  async function load() {
+  const load = useCallback(async () => {
     setLoading(true);
     try {
       const qs = (from || to) ? `?from=${from || ""}&to=${to || ""}` : "";
@@ -64,18 +64,18 @@ export default function ReportsPage() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [from, to]);
 
-  const loadReconHistory = async () => {
+  const loadReconHistory = useCallback(async () => {
     try {
       const res = await api.get("/analytics/reconciliation-list");
       setReconHistory(res);
     } catch (e) {
       console.error(e);
     }
-  };
+  }, []);
 
-  const loadCashierReport = async () => {
+  const loadCashierReport = useCallback(async () => {
     setLoadingCashier(true);
     try {
       const res = await api.get(`/analytics/cashier-report?date=${cashierDate}`);
@@ -101,7 +101,7 @@ export default function ReportsPage() {
     } finally {
       setLoadingCashier(false);
     }
-  };
+  }, [cashierDate, error]);
 
   const handleActualChange = (method, value) => {
     setActualCounts(prev => ({
@@ -131,11 +131,12 @@ export default function ReportsPage() {
         }
       });
 
+      const user = getAuth();
       await api.post("/analytics/reconciliation", {
         date: cashierDate,
         details,
         notes: reconNotes,
-        submitted_by: "Admin" // TODO: Use real user
+        submitted_by: user ? (user.username || user.name || "Admin") : "Admin"
       });
       
       success("Daily reconciliation report submitted successfully.");

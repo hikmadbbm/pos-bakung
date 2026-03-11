@@ -25,8 +25,6 @@ export const PrinterProvider = ({ children }) => {
     try {
       const selectedDevice = await navigator.bluetooth.requestDevice({
         filters: [{ services: ['000018f0-0000-1000-8000-00805f9b34fb'] }], // Standard POS UUID
-        // acceptAllDevices: true,
-        // optionalServices: ['000018f0-0000-1000-8000-00805f9b34fb'] 
       });
 
       const connectedServer = await selectedDevice.gatt.connect();
@@ -64,7 +62,6 @@ export const PrinterProvider = ({ children }) => {
     setServer(null);
     setService(null);
     setCharacteristic(null);
-    // error("Printer disconnected");
   };
 
   const print = async (data) => {

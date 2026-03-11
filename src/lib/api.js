@@ -2,10 +2,6 @@ import axios from "axios";
 
 const BASE = '/api';
 
-if (typeof window !== "undefined") {
-  console.log("API Configured Base URL:", BASE);
-}
-
 const apiClient = axios.create({
   baseURL: BASE,
   headers: {

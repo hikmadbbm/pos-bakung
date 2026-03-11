@@ -31,9 +31,6 @@ export default function SettingsPage() {
     store_name: "", address: "", phone: "", receipt_footer: ""
   });
 
-  // PIN Settings State
-  const [pinData, setPinData] = useState({ currentPin: "", newPin: "" });
-
   useEffect(() => {
     if (activeTab === "platforms") loadPlatforms();
     if (activeTab === "receipt") loadReceiptConfig();
@@ -71,21 +68,8 @@ export default function SettingsPage() {
     }
   };
   
-  // NOTE: This assumes we are updating the logged-in user's PIN. 
-  // Since we don't have full auth context in frontend yet, we'll assume a single user or need to pick user.
-  // For simplicity, we won't implement full PIN management UI here unless requested, 
-  // but let's at least show a placeholder or basic update if possible.
-  // Actually, let's implement a simple "Update PIN" for the default user (ID 1) or similar.
-  // Or better, just a "Set PIN" form that updates the first user found or currently logged in.
-  // Let's assume user ID 1 for now or rely on backend to handle "current user".
-  // Ideally backend should use req.user.id from JWT.
+  // NOTE: PIN management is handled in User Management tab or by admin.
   
-  const handleUpdatePin = async (e) => {
-     e.preventDefault();
-     // TODO: Implement proper PIN update with auth
-     error("PIN update requires full authentication context implementation.");
-  };
-
   const handlePlatformSubmit = async (e) => {
     e.preventDefault();
     try {
@@ -408,27 +392,12 @@ export default function SettingsPage() {
               <div className="space-y-4">
                 <p className="text-sm text-gray-500">
                   Set a PIN code to authorize sensitive actions like cancelling orders or refunding transactions.
-                  (Currently disabled pending full auth implementation)
+                  Please use the <strong>User Management</strong> tab to set PINs for specific users.
                 </p>
-                {/* 
-                <form onSubmit={handleUpdatePin} className="space-y-4 max-w-md">
-                  <div className="space-y-2">
-                    <Label>New PIN Code</Label>
-                    <Input 
-                      type="password" 
-                      value={pinData.newPin}
-                      onChange={e => setPinData({...pinData, newPin: e.target.value})}
-                      placeholder="Enter 4-6 digit PIN"
-                      maxLength={6}
-                    />
-                  </div>
-                  <Button type="submit" disabled>Update PIN</Button>
-                </form>
-                */}
+                
                 <div className="bg-yellow-50 p-4 rounded border border-yellow-200">
                   <p className="text-sm text-yellow-700">
-                    <strong>Note:</strong> Please contact your system administrator to reset or manage staff PIN codes directly in the database for now.
-                    Default PIN for testing: <strong>123456</strong> (if configured).
+                    <strong>Note:</strong> Default PIN for testing: <strong>123456</strong> (if configured).
                   </p>
                 </div>
               </div>

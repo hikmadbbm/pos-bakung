@@ -57,15 +57,6 @@ export default function UserMenu() {
           return;
         }
       } catch (e) {
-        // If 404 or error, proceed to logout?
-        // Usually api.get returns null if I implemented it that way?
-        // My backend route returns null if not found?
-        // backend: res.json(shift || null);
-        // So api.get returns null. It won't throw 404 unless I changed it.
-        // Wait, backend code: `res.json(shift || null);`
-        // So it returns 200 OK with null.
-        // So `shift` will be null.
-        // So error block is for network error.
         console.error("Logout check failed", e);
       }
     }

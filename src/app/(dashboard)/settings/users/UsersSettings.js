@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { api } from "../../../../lib/api";
 import { Card, CardContent, CardHeader, CardTitle } from "../../../../components/ui/card";
 import { Button } from "../../../../components/ui/button";
@@ -37,7 +37,7 @@ export default function UsersSettings() {
     loadUsers();
   }, [loadUsers]);
 
-  const loadUsers = async () => {
+  const loadUsers = useCallback(async () => {
     setLoading(true);
     try {
       const res = await api.get("/users");
@@ -48,7 +48,7 @@ export default function UsersSettings() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [error]);
 
   const handleOpenDialog = (user = null) => {
     if (user) {

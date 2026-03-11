@@ -107,8 +107,6 @@ export default function StopShiftButton() {
         onSuccess={() => {
           setHasActiveShift(false);
           setStartTime(null);
-          // Optional: Redirect to login or show success
-          // window.location.reload(); 
         }}
         currentUserId={currentUserId}
       />

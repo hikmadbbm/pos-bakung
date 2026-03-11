@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { api } from "../../../lib/api";
 import { formatIDR } from "../../../lib/format";
 import { Button } from "../../../components/ui/button";
@@ -111,13 +111,13 @@ export default function OrdersPage() {
     }
   };
 
-  const getPrice = (menu) => {
+  const getPrice = useCallback((menu) => {
     if (!selectedPlatform) return menu.price;
     if (menu.prices && menu.prices[selectedPlatform]) {
       return menu.prices[selectedPlatform];
     }
     return menu.price;
-  };
+  }, [selectedPlatform]);
 
   // --- Cart Logic ---
 
