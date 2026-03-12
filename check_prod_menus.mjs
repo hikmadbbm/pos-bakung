@@ -1,6 +1,12 @@
 import { neon } from '@neondatabase/serverless';
 
-const sql = neon('postgresql://neondb_owner:npg_3NZCf8udJisc@ep-square-moon-a12tt33h-pooler.ap-southeast-1.aws.neon.tech/neondb?sslmode=require');
+const databaseUrl = process.env.DATABASE_URL || process.env.DATABASE_URL_UNPOOLED;
+if (!databaseUrl) {
+  console.error("DATABASE_URL is not defined in environment variables");
+  process.exit(1);
+}
+
+const sql = neon(databaseUrl);
 
 async function checkMenus() {
   try {

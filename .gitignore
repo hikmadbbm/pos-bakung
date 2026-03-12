@@ -24,3 +24,8 @@ out/
 
 .vercel
 .env*.local
+
+# Maintenance/Verify Scripts
+verify_*.js
+check_*.js
+!check_prod_menus.mjs
