@@ -11,17 +11,58 @@ import StopShiftButton from "../../components/StopShiftButton";
 import { FocusModeProvider, useFocusMode } from "../../lib/focus-mode-context";
 import { useToast } from "../../components/ui/use-toast";
 
-const navItems = [
-  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/orders", label: "POS", icon: ShoppingCart },
-  { href: "/orders-list", label: "Order History", icon: ClipboardList },
-  { href: "/menu", label: "Menu Management", icon: Utensils },
-  { href: "/expenses", label: "Expenses & Costs", icon: DollarSign },
-  { href: "/reports", label: "Reports", icon: BarChart },
-  { href: "/analytics", label: "AI Analytics", icon: Activity },
-  { href: "/recipes", label: "Recipe Management", icon: ClipboardList },
-  { href: "/shift", label: "Shift Management", icon: Clock },
-  { href: "/settings", label: "Settings", icon: Settings },
+const navGroups = [
+  {
+    group: null, // Top level items without a group
+    items: [
+      { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+    ]
+  },
+  {
+    group: "Sales",
+    items: [
+      { href: "/orders", label: "POS", icon: ShoppingCart },
+      { href: "/orders-list", label: "Order History", icon: ClipboardList },
+      { href: "/shift", label: "Shift Management", icon: Clock },
+    ]
+  },
+  {
+    group: "Menu & Kitchen",
+    items: [
+      { href: "/menu", label: "Menu Management", icon: Utensils },
+      { href: "/recipes", label: "Recipes", icon: ClipboardList },
+      { href: "/kitchen", label: "Kitchen View", icon: Utensils },
+    ]
+  },
+  {
+    group: "Inventory",
+    items: [
+      { href: "/ingredients", label: "Ingredient List", icon: ClipboardList },
+      { href: "/purchase", label: "Purchase", icon: Smartphone },
+      { href: "/stock", label: "Stock", icon: Activity },
+    ]
+  },
+  {
+    group: "Finance",
+    items: [
+      { href: "/hpp-calculator", label: "HPP Calculator", icon: DollarSign },
+      { href: "/expenses", label: "Expenses & Costs", icon: DollarSign },
+    ]
+  },
+  {
+    group: "Reports",
+    items: [
+      { href: "/reports", label: "General Reports", icon: BarChart },
+      { href: "/cashier-report", label: "Cashier Report", icon: ClipboardList },
+      { href: "/analytics", label: "AI Analytics", icon: Activity },
+    ]
+  },
+  {
+    group: null,
+    items: [
+      { href: "/settings", label: "Settings", icon: Settings },
+    ]
+  }
 ];
 
 function DashboardContent({ children }) {
@@ -48,19 +89,20 @@ function DashboardContent({ children }) {
 
   // Define permissions mapping
   const rolePermissions = {
-    OWNER: ["/dashboard", "/orders", "/orders-list", "/menu", "/expenses", "/reports", "/analytics", "/shift", "/settings", "/kitchen", "/recipes"],
-    MANAGER: ["/dashboard", "/orders", "/orders-list", "/menu", "/reports", "/analytics", "/shift", "/kitchen", "/recipes"],
-    CASHIER: ["/orders", "/orders-list", "/reports", "/shift"],
-    KITCHEN: ["/kitchen", "/orders-list", "/menu"]
+    OWNER: ["/dashboard", "/orders", "/orders-list", "/menu", "/expenses", "/reports", "/analytics", "/shift", "/settings", "/kitchen", "/recipes", "/cashier-report", "/ingredients", "/purchase", "/stock", "/hpp-calculator"],
+    MANAGER: ["/dashboard", "/orders", "/orders-list", "/menu", "/reports", "/analytics", "/shift", "/kitchen", "/recipes", "/cashier-report", "/ingredients", "/hpp-calculator"],
+    CASHIER: ["/orders", "/orders-list", "/cashier-report", "/shift"],
+    KITCHEN: ["/kitchen", "/orders-list", "/menu", "/ingredients"]
   };
 
-  const filteredNavItems = navItems
-    .concat([{ href: "/kitchen", label: "Kitchen View", icon: Utensils }])
-    .filter(item => {
-    if (!user) return false;
-    const allowedPaths = rolePermissions[user.role] || [];
-    return allowedPaths.some(path => item.href.startsWith(path));
-  });
+  const filteredNavGroups = navGroups.map(group => ({
+    ...group,
+    items: group.items.filter(item => {
+      if (!user) return false;
+      const allowedPaths = rolePermissions[user.role] || [];
+      return allowedPaths.some(path => item.href.startsWith(path));
+    })
+  })).filter(group => group.items.length > 0);
 
   // Auto-exit Focus Mode if navigating away from the POS page
   useEffect(() => {
@@ -99,13 +141,8 @@ function DashboardContent({ children }) {
   if (user && mounted) {
     const allowedPaths = rolePermissions[user.role] || [];
     const isAllowed = allowedPaths.some(path => pathname.startsWith(path));
-    if (!isAllowed && pathname !== "/dashboard") { // Dashboard usually safe or has separate logic
-       // If on root dashboard redirect to first allowed or POS
-       if (pathname === "/dashboard" && !allowedPaths.includes("/dashboard")) {
-          // handled in children or below
-       }
-       // router.push(allowedPaths[0] || "/login"); 
-       // For now just hide nav and let API fail, but better would be a redirect.
+    if (!isAllowed && pathname !== "/dashboard") { 
+       // Basic protection
     }
   }
 
@@ -143,32 +180,46 @@ function DashboardContent({ children }) {
             </button>
           </div>
 
-          <nav className="flex-1 p-2 space-y-1 overflow-y-auto">
-            {filteredNavItems.map((item) => {
-              const Icon = item.icon;
-              const isActive = pathname.startsWith(item.href);
-              return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  onClick={() => setIsSidebarOpen(false)}
-                  className={cn(
-                    "flex items-center rounded-md text-sm font-medium transition-colors group",
-                    isCollapsed ? "justify-center px-2 py-3" : "px-3 py-2.5",
-                    isActive
-                      ? "bg-blue-50 text-blue-700"
-                      : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
-                  )}
-                  title={isCollapsed ? item.label : ""}
-                >
-                  <Icon className={cn("w-5 h-5 flex-shrink-0", !isCollapsed && "mr-3")} />
-                  {!isCollapsed && <span className="truncate">{item.label}</span>}
-                </Link>
-              );
-            })}
+          <nav className="flex-1 p-2 space-y-4 overflow-y-auto">
+            {filteredNavGroups.map((group, gIdx) => (
+              <div key={gIdx} className="space-y-1">
+                {group.group && !isCollapsed && (
+                  <div className="px-3 py-2 text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+                    {group.group}
+                  </div>
+                )}
+                {group.group && isCollapsed && (
+                   <div className="border-t my-2 border-gray-100 mx-2" />
+                )}
+                <div className="space-y-1">
+                  {group.items.map((item) => {
+                    const Icon = item.icon;
+                    const isActive = pathname.startsWith(item.href);
+                    return (
+                      <Link
+                        key={item.href}
+                        href={item.href}
+                        onClick={() => setIsSidebarOpen(false)}
+                        className={cn(
+                          "flex items-center rounded-md text-sm font-medium transition-colors group",
+                          isCollapsed ? "justify-center px-2 py-3" : "px-3 py-2.5",
+                          isActive
+                            ? "bg-blue-50 text-blue-700 font-bold"
+                            : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+                        )}
+                        title={isCollapsed ? item.label : ""}
+                      >
+                        <Icon className={cn("w-5 h-5 flex-shrink-0", !isCollapsed && "mr-3")} />
+                        {!isCollapsed && <span className="truncate">{item.label}</span>}
+                      </Link>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
           </nav>
-          
-          <div className="p-2 border-t">
+
+          <div className="p-2 border-t mt-auto">
             <button
               onClick={handleLogout}
               className={cn(
@@ -214,7 +265,7 @@ function DashboardContent({ children }) {
                 <Menu className="w-5 h-5" />
               </button>
               <h2 className="text-lg font-semibold text-gray-800 truncate">
-                {navItems.find((n) => pathname.startsWith(n.href))?.label || "Dashboard"}
+                {navGroups.flatMap(g => g.items).find((n) => pathname.startsWith(n.href))?.label || "Dashboard"}
               </h2>
             </div>
             
