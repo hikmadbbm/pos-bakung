@@ -123,14 +123,24 @@ export async function DELETE(req, { params }) {
     if (!Number.isFinite(id)) {
       return NextResponse.json({ error: 'Invalid id' }, { status: 400 });
     }
-    await prisma.menu.update({ 
-      where: { id },
-      data: { is_active: false }
-    });
-    return NextResponse.json({ ok: true });
+
+    try {
+      await prisma.menu.delete({ 
+        where: { id }
+      });
+      return NextResponse.json({ ok: true });
+    } catch (e) {
+      // Prisma error for foreign key constraint fail
+      if (e.code === 'P2003') {
+        return NextResponse.json({ 
+          error: 'This item cannot be deleted because it is part of existing Order History or Recipes. You can deactivate it instead.' 
+        }, { status: 400 });
+      }
+      throw e;
+    }
   } catch (error) {
     console.error('Failed to delete menu:', error);
-    return NextResponse.json({ error: 'Failed to delete menu' }, { status: 500 });
+    return NextResponse.json({ error: error.message || 'Failed to delete menu' }, { status: 500 });
   }
 }
 
