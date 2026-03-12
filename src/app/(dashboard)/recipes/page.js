@@ -17,45 +17,8 @@ import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from ".
 import { useToast } from "../../../components/ui/use-toast";
 import { cn } from "../../../lib/utils";
 import { calculateIngredientCost } from "../../../lib/conversions";
-
-const formatIDR = (amount) => {
-  return new Intl.NumberFormat("id-ID", {
-    style: "currency",
-    currency: "IDR",
-    minimumFractionDigits: 0,
-  }).format(amount);
-};
-
-const api = {
-  get: async (url) => {
-    const res = await fetch(url);
-    if (!res.ok) throw new Error(`GET ${url} failed`);
-    return res.json();
-  },
-  post: async (url, data) => {
-    const res = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data)
-    });
-    if (!res.ok) throw new Error(`POST ${url} failed`);
-    return res.json();
-  },
-  put: async (url, data) => {
-    const res = await fetch(url, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data)
-    });
-    if (!res.ok) throw new Error(`PUT ${url} failed`);
-    return res.json();
-  },
-  delete: async (url) => {
-    const res = await fetch(url, { method: 'DELETE' });
-    if (!res.ok) throw new Error(`DELETE ${url} failed`);
-    return res.json();
-  }
-};
+import { api } from "../../../lib/api"; // Use global authenticated API
+import { formatIDR } from "../../../lib/format";
 
 // --- Components ---
 
@@ -74,7 +37,7 @@ function IngredientManager() {
 
   const loadIngredients = async () => {
     try {
-      const data = await api.get("/api/ingredients");
+      const data = await api.get("/ingredients");
       setIngredients(data);
     } catch (e) {
       console.error(e);
@@ -86,10 +49,10 @@ function IngredientManager() {
   const handleSave = async () => {
     try {
       if (editing) {
-        await api.put(`/api/ingredients/${editing.id}`, form);
+        await api.put(`/ingredients/${editing.id}`, form);
         success("Ingredient updated");
       } else {
-        await api.post("/api/ingredients", form);
+        await api.post("/ingredients", form);
         success("Ingredient added");
       }
       setEditing(null);
@@ -103,7 +66,7 @@ function IngredientManager() {
   const handleDelete = async (id) => {
     if (!confirm("Are you sure?")) return;
     try {
-      await api.delete(`/api/ingredients/${id}`);
+      await api.delete(`/ingredients/${id}`);
       loadIngredients();
     } catch (e) {
       error("Could not delete. Ingredient might be in use.");
@@ -277,7 +240,7 @@ function RecipeList({ onAdd, onEdit }) {
 
   const loadRecipes = async () => {
     try {
-      const data = await api.get("/api/recipes");
+      const data = await api.get("/recipes");
       setRecipes(data);
     } catch (e) {
       console.error(e);
@@ -301,7 +264,7 @@ function RecipeList({ onAdd, onEdit }) {
           source: i.source
         }))
       };
-      await api.post("/api/recipes", data);
+      await api.post("/recipes", data);
       loadRecipes();
     } catch (e) {
       console.error(e);
@@ -311,7 +274,7 @@ function RecipeList({ onAdd, onEdit }) {
   const handleDelete = async (id) => {
     if (!confirm("Delete this recipe?")) return;
     try {
-      await api.delete(`/api/recipes/${id}`);
+      await api.delete(`/recipes/${id}`);
       loadRecipes();
     } catch (e) {
       console.error(e);
@@ -417,14 +380,14 @@ function RecipeForm({ id, onClose }) {
     setLoading(true);
     try {
       const [allMenus, allIngs] = await Promise.all([
-        api.get("/api/menus"),
-        api.get("/api/ingredients")
+        api.get("/menus?all=true"),
+        api.get("/ingredients")
       ]);
       setMenus(allMenus);
       setDbIngredients(allIngs);
 
       if (id) {
-        const data = await api.get(`/api/recipes/${id}`);
+        const data = await api.get(`/recipes/${id}`);
         setRecipe(data);
         setTargetPortions(data.base_quantity || 1);
       }
@@ -521,9 +484,9 @@ function RecipeForm({ id, onClose }) {
   const handleSave = async () => {
     try {
       if (id) {
-        await api.put(`/api/recipes/${id}`, recipe);
+        await api.put(`/recipes/${id}`, recipe);
       } else {
-        await api.post("/api/recipes", recipe);
+        await api.post("/recipes", recipe);
       }
       success("Recipe Saved");
       onClose();
