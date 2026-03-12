@@ -9,7 +9,8 @@ import { Input } from "../../../components/ui/input";
 import { Label } from "../../../components/ui/label";
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "../../../components/ui/table";
 import { useToast } from "../../../components/ui/use-toast";
-import { Clock, DollarSign, LogOut } from "lucide-react";
+import { Clock, DollarSign, LogOut, CheckCircle2 } from "lucide-react";
+import StopShiftModal from "../../../components/StopShiftModal";
 
 export default function ShiftPage() {
   const { success, error } = useToast();
@@ -21,8 +22,7 @@ export default function ShiftPage() {
   const [startCash, setStartCash] = useState("");
   
   // For End Shift
-  const [endCash, setEndCash] = useState("");
-  const [endTotalSales, setEndTotalSales] = useState("");
+  const [isStopModalOpen, setIsStopModalOpen] = useState(false);
 
   // Ideally get this from Auth Context
   const [currentUser, setCurrentUser] = useState(null); 
@@ -81,27 +81,10 @@ export default function ShiftPage() {
     }
   };
 
-  const handleEndShift = async (e) => {
-    e.preventDefault();
-    if (!currentUser || !currentShift) return;
-    try {
-      const res = await api.post("/shifts/end", {
-        user_id: currentUser.id,
-        ending_cash: parseInt(endCash),
-        total_sales: parseInt(endTotalSales || 0) // Should ideally be auto-calculated
-      });
-      setCurrentShift(null);
-      success("Shift ended successfully");
-      
-      // Dispatch global event
-      window.dispatchEvent(new Event('shift-status-changed'));
-      
+  const handleStopShiftSuccess = () => {
+    setCurrentShift(null);
+    if (currentUser) {
       loadHistory(currentUser.id);
-      setEndCash("");
-      setEndTotalSales("");
-    } catch (e) {
-      console.error(e);
-      error(e.response?.data?.error || "Failed to end shift");
     }
   };
 
@@ -154,38 +137,48 @@ export default function ShiftPage() {
                 <Button type="submit" className="w-full">Start Shift</Button>
               </form>
             ) : (
-              <form onSubmit={handleEndShift} className="space-y-4">
-                <div className="space-y-2">
-                  <Label>Total Sales (Optional Override)</Label>
-                  <div className="relative">
-                    <span className="absolute left-3 top-2.5 text-gray-500">Rp</span>
-                    <Input 
-                      className="pl-10" 
-                      type="number" 
-                      placeholder="Auto-calculated if empty"
-                      value={endTotalSales}
-                      onChange={(e) => setEndTotalSales(e.target.value)}
-                    />
+              <div className="space-y-6">
+                <div className="p-4 bg-blue-50 border border-blue-100 rounded-xl space-y-3">
+                  <div className="flex items-center gap-3 text-blue-800">
+                    <div className="p-2 bg-blue-100 rounded-lg">
+                      <Clock className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-bold">Shift In Progress</p>
+                      <p className="text-[10px] opacity-70 uppercase tracking-wider font-bold">Opened at {new Date(currentShift.start_time).toLocaleTimeString()}</p>
+                    </div>
+                  </div>
+                  
+                  <div className="grid grid-cols-2 gap-3 pt-2 border-t border-blue-100">
+                    <div>
+                      <p className="text-[10px] text-blue-600 font-bold uppercase tracking-tight">Starting Cash</p>
+                      <p className="text-sm font-bold text-blue-900">{formatIDR(currentShift.starting_cash)}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-[10px] text-blue-600 font-bold uppercase tracking-tight">Status</p>
+                      <div className="flex items-center justify-end gap-1">
+                        <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
+                        <p className="text-sm font-bold text-green-700">Active</p>
+                      </div>
+                    </div>
                   </div>
                 </div>
-                <div className="space-y-2">
-                  <Label>Ending Cash (Uang di Laci)</Label>
-                  <div className="relative">
-                    <span className="absolute left-3 top-2.5 text-gray-500">Rp</span>
-                    <Input 
-                      className="pl-10" 
-                      type="number" 
-                      required
-                      placeholder="0"
-                      value={endCash}
-                      onChange={(e) => setEndCash(e.target.value)}
-                    />
-                  </div>
+
+                <div className="bg-orange-50 p-4 rounded-xl border border-orange-100">
+                  <p className="text-[10px] text-orange-800 font-black uppercase tracking-widest mb-1">Attention</p>
+                  <p className="text-xs text-orange-700 leading-relaxed font-medium">
+                    Ending a shift requires **Manager Authorization**. You will need to count the cash in the drawer and reconcile all payment methods.
+                  </p>
                 </div>
-                <Button type="submit" variant="destructive" className="w-full">
-                  <LogOut className="w-4 h-4 mr-2" /> End Shift
+
+                <Button 
+                  onClick={() => setIsStopModalOpen(true)} 
+                  variant="destructive" 
+                  className="w-full py-6 font-bold shadow-sm shadow-red-200 hover:scale-[1.01] active:scale-[0.99] transition-all gap-2"
+                >
+                  <LogOut className="w-5 h-5" /> End Shift & Reconcile
                 </Button>
-              </form>
+              </div>
             )}
           </CardContent>
         </Card>
@@ -254,6 +247,13 @@ export default function ShiftPage() {
           </Table>
         </CardContent>
       </Card>
+
+      <StopShiftModal 
+        isOpen={isStopModalOpen} 
+        onClose={() => setIsStopModalOpen(false)}
+        onSuccess={handleStopShiftSuccess}
+        currentUserId={currentUser?.id}
+      />
     </div>
   );
 }
