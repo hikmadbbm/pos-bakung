@@ -144,9 +144,30 @@ export async function POST(req) {
       const receivedNum = Number(money_received) || 0;
       const change_amount = receivedNum ? receivedNum - netSubtotal : 0;
 
-      // 3. Create the order
+      // 3. Calculate Daily Sequence Number
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const tomorrow = new Date(today);
+      tomorrow.setDate(tomorrow.getDate() + 1);
+
+      const dailyCount = await tx.order.count({
+        where: {
+          date: {
+            gte: today,
+            lt: tomorrow
+          }
+        }
+      });
+
+      const mm = String(today.getMonth() + 1).padStart(2, '0');
+      const dd = String(today.getDate()).padStart(2, '0');
+      const nextNum = String(dailyCount + 1).padStart(3, '0');
+      const orderNumber = `TRX-${mm}${dd}-${nextNum}`;
+
+      // 4. Create the order
       const newOrder = await tx.order.create({
         data: {
+          order_number: orderNumber,
           total: subtotal,
           discount: appliedDiscount,
           discount_type: finalDiscountType,
@@ -166,18 +187,13 @@ export async function POST(req) {
             create: itemsToCreate,
           },
         },
-      });
-
-      // 4. Update order_number with the ID
-      const orderNumber = `TRX-${String(newOrder.id).padStart(3, '0')}`;
-      return await tx.order.update({
-        where: { id: newOrder.id },
-        data: { order_number: orderNumber },
         include: {
           orderItems: { include: { menu: true } },
           platform: true,
         },
       });
+
+      return newOrder;
     }, {
       timeout: 15000 // Increase timeout to 15s to handle potentially slow cold starts
     });
