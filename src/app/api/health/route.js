@@ -8,9 +8,9 @@ export const runtime = 'nodejs';
 export async function GET() {
   try {
     const neonUrl =
+      process.env.DATABASE_URL ||
       process.env.POSTGRES_URL_NON_POOLING ||
       process.env.DATABASE_URL_UNPOOLED ||
-      process.env.DATABASE_URL ||
       '';
     const sql = neon(`${neonUrl}`);
     let neonStatus = 'unknown';

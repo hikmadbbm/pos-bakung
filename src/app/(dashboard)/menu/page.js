@@ -17,6 +17,12 @@ export default function MenuPage() {
   const [categories, setCategories] = useState([]);
   const [platforms, setPlatforms] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [user, setUser] = useState(null);
+
+  useEffect(() => {
+    const userStr = localStorage.getItem("user");
+    if (userStr) setUser(JSON.parse(userStr));
+  }, []);
   
   // Menu Dialog State
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -28,6 +34,13 @@ export default function MenuPage() {
   const [categoryFormData, setCategoryFormData] = useState({ name: "", color: "#cccccc" });
   const [isCategoryEditing, setIsCategoryEditing] = useState(null);
 
+  // Inline delete confirmation state (avoids window.confirm() which blocks the thread)
+  const [confirmDeleteId, setConfirmDeleteId] = useState(null);
+  const [confirmDeleteCatId, setConfirmDeleteCatId] = useState(null);
+
+  // Form validation
+  const [categoryError, setCategoryError] = useState(false);
+
   useEffect(() => {
     loadData();
   }, []);
@@ -35,14 +48,17 @@ export default function MenuPage() {
   const loadData = async () => {
     setLoading(true);
     try {
-      const [m, c, p] = await Promise.all([
+      const [mRes, cRes, pRes] = await Promise.allSettled([
         api.get("/menus"),
         api.get("/categories"),
-        api.get("/platforms")
+        api.get("/platforms"),
       ]);
-      setMenus(m);
-      setCategories(c);
-      setPlatforms(p);
+      if (mRes.status === "fulfilled") setMenus(mRes.value);
+      else error("Failed to load menus");
+      if (cRes.status === "fulfilled") setCategories(cRes.value);
+      else error("Failed to load categories");
+      if (pRes.status === "fulfilled") setPlatforms(pRes.value);
+      else error("Failed to load platforms");
     } catch (e) {
       console.error(e);
     } finally {
@@ -54,6 +70,12 @@ export default function MenuPage() {
 
   const handleMenuSubmit = async (e) => {
     e.preventDefault();
+    // Category is required
+    if (!formData.categoryId) {
+      setCategoryError(true);
+      return;
+    }
+    setCategoryError(false);
     try {
       if (isEditing) {
         await api.put(`/menus/${isEditing}`, formData);
@@ -70,14 +92,28 @@ export default function MenuPage() {
     }
   };
 
+  const handleToggleActive = async (menu) => {
+    try {
+      await api.put(`/menus/${menu.id}`, { ...menu, is_active: !menu.is_active });
+      setMenus(prev => prev.map(m => m.id === menu.id ? { ...m, is_active: !m.is_active } : m));
+      success(`${menu.name} is now ${!menu.is_active ? 'Active' : 'Sold Out'}`);
+    } catch (e) {
+      console.error(e);
+      error("Failed to update availability");
+    }
+  };
+
   const handleDeleteMenu = async (id) => {
-    if (!confirm("Delete menu item?")) return;
+    // --- Optimistic UI: remove instantly before server responds ---
+    const previous = menus;
+    setConfirmDeleteId(null);
+    setMenus(prev => prev.filter(m => m.id !== id));
     try {
       await api.delete(`/menus/${id}`);
-      loadData();
       success("Menu deleted");
     } catch (e) {
       console.error(e);
+      setMenus(previous); // rollback on failure
       error("Failed to delete menu");
     }
   };
@@ -160,13 +196,18 @@ export default function MenuPage() {
   };
 
   const handleDeleteCategory = async (id) => {
-    if (!confirm("Delete category? This might affect menu items.")) return;
+    // --- Optimistic UI: remove instantly before server responds ---
+    const previous = categories;
+    setConfirmDeleteCatId(null);
+    setCategories(prev => prev.filter(c => c.id !== id));
+    // Also clear category reference from menus immediately
+    setMenus(prev => prev.map(m => m.categoryId === id ? { ...m, categoryId: null, category: null } : m));
     try {
       await api.delete(`/categories/${id}`);
-      loadData();
       success("Category deleted");
     } catch (e) {
       console.error(e);
+      setCategories(previous); // rollback on failure
       error("Failed to delete category");
     }
   };
@@ -185,14 +226,16 @@ export default function MenuPage() {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h2 className="text-2xl font-bold tracking-tight">Master Menu</h2>
-        <div className="space-x-2">
-          <Button variant="outline" onClick={() => setIsCategoryDialogOpen(true)}>
-            <Settings className="w-4 h-4 mr-2" /> Manage Categories
-          </Button>
-          <Button onClick={openCreateMenu}>
-            <Plus className="w-4 h-4 mr-2" /> Add Menu
-          </Button>
-        </div>
+        {user?.role !== 'KITCHEN' && (
+          <div className="space-x-2">
+            <Button variant="outline" onClick={() => setIsCategoryDialogOpen(true)}>
+              <Settings className="w-4 h-4 mr-2" /> Manage Categories
+            </Button>
+            <Button onClick={openCreateMenu}>
+              <Plus className="w-4 h-4 mr-2" /> Add Menu
+            </Button>
+          </div>
+        )}
       </div>
 
       <div className="bg-white rounded-md border">
@@ -205,6 +248,7 @@ export default function MenuPage() {
               <TableHead>Platform Prices</TableHead>
               <TableHead>Cost (HPP)</TableHead>
               <TableHead>Profit/Portion</TableHead>
+              <TableHead className="text-center">Availability</TableHead>
               <TableHead className="text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
@@ -249,16 +293,45 @@ export default function MenuPage() {
                     )}
                   </TableCell>
                   <TableCell>{formatIDR(m.cost)}</TableCell>
-                  <TableCell className="text-green-600 font-semibold">
+                   <TableCell className="text-green-600 font-semibold">
                     {formatIDR(m.profit)}
                   </TableCell>
+                  <TableCell className="text-center">
+                    <button
+                      onClick={() => handleToggleActive(m)}
+                      className={cn(
+                        "relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none",
+                        m.is_active ? "bg-green-500" : "bg-gray-300"
+                      )}
+                    >
+                      <span
+                        className={cn(
+                          "inline-block h-4 w-4 transform rounded-full bg-white transition-transform",
+                          m.is_active ? "translate-x-6" : "translate-x-1"
+                        )}
+                      />
+                    </button>
+                    <p className={cn("text-[9px] mt-1 font-bold italic", m.is_active ? "text-green-600" : "text-red-500")}>
+                      {m.is_active ? "READY" : "SOLD OUT"}
+                    </p>
+                  </TableCell>
                   <TableCell className="text-right space-x-2">
-                    <Button variant="ghost" size="icon" onClick={() => openEditMenu(m)}>
-                      <Edit2 className="w-4 h-4 text-gray-500" />
-                    </Button>
-                    <Button variant="ghost" size="icon" onClick={() => handleDeleteMenu(m.id)}>
-                      <Trash2 className="w-4 h-4 text-red-500" />
-                    </Button>
+                    {confirmDeleteId === m.id ? (
+                      <span className="inline-flex items-center gap-1">
+                        <span className="text-xs text-gray-500 mr-1">Delete?</span>
+                        <Button variant="destructive" size="sm" className="h-6 px-2 text-xs" onClick={() => handleDeleteMenu(m.id)}>Yes</Button>
+                        <Button variant="ghost" size="sm" className="h-6 px-2 text-xs" onClick={() => setConfirmDeleteId(null)}>Cancel</Button>
+                      </span>
+                    ) : (
+                      <>
+                        <Button variant="ghost" size="icon" onClick={() => openEditMenu(m)} disabled={user?.role === 'KITCHEN'}>
+                          <Edit2 className="w-4 h-4 text-gray-500" />
+                        </Button>
+                        <Button variant="ghost" size="icon" onClick={() => setConfirmDeleteId(m.id)} disabled={user?.role === 'KITCHEN'}>
+                          <Trash2 className="w-4 h-4 text-red-500" />
+                        </Button>
+                      </>
+                    )}
                   </TableCell>
                 </TableRow>
               ))
@@ -288,15 +361,23 @@ export default function MenuPage() {
           </div>
           
           <div className="space-y-2">
-            <Label>Category</Label>
+            <Label>Category <span className="text-red-500">*</span></Label>
             <Select
               value={formData.categoryId}
-              onChange={(e) => setFormData({ ...formData, categoryId: e.target.value })}
+              onChange={(e) => {
+                setFormData({ ...formData, categoryId: e.target.value });
+                if (e.target.value) setCategoryError(false);
+              }}
               options={[
                 { value: "", label: "Select Category..." },
                 ...categories.map(c => ({ value: c.id, label: c.name }))
               ]}
             />
+            {categoryError && (
+              <p className="text-xs text-red-500 flex items-center gap-1">
+                ⚠️ Please select a category before saving.
+              </p>
+            )}
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -438,12 +519,22 @@ export default function MenuPage() {
                       </TableCell>
                       <TableCell className="font-medium">{cat.name}</TableCell>
                       <TableCell className="text-right space-x-1">
-                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEditCategory(cat)}>
-                          <Edit2 className="w-3 h-3" />
-                        </Button>
-                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleDeleteCategory(cat.id)}>
-                          <Trash2 className="w-3 h-3 text-red-500" />
-                        </Button>
+                        {confirmDeleteCatId === cat.id ? (
+                          <span className="inline-flex items-center gap-1">
+                            <span className="text-xs text-gray-500 mr-1">Delete?</span>
+                            <Button variant="destructive" size="sm" className="h-6 px-2 text-xs" onClick={() => handleDeleteCategory(cat.id)}>Yes</Button>
+                            <Button variant="ghost" size="sm" className="h-6 px-2 text-xs" onClick={() => setConfirmDeleteCatId(null)}>Cancel</Button>
+                          </span>
+                        ) : (
+                          <>
+                            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEditCategory(cat)}>
+                              <Edit2 className="w-3 h-3" />
+                            </Button>
+                            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setConfirmDeleteCatId(cat.id)}>
+                              <Trash2 className="w-3 h-3 text-red-500" />
+                            </Button>
+                          </>
+                        )}
                       </TableCell>
                     </TableRow>
                   ))

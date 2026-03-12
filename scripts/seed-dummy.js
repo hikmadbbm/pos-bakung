@@ -1,7 +1,24 @@
 const { PrismaClient } = require('@prisma/client');
 const bcrypt = require('bcryptjs');
+require('dotenv').config({ path: '.env.local' });
+require('dotenv').config();
 
-const prisma = new PrismaClient();
+function pickDatabaseUrl() {
+  return (
+    process.env.SEED_DATABASE_URL ||
+    process.env.POSTGRES_URL_NON_POOLING ||
+    process.env.DATABASE_URL_UNPOOLED ||
+    process.env.DATABASE_URL
+  );
+}
+
+const prisma = new PrismaClient({
+  datasources: {
+    db: {
+      url: pickDatabaseUrl(),
+    },
+  },
+});
 
 async function ensureUser(client, { name, username, role, password, pin }) {
   const passwordHash = await bcrypt.hash(password, 10);

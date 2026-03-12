@@ -18,6 +18,7 @@ export default function UsersSettings() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isResetPassOpen, setIsResetPassOpen] = useState(false);
   const [editingUser, setEditingUser] = useState(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState(null);
   
   const [formData, setFormData] = useState({
     name: "",
@@ -33,22 +34,20 @@ export default function UsersSettings() {
 
   const [resetPassData, setResetPassData] = useState({ id: null, newPassword: "" });
 
-  useEffect(() => {
-    loadUsers();
-  }, [loadUsers]);
 
   const loadUsers = useCallback(async () => {
     setLoading(true);
     try {
       const res = await api.get("/users");
       setUsers(res);
-    } catch (e) {
-      console.error(e);
-      error("Failed to load users");
     } finally {
       setLoading(false);
     }
   }, [error]);
+
+  useEffect(() => {
+    loadUsers();
+  }, [loadUsers]);
 
   const handleOpenDialog = (user = null) => {
     if (user) {
@@ -116,7 +115,7 @@ export default function UsersSettings() {
   };
 
   const handleDisableUser = async (user) => {
-    if (!confirm(`Are you sure you want to ${user.status === 'ACTIVE' ? 'disable' : 'enable'} ${user.name}?`)) return;
+    setConfirmDeleteId(null);
     try {
       await api.put(`/users/${user.id}`, { 
         status: user.status === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE' 
@@ -201,9 +200,24 @@ export default function UsersSettings() {
                         <Button variant="ghost" size="icon" onClick={() => handleOpenDialog(user)}>
                           <Edit2 className="w-4 h-4 text-blue-500" />
                         </Button>
-                        <Button variant="ghost" size="icon" onClick={() => handleDisableUser(user)}>
-                          <Trash2 className={`w-4 h-4 ${user.status === 'ACTIVE' ? 'text-red-500' : 'text-green-500'}`} />
-                        </Button>
+                        {confirmDeleteId === user.id ? (
+                          <span className="inline-flex items-center gap-1">
+                            <span className="text-xs text-gray-500 mr-1">{user.status === 'ACTIVE' ? 'Disable?' : 'Enable?'}</span>
+                            <Button 
+                              variant={user.status === 'ACTIVE' ? 'destructive' : 'default'} 
+                              size="sm" 
+                              className="h-6 px-2 text-xs" 
+                              onClick={() => handleDisableUser(user)}
+                            >
+                              Yes
+                            </Button>
+                            <Button variant="ghost" size="sm" className="h-6 px-2 text-xs" onClick={() => setConfirmDeleteId(null)}>Cancel</Button>
+                          </span>
+                        ) : (
+                          <Button variant="ghost" size="icon" onClick={() => setConfirmDeleteId(user.id)}>
+                            <Trash2 className={`w-4 h-4 ${user.status === 'ACTIVE' ? 'text-red-500' : 'text-green-500'}`} />
+                          </Button>
+                        )}
                       </div>
                     </TableCell>
                   </TableRow>
@@ -251,12 +265,16 @@ export default function UsersSettings() {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>Role</Label>
-              <Select value={formData.role} onChange={(e) => setFormData({...formData, role: e.target.value})}>
-                <option value="CASHIER">Cashier</option>
-                <option value="KITCHEN">Kitchen</option>
-                <option value="MANAGER">Manager</option>
-                <option value="OWNER">Owner</option>
-              </Select>
+              <Select 
+                value={formData.role} 
+                onChange={(e) => setFormData({...formData, role: e.target.value})}
+                options={[
+                  { value: "CASHIER", label: "Cashier" },
+                  { value: "KITCHEN", label: "Kitchen" },
+                  { value: "MANAGER", label: "Manager" },
+                  { value: "OWNER", label: "Owner" }
+                ]}
+              />
             </div>
             <div className="space-y-2">
               <Label>Phone Number</Label>

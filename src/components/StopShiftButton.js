@@ -75,26 +75,27 @@ export default function StopShiftButton() {
   return (
     <div className="flex items-center gap-3">
       {/* Timer Display */}
-      <div className="hidden md:flex items-center gap-2 px-3 py-1.5 bg-blue-50 text-blue-700 rounded-md border border-blue-100 shadow-sm">
-        <Clock className="w-4 h-4 animate-pulse" />
-        <span className="font-mono font-bold text-sm tracking-widest">{elapsed}</span>
+      <div className="flex items-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-1 sm:py-1.5 bg-blue-50 text-blue-700 rounded-md border border-blue-100 shadow-sm">
+        <Clock className="w-3.5 h-3.5 sm:w-4 h-4 animate-pulse" />
+        <span className="font-mono font-bold text-[10px] sm:text-sm tracking-widest">{elapsed}</span>
       </div>
 
       <Button 
         variant="destructive" 
         size="sm" 
-        className="hidden lg:flex gap-2 font-bold shadow-sm animate-in fade-in zoom-in duration-300"
+        className="hidden sm:flex lg:flex gap-2 font-bold shadow-sm animate-in fade-in zoom-in duration-300"
         onClick={() => setIsOpen(true)}
       >
         <LogOut className="w-4 h-4" />
-        Stop Shift
+        <span className="hidden lg:inline">Stop Shift</span>
+        <span className="lg:hidden">Stop</span>
       </Button>
       
       {/* Mobile Icon Only */}
       <Button 
         variant="destructive" 
         size="icon" 
-        className="lg:hidden w-8 h-8 rounded-full shadow-sm"
+        className="sm:hidden w-8 h-8 rounded-full shadow-sm"
         onClick={() => setIsOpen(true)}
       >
         <LogOut className="w-4 h-4" />

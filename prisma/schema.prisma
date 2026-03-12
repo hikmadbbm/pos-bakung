@@ -1,32 +1,30 @@
-
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider  = "postgresql"
-  url       = env("DATABASE_URL")
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
 }
 
 model User {
-  id            Int      @id @default(autoincrement())
+  id            Int               @id @default(autoincrement())
   name          String
-  username      String   @unique
+  username      String            @unique
   email         String?
   password      String
-  role          Role     @default(CASHIER)
-  pin           String?  // PIN for quick login
+  role          Role              @default(CASHIER)
+  pin           String?
   phone_number  String?
-  status        String   @default("ACTIVE") // ACTIVE, INACTIVE
+  status        String            @default("ACTIVE")
   profile_photo String?
   employee_id   String?
   notes         String?
   last_login    DateTime?
-  created_at    DateTime @default(now())
-  updated_at    DateTime @updatedAt
-
-  shifts        UserShift[]
+  created_at    DateTime          @default(now())
+  updated_at    DateTime          @updatedAt
   activityLogs  UserActivityLog[]
+  shifts        UserShift[]
 
   @@map("user")
 }
@@ -34,90 +32,82 @@ model User {
 model UserActivityLog {
   id          Int      @id @default(autoincrement())
   user_id     Int
-  action_type String   // LOGIN, LOGOUT, ORDER_CREATE, etc.
+  action_type String
   description String?
   ip_address  String?
   timestamp   DateTime @default(now())
-  
-  user        User     @relation(fields: [user_id], references: [id])
+  user        User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
 
   @@map("user_activity_log")
 }
 
 model UserShift {
-  id            Int      @id @default(autoincrement())
-  user_id       Int
-  start_time    DateTime @default(now())
-  end_time      DateTime?
-  starting_cash Int      @default(0)
-  ending_cash   Int?
-  expected_cash Int?     @default(0)
-  discrepancy   Int?     @default(0)
-  note          String?
-  cash_breakdown Json?
-  total_sales   Int      @default(0)
-  status        String   @default("OPEN") // OPEN, CLOSED
-  
-  user          User     @relation(fields: [user_id], references: [id])
+  id             Int       @id @default(autoincrement())
+  user_id        Int
+  start_time     DateTime  @default(now())
+  end_time       DateTime?
+  starting_cash  Int       @default(0)
+  ending_cash    Int?
+  expected_cash  Int?      @default(0)
+  discrepancy    Int?      @default(0)
+  note           String?
+  cash_breakdown      Json?
+  reconciliation_data Json?
+  total_sales    Int       @default(0)
+  status         String    @default("OPEN")
+  user           User      @relation(fields: [user_id], references: [id], onDelete: Cascade)
 
   @@map("user_shift")
 }
 
 model StoreConfig {
-  id              Int      @id @default(autoincrement())
-  store_name      String   @default("BAKMIE YOU-TJE")
-  address         String?  @default("Jl. Bakung No. 123, Jakarta")
-  phone           String?  @default("0812-3456-7890")
-  receipt_footer  String?  @default("Thank you for visiting!\nPlease come again.")
-  tax_rate        Float    @default(0) // Percentage
-  service_charge  Float    @default(0) // Percentage
-  updated_at      DateTime @updatedAt
+  id             Int      @id @default(autoincrement())
+  store_name     String   @default("BAKMIE YOU-TJE")
+  address        String?  @default("Jl. Bakung No. 123, Jakarta")
+  phone          String?  @default("0812-3456-7890")
+  receipt_footer String?  @default("Thank you for visiting!\nPlease come again.")
+  tax_rate       Float    @default(0)
+  service_charge Float    @default(0)
+  updated_at     DateTime @updatedAt
+
   @@map("storeconfig")
 }
 
-enum Role {
-  OWNER
-  MANAGER
-  CASHIER
-  KITCHEN
-  STAFF // Keeping for backward compatibility if needed, though likely unused
-}
-
 model Menu {
-  id         Int         @id @default(autoincrement())
+  id         Int           @id @default(autoincrement())
   name       String
-  price      Int         // Selling price (in smallest unit or IDR)
-  cost       Int         // HPP (Cost of goods)
-  created_at DateTime    @default(now())
-  orderItems OrderItem[]
+  price      Int
+  created_at DateTime      @default(now())
   categoryId Int?
+  is_active  Boolean       @default(true)
+  cost       Int
   category   MenuCategory? @relation(fields: [categoryId], references: [id])
   prices     MenuPrice[]
+  orderItems OrderItem[]
+  recipe     Recipe?
+
   @@map("menu")
 }
 
 model MenuCategory {
   id    Int    @id @default(autoincrement())
   name  String
-  color String // e.g. #FF0000
+  color String
   menus Menu[]
+
   @@map("menucategory")
 }
 
 model Platform {
-  id              Int         @id @default(autoincrement())
+  id              Int          @id @default(autoincrement())
   name            String
   type            PlatformType @default(OFFLINE)
-  commission_rate Float       @default(0) // Percentage (e.g. 20.0 for 20%)
-  created_at      DateTime    @default(now())
+  commission_rate Float        @default(0)
+  created_at      DateTime     @default(now())
   menuPrices      MenuPrice[]
   orders          Order[]
-  @@map("platform")
-}
 
-enum PlatformType {
-  OFFLINE
-  DELIVERY
+  @@map("platform")
 }
 
 model MenuPrice {
@@ -133,28 +123,47 @@ model MenuPrice {
 }
 
 model Order {
-  id             Int         @id @default(autoincrement())
-  order_number   String?     @unique @default(uuid())
-  date           DateTime    @default(now())
-  total          Int         // Subtotal (Gross Sales)
-  commission     Int         @default(0) // Calculated commission amount
-  net_revenue    Int         @default(0) // total - commission
-  platform_id    Int?
-  platform       Platform?   @relation(fields: [platform_id], references: [id])
-  payment_method String      @default("CASH") // "CASH", "QRIS", "BANK_TRANSFER", etc.
-  money_received Int         @default(0) // Amount received from customer
-  change_amount  Int         @default(0) // Change returned to customer
-  status         String      @default("COMPLETED") // "COMPLETED", "CANCELLED", "PENDING"
-  note           String?
-  customer_name  String?
-  discount       Int         @default(0)
-  
-  // New fields for User Tracking
+  id                   Int            @id @default(autoincrement())
+  order_number         String?        @unique @default(uuid())
+  date                 DateTime       @default(now())
+  total                Int
+  commission           Int            @default(0)
+  net_revenue          Int            @default(0)
+  platform_id          Int?
+  payment_method       String         @default("CASH")
+  money_received       Int            @default(0)
+  change_amount        Int            @default(0)
+  status               String         @default("COMPLETED")
+  note                 String?
+  customer_name        String?
+  discount             Int            @default(0)
   created_by_user_id   Int?
   processed_by_user_id Int?
+  payment_method_id    Int?
+  discount_rate        Float          @default(0)
+  discount_type        String         @default("FIXED")
+  paymentMethod        PaymentMethod? @relation(fields: [payment_method_id], references: [id])
+  platform             Platform?      @relation(fields: [platform_id], references: [id])
+  orderItems           OrderItem[]
 
-  orderItems     OrderItem[]
   @@map("order")
+}
+
+model PaymentMethod {
+  id             Int               @id @default(autoincrement())
+  name           String
+  type           PaymentMethodType @default(CASH)
+  account_number String?
+  account_name   String?
+  description    String?
+  imageUrl       String?
+  is_active      Boolean           @default(true)
+  display_order  Int               @default(0)
+  created_at     DateTime          @default(now())
+  updated_at     DateTime          @updatedAt
+  orders         Order[]
+
+  @@map("paymentmethod")
 }
 
 model OrderItem {
@@ -162,11 +171,11 @@ model OrderItem {
   order_id Int
   menu_id  Int
   qty      Int
-  price    Int   // Snapshot of selling price at time of order
-  cost     Int   // Snapshot of HPP at time of order
-  
-  order    Order @relation(fields: [order_id], references: [id])
+  price    Int
+  cost     Int
   menu     Menu  @relation(fields: [menu_id], references: [id])
+  order    Order @relation(fields: [order_id], references: [id], onDelete: Cascade)
+
   @@map("orderitem")
 }
 
@@ -174,34 +183,118 @@ model Expense {
   id          Int      @id @default(autoincrement())
   date        DateTime @default(now())
   item        String
-  category    String   // RAW_MATERIAL, OPERATIONAL, PACKAGING, OTHERS
+  category    String
   amount      Int
   description String?
+
   @@map("expense")
 }
 
 model FixedCost {
-  id        Int      @id @default(autoincrement())
+  id        Int     @id @default(autoincrement())
   name      String
   amount    Int
-  frequency String   // DAILY, WEEKLY, MONTHLY
-  is_active Boolean  @default(true)
+  frequency String
+  is_active Boolean @default(true)
+
   @@map("fixedcost")
 }
 
 model CashierReconciliation {
-  id              Int      @id @default(autoincrement())
-  date            DateTime @unique // One report per day
-  opening_cash    Int      @default(0)
-  closing_cash    Int      @default(0) // Actual cash counted
-  total_system    Int      @default(0) // Total expected from system
-  total_actual    Int      @default(0) // Total actual from input
-  discrepancy     Int      @default(0) // actual - system
-  notes           String?
-  submitted_by    String?
-  status          String   @default("SUBMITTED") // DRAFT, SUBMITTED
-  details         Json?    // Store breakdown of payment methods { CASH: { system: 100, actual: 100 }, ... }
-  created_at      DateTime @default(now())
-  updated_at      DateTime @updatedAt
+  id           Int      @id @default(autoincrement())
+  date         DateTime @unique
+  opening_cash Int      @default(0)
+  closing_cash Int      @default(0)
+  total_system Int      @default(0)
+  total_actual Int      @default(0)
+  discrepancy  Int      @default(0)
+  notes        String?
+  submitted_by String?
+  status       String   @default("SUBMITTED")
+  details      Json?
+  created_at   DateTime @default(now())
+  updated_at   DateTime @updatedAt
+
   @@map("cashierreconciliation")
+}
+
+enum Role {
+  OWNER
+  MANAGER
+  CASHIER
+  KITCHEN
+  STAFF
+}
+
+enum PlatformType {
+  OFFLINE
+  DELIVERY
+}
+
+enum PaymentMethodType {
+  CASH
+  QRIS
+  BANK_TRANSFER
+  E_WALLET
+  OTHER
+}
+
+model Ingredient {
+  id              Int                @id @default(autoincrement())
+  name            String
+  unit            String             // e.g., "kg", "gr", "ml", "pcs"
+  cost_per_unit   Int                @default(0)
+  created_at      DateTime           @default(now())
+  updated_at      DateTime           @updatedAt
+  recipeIngredients RecipeIngredient[]
+
+  @@map("ingredient")
+}
+
+model Recipe {
+  id              Int                @id @default(autoincrement())
+  name            String
+  menu_id         Int?               @unique
+  menu            Menu?              @relation(fields: [menu_id], references: [id])
+  base_quantity   Float              @default(1) // Usually 1 portion
+  monthly_fixed_cost Int           @default(0)
+  monthly_production_volume Int    @default(0)
+  cost_change_alert Float           @default(0) // Percentage change
+  total_variable_cost Int            @default(0)
+  fixed_cost_allocation Int          @default(0)
+  total_hpp       Int                @default(0)
+  created_at      DateTime           @default(now())
+  updated_at      DateTime           @updatedAt
+  ingredients     RecipeIngredient[]
+  snapshots       HppSnapshot[]
+
+  @@map("recipe")
+}
+
+model RecipeIngredient {
+  id              Int         @id @default(autoincrement())
+  recipe_id       Int
+  ingredient_id   Int?        // Optional for DB ingredients
+  manual_name     String?     // For one-off/manual ingredients
+  manual_unit     String?
+  manual_cost     Int?
+  quantity        Float
+  source          String      @default("DATABASE") // "DATABASE" or "MANUAL"
+  recipe          Recipe      @relation(fields: [recipe_id], references: [id], onDelete: Cascade)
+  ingredient      Ingredient? @relation(fields: [ingredient_id], references: [id])
+
+  @@map("recipe_ingredient")
+}
+
+model HppSnapshot {
+  id              Int      @id @default(autoincrement())
+  recipe_id       Int
+  total_hpp       Int
+  variable_cost   Int
+  fixed_cost      Int
+  note            String?
+  created_at      DateTime @default(now())
+  recipe          Recipe   @relation(fields: [recipe_id], references: [id], onDelete: Cascade)
+
+  @@map("hpp_snapshot")
 }

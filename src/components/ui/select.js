@@ -1,7 +1,7 @@
 import * as React from "react"
 import { cn } from "../../lib/utils"
 
-const Select = React.forwardRef(({ className, options = [], ...props }, ref) => (
+const Select = React.forwardRef(({ className, options = [], children, ...props }, ref) => (
   <div className="relative">
     <select
       className={cn(
@@ -11,7 +11,7 @@ const Select = React.forwardRef(({ className, options = [], ...props }, ref) => 
       ref={ref}
       {...props}
     >
-      {options.map((opt) => (
+      {children ? children : options.map((opt) => (
         <option key={opt.value} value={opt.value}>
           {opt.label}
         </option>

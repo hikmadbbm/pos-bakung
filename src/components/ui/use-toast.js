@@ -63,36 +63,40 @@ const ToastItem = ({ toast, removeToast }) => {
   }, [toast, removeToast]);
 
   const icons = {
-    success: <CheckCircle className="w-5 h-5 text-green-500" />,
-    error: <AlertCircle className="w-5 h-5 text-red-500" />,
+    success: <CheckCircle className="w-5 h-5 text-emerald-500" />,
+    error: <AlertCircle className="w-5 h-5 text-rose-500" />,
     info: <Info className="w-5 h-5 text-blue-500" />,
   };
 
   const borderColors = {
-    success: "border-green-200/70 bg-green-50/80",
-    error: "border-red-200/70 bg-red-50/80",
-    info: "border-blue-200/70 bg-blue-50/80",
+    success: "border-emerald-100 bg-white shadow-emerald-100/50",
+    error: "border-rose-100 bg-white shadow-rose-100/50",
+    info: "border-blue-100 bg-white shadow-blue-100/50",
   };
 
   return (
     <div
       className={cn(
-        "pointer-events-auto flex items-start gap-3 p-4 rounded-lg border shadow-lg transition-all duration-300 transform",
-        "bg-white/95 text-gray-900 backdrop-blur supports-[backdrop-filter]:bg-white/80",
+        "pointer-events-auto flex items-start gap-3 p-4 rounded-xl border-2 shadow-xl transition-all duration-500 transform",
         isVisible ? "translate-x-0 opacity-100" : "translate-x-full opacity-0",
         borderColors[toast.type]
       )}
     >
-      <div className="mt-0.5 shrink-0">{icons[toast.type]}</div>
-      <div className="flex-1 text-sm font-medium">{toast.message}</div>
+      <div className="mt-0.5 shrink-0 bg-gray-50 p-1.5 rounded-full">{icons[toast.type]}</div>
+      <div className="flex-1 pt-1.5">
+        <div className="text-sm font-bold text-gray-900 leading-none mb-1">
+          {toast.type.charAt(0).toUpperCase() + toast.type.slice(1)}
+        </div>
+        <div className="text-xs text-gray-600 font-medium">{toast.message}</div>
+      </div>
       <button
         onClick={() => {
           setIsVisible(false);
           setTimeout(() => removeToast(toast.id), 300);
         }}
-        className="shrink-0 text-gray-500 hover:text-gray-900 transition-colors"
+        className="shrink-0 mt-1 p-1 hover:bg-gray-100 rounded-full text-gray-400 hover:text-gray-900 transition-all"
       >
-        <X className="w-4 h-4" />
+        <X className="w-3.5 h-3.5" />
       </button>
     </div>
   );

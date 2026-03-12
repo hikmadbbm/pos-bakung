@@ -4,8 +4,9 @@ import { Button } from "../../../components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "../../../components/ui/card";
 import { Printer, RefreshCw, Smartphone, Globe, Plus, Edit2, Trash2, Receipt, Lock, Users } from "lucide-react";
 import UsersSettings from "./users/UsersSettings";
+import PaymentMethodsSettings from "./PaymentMethodsSettings";
 import { usePrinter } from "../../../lib/printer-context";
-import { api } from "../../../lib/api";
+import { api, getAuth } from "../../../lib/api";
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "../../../components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "../../../components/ui/dialog";
 import { Input } from "../../../components/ui/input";
@@ -18,6 +19,7 @@ export default function SettingsPage() {
   const { device, isConnecting, connect, disconnect } = usePrinter();
   const [activeTab, setActiveTab] = useState("printer");
   const { success, error } = useToast();
+  const currentUser = getAuth();
 
   // Platforms State
   const [platforms, setPlatforms] = useState([]);
@@ -25,6 +27,7 @@ export default function SettingsPage() {
   const [isPlatformDialogOpen, setIsPlatformDialogOpen] = useState(false);
   const [platformFormData, setPlatformFormData] = useState({ name: "", type: "OFFLINE", commission_rate: "0" });
   const [editingPlatformId, setEditingPlatformId] = useState(null);
+  const [confirmDeletePlatformId, setConfirmDeletePlatformId] = useState(null);
 
   // Receipt Settings State
   const [receiptConfig, setReceiptConfig] = useState({
@@ -67,6 +70,16 @@ export default function SettingsPage() {
       error("Failed to save settings");
     }
   };
+
+  const seedDummyData = async () => {
+    if (!confirm("Seed dummy data? This will create/update users, menus, and sample orders.")) return;
+    try {
+      await api.post("/auth/seed-dummy");
+      success("Dummy data seeded");
+    } catch (e) {
+      error(e?.response?.data?.error || "Failed to seed dummy data");
+    }
+  };
   
   // NOTE: PIN management is handled in User Management tab or by admin.
   
@@ -89,13 +102,16 @@ export default function SettingsPage() {
   };
 
   const handleDeletePlatform = async (id) => {
-    if (!confirm("Delete platform? This will fail if orders exist for this platform.")) return;
+    // --- Optimistic UI ---
+    const previous = platforms;
+    setConfirmDeletePlatformId(null);
+    setPlatforms(prev => prev.filter(p => p.id !== id));
     try {
       await api.delete(`/platforms/${id}`);
-      loadPlatforms();
       success("Platform deleted");
     } catch (e) {
       console.error(e);
+      setPlatforms(previous); // rollback
       error("Failed to delete platform");
     }
   };
@@ -146,16 +162,7 @@ export default function SettingsPage() {
         >
           Receipt Settings
         </button>
-        <button
-          className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
-            activeTab === "security" 
-              ? "border-blue-600 text-blue-600" 
-              : "border-transparent text-gray-500 hover:text-gray-700"
-          }`}
-          onClick={() => setActiveTab("security")}
-        >
-          Security & PIN
-        </button>
+
         <button
           className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
             activeTab === "users" 
@@ -166,9 +173,20 @@ export default function SettingsPage() {
         >
           User Management
         </button>
+        <button
+          className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
+            activeTab === "payments" 
+              ? "border-blue-600 text-blue-600" 
+              : "border-transparent text-gray-500 hover:text-gray-700"
+          }`}
+          onClick={() => setActiveTab("payments")}
+        >
+          Payment Methods
+        </button>
       </div>
 
       {activeTab === "users" && <UsersSettings />}
+      {activeTab === "payments" && <PaymentMethodsSettings />}
 
       {activeTab === "printer" && (
         <div className="space-y-6">
@@ -268,12 +286,22 @@ export default function SettingsPage() {
                         </TableCell>
                         <TableCell>{p.commission_rate}%</TableCell>
                         <TableCell className="text-right space-x-2">
-                          <Button variant="ghost" size="icon" onClick={() => openEditPlatform(p)}>
-                            <Edit2 className="w-4 h-4 text-blue-500" />
-                          </Button>
-                          <Button variant="ghost" size="icon" onClick={() => handleDeletePlatform(p.id)}>
-                            <Trash2 className="w-4 h-4 text-red-500" />
-                          </Button>
+                          {confirmDeletePlatformId === p.id ? (
+                            <span className="inline-flex items-center gap-1">
+                              <span className="text-xs text-gray-500 mr-1">Delete?</span>
+                              <Button variant="destructive" size="sm" className="h-6 px-2 text-xs" onClick={() => handleDeletePlatform(p.id)}>Yes</Button>
+                              <Button variant="ghost" size="sm" className="h-6 px-2 text-xs" onClick={() => setConfirmDeletePlatformId(null)}>Cancel</Button>
+                            </span>
+                          ) : (
+                            <>
+                              <Button variant="ghost" size="icon" onClick={() => openEditPlatform(p)}>
+                                <Edit2 className="w-4 h-4 text-blue-500" />
+                              </Button>
+                              <Button variant="ghost" size="icon" onClick={() => setConfirmDeletePlatformId(p.id)}>
+                                <Trash2 className="w-4 h-4 text-red-500" />
+                              </Button>
+                            </>
+                          )}
                         </TableCell>
                       </TableRow>
                     ))
@@ -380,31 +408,7 @@ export default function SettingsPage() {
         </div>
       )}
 
-      {activeTab === "security" && (
-        <div className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Lock className="w-5 h-5" /> PIN Management
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <p className="text-sm text-gray-500">
-                  Set a PIN code to authorize sensitive actions like cancelling orders or refunding transactions.
-                  Please use the <strong>User Management</strong> tab to set PINs for specific users.
-                </p>
-                
-                <div className="bg-yellow-50 p-4 rounded border border-yellow-200">
-                  <p className="text-sm text-yellow-700">
-                    <strong>Note:</strong> Default PIN for testing: <strong>123456</strong> (if configured).
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      )}
+
     </div>
   );
 }

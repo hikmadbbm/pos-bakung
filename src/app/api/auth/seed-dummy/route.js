@@ -1,11 +1,27 @@
 import { NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
+import jwt from 'jsonwebtoken';
 import { prisma } from '@/lib/prisma';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
+const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret';
+
+function isOwnerToken(req) {
+  const auth = req.headers.get('authorization') || '';
+  const match = auth.match(/^Bearer\s+(.+)$/i);
+  if (!match) return false;
+  try {
+    const payload = jwt.verify(match[1], JWT_SECRET);
+    return payload?.role === 'OWNER';
+  } catch {
+    return false;
+  }
+}
+
 function isAuthorized(req) {
+  if (isOwnerToken(req)) return true;
   const secret = process.env.SEED_SECRET;
   if (!secret) return process.env.NODE_ENV !== 'production';
   const headerSecret = req.headers.get('x-seed-secret');
@@ -196,7 +212,10 @@ async function seedDummy() {
 
 export async function POST(req) {
   if (!isAuthorized(req)) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    return NextResponse.json(
+      { error: 'Unauthorized', hint: 'Login as OWNER and retry, or provide SEED_SECRET' },
+      { status: 401 }
+    );
   }
   try {
     const result = await seedDummy();

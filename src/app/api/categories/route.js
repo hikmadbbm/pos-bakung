@@ -1,11 +1,14 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { logger } from '@/lib/logger';
+import { verifyAuth } from '@/lib/auth';
 
 export const runtime = 'nodejs';
 
-export async function GET() {
+export async function GET(req) {
   try {
+    const { response } = await verifyAuth(req, ['OWNER', 'MANAGER', 'CASHIER', 'KITCHEN']);
+    if (response) return response;
     const categories = await prisma.menuCategory.findMany({
       orderBy: { id: 'asc' },
     });
@@ -18,6 +21,8 @@ export async function GET() {
 
 export async function POST(req) {
   try {
+    const { response } = await verifyAuth(req, ['OWNER', 'MANAGER']);
+    if (response) return response;
     const body = await req.json();
     const { name, color } = body;
 

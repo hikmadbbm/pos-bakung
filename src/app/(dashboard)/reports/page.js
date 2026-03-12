@@ -25,7 +25,12 @@ export default function ReportsPage() {
   const [loading, setLoading] = useState(false);
 
   // Cashier Report State
-  const [cashierDate, setCashierDate] = useState(new Date().toISOString().split('T')[0]);
+  const [cashierDate, setCashierDate] = useState("");
+
+  // Hydration-safe date initialization
+  useEffect(() => {
+    setCashierDate(new Date().toISOString().split('T')[0]);
+  }, []);
   const [cashierReport, setCashierReport] = useState(null);
   const [loadingCashier, setLoadingCashier] = useState(false);
   const [actualCounts, setActualCounts] = useState({}); // { CASH: 100000, ... }
@@ -35,17 +40,6 @@ export default function ReportsPage() {
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
   const [selectedRecon, setSelectedRecon] = useState(null);
 
-  useEffect(() => {
-    if (activeTab === "general") load();
-    if (activeTab === "cashier") {
-      loadCashierReport();
-      loadReconHistory();
-    }
-  }, [activeTab, load, loadCashierReport, loadReconHistory]);
-
-  useEffect(() => {
-    if (activeTab === "cashier") loadCashierReport();
-  }, [cashierDate, activeTab, loadCashierReport]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -102,6 +96,18 @@ export default function ReportsPage() {
       setLoadingCashier(false);
     }
   }, [cashierDate, error]);
+
+  useEffect(() => {
+    if (activeTab === "general") load();
+    if (activeTab === "cashier") {
+      loadCashierReport();
+      loadReconHistory();
+    }
+  }, [activeTab, load, loadCashierReport, loadReconHistory]);
+
+  useEffect(() => {
+    if (activeTab === "cashier") loadCashierReport();
+  }, [cashierDate, activeTab, loadCashierReport]);
 
   const handleActualChange = (method, value) => {
     setActualCounts(prev => ({
@@ -185,13 +191,14 @@ export default function ReportsPage() {
           {/* Filters */}
           <Card>
         <CardContent className="pt-6">
-          <div className="flex items-end gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 items-end">
             <div className="space-y-2">
               <Label>From Date</Label>
               <Input 
                 type="date" 
                 value={from} 
                 onChange={(e) => setFrom(e.target.value)} 
+                className="w-full"
               />
             </div>
             <div className="space-y-2">
@@ -200,9 +207,10 @@ export default function ReportsPage() {
                 type="date" 
                 value={to} 
                 onChange={(e) => setTo(e.target.value)} 
+                className="w-full"
               />
             </div>
-            <Button onClick={load} disabled={loading}>
+            <Button onClick={load} disabled={loading} className="w-full">
               {loading ? "Loading..." : "Apply Filter"}
             </Button>
           </div>
@@ -283,12 +291,12 @@ export default function ReportsPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {menuPerf.length === 0 ? (
+              {!(menuPerf?.length > 0) ? (
                 <TableRow>
                   <TableCell colSpan={4} className="text-center text-muted-foreground">No data found.</TableCell>
                 </TableRow>
               ) : (
-                menuPerf.map((row) => (
+                menuPerf?.map((row) => (
                   <TableRow key={row.menu_id}>
                     <TableCell className="font-medium">{row.name}</TableCell>
                     <TableCell className="text-right">{row.qty}</TableCell>
@@ -308,32 +316,34 @@ export default function ReportsPage() {
 
       {activeTab === "cashier" && (
         <div className="space-y-6 animate-in fade-in duration-300">
-          <div className="flex flex-col md:flex-row justify-between items-start gap-4 print:hidden">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 print:hidden">
             <div>
               <h2 className="text-lg font-bold tracking-tight">Daily Cashier Reconciliation</h2>
               <p className="text-sm text-gray-500">Reconcile daily sales and close shift.</p>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
               <Input 
                 type="date" 
                 value={cashierDate} 
                 onChange={(e) => setCashierDate(e.target.value)}
-                className="w-auto"
+                className="w-full sm:w-auto"
               />
-              <Button variant="outline" onClick={loadCashierReport}>
-                <RefreshCw className="w-4 h-4" />
-              </Button>
-              <Button onClick={() => window.print()}>
-                <Printer className="w-4 h-4 mr-2" /> Print Report
-              </Button>
+              <div className="flex gap-2 w-full sm:w-auto">
+                <Button variant="outline" onClick={loadCashierReport} className="flex-1 sm:flex-none">
+                  <RefreshCw className="w-4 h-4" />
+                </Button>
+                <Button onClick={() => window.print()} className="flex-[2] sm:flex-none">
+                  <Printer className="w-4 h-4 mr-2" /> Print Report
+                </Button>
+              </div>
             </div>
           </div>
           
           {/* Reconciliation Status List */}
           <div className="flex gap-2 overflow-x-auto pb-2 print:hidden">
-            {reconHistory.map((r) => {
-              const isSubmitted = r.status === "SUBMITTED";
-              const rDate = new Date(r.date).toISOString().split('T')[0];
+            {(Array.isArray(reconHistory) ? reconHistory : []).map((r) => {
+              const isSubmitted = r?.status === "SUBMITTED";
+              const rDate = r?.date ? new Date(r.date).toISOString().split('T')[0] : "";
               const isCurrent = rDate === cashierDate;
               return (
                 <button
@@ -365,8 +375,8 @@ export default function ReportsPage() {
                     <CardTitle className="text-sm font-medium text-gray-500">Gross Sales</CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <div className="text-2xl font-bold">{formatIDR(cashierReport.summary.grossSales)}</div>
-                    <p className="text-xs text-gray-500">{cashierReport.summary.totalOrders} Orders</p>
+                    <div className="text-2xl font-bold">{formatIDR(cashierReport?.summary?.grossSales || 0)}</div>
+                    <p className="text-xs text-gray-500">{cashierReport?.summary?.totalOrders || 0} Orders</p>
                   </CardContent>
                 </Card>
                 <Card>
@@ -374,7 +384,7 @@ export default function ReportsPage() {
                     <CardTitle className="text-sm font-medium text-gray-500">Net Sales</CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <div className="text-2xl font-bold text-green-600">{formatIDR(cashierReport.summary.netSales)}</div>
+                    <div className="text-2xl font-bold text-green-600">{formatIDR(cashierReport?.summary?.netSales || 0)}</div>
                     <p className="text-xs text-gray-500">After Discounts</p>
                   </CardContent>
                 </Card>
@@ -392,7 +402,7 @@ export default function ReportsPage() {
                     <CardTitle className="text-sm font-medium text-gray-500">Commission</CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <div className="text-2xl font-bold text-orange-600">{formatIDR(cashierReport.summary.totalCommission)}</div>
+                    <div className="text-2xl font-bold text-orange-600">{formatIDR(cashierReport?.summary?.totalCommission || 0)}</div>
                     <p className="text-xs text-gray-500">Platform Fees</p>
                   </CardContent>
                 </Card>
@@ -415,7 +425,7 @@ export default function ReportsPage() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {Object.entries(cashierReport.paymentMethods)
+                      {Object.entries(cashierReport?.paymentMethods || {})
                         .filter(([method, data]) => data.count > 0 || actualCounts[method])
                         .map(([method, data]) => {
                           const actual = parseInt(actualCounts[method]) || 0;
@@ -501,12 +511,12 @@ export default function ReportsPage() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {reconHistory.length === 0 ? (
+                      {!(reconHistory?.length > 0) ? (
                         <TableRow>
                           <TableCell colSpan={6} className="text-center py-4 text-gray-400">No history found.</TableCell>
                         </TableRow>
                       ) : (
-                        reconHistory.map((report) => (
+                        reconHistory?.map((report) => (
                           <TableRow key={report.id}>
                             <TableCell className="font-medium">
                               {new Date(report.date).toLocaleDateString(undefined, { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' })}

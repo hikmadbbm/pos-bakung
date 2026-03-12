@@ -17,13 +17,9 @@ import { useFocusMode } from "../../../lib/focus-mode-context";
 import { Maximize2, Minimize2 } from "lucide-react";
 import { PinDialog } from "../../../components/pin-dialog";
 
-const paymentMethods = [
-  { value: "CASH", label: "Cash", icon: Banknote },
-  { value: "QRIS", label: "QRIS", icon: Smartphone },
-  { value: "DEBIT", label: "Debit Card", icon: CreditCard },
-  { value: "CREDIT", label: "Credit Card", icon: CreditCard },
-  { value: "TRANSFER", label: "Bank Transfer", icon: Receipt },
-  { value: "PLATFORM", label: "Platform", icon: Smartphone }, // For online platforms
+// Dynamically loaded from /api/payment-methods
+const defaultPaymentMethods = [
+  { id: 'cash', value: "CASH", name: "Cash", type: "CASH", icon: Banknote },
 ];
 
 const quickMoneyButtons = [20000, 50000, 100000, 200000];
@@ -47,6 +43,8 @@ export default function OrdersPage() {
   const [cart, setCart] = useState([]);
   const [loading, setLoading] = useState(true);
   const [processing, setProcessing] = useState(false);
+  const [user, setUser] = useState(null);
+  const [currentShift, setCurrentShift] = useState(null);
   const [selectedCategory, setSelectedCategory] = useState("ALL");
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
   const [completedOrder, setCompletedOrder] = useState(null);
@@ -54,12 +52,19 @@ export default function OrdersPage() {
   const [paymentConfirmData, setPaymentConfirmData] = useState(null);
   
   // Checkout State
+  const [allActivePMs, setAllActivePMs] = useState(defaultPaymentMethods);
   const [selectedPlatform, setSelectedPlatform] = useState("");
-  const [paymentMethod, setPaymentMethod] = useState("CASH");
+  const [confirmCancelPendingId, setConfirmCancelPendingId] = useState(null);
+  const [isQRISModalOpen, setIsQRISModalOpen] = useState(false);
+  const [isQRISCancelConfirmOpen, setIsQRISCancelConfirmOpen] = useState(false);
+  const [qrisOrderData, setQrisOrderData] = useState(null);
+  const [paymentMethod, setPaymentMethod] = useState("CASH"); // Legacy string value for older orders
+  const [paymentMethodId, setPaymentMethodId] = useState(null); // New link for PM model
   const [moneyReceived, setMoneyReceived] = useState("");
   const [note, setNote] = useState("");
   const [customerName, setCustomerName] = useState("");
   const [discount, setDiscount] = useState("");
+  const [discountType, setDiscountType] = useState("FIXED"); // "FIXED" or "PERCENT"
   const { isFocusMode, setIsFocusMode } = useFocusMode();
 
   // Pending Orders State
@@ -85,20 +90,59 @@ export default function OrdersPage() {
       setPendingOrders(res);
     } catch (e) {
       console.error("Failed to load pending orders", e);
+      error("Failed to load pending orders");
     }
   };
 
   const loadData = async () => {
     setLoading(true);
     try {
-      const [m, c, p] = await Promise.all([
+      const [mRes, cRes, pRes, uRes, pmRes] = await Promise.allSettled([
         api.get("/menus"),
         api.get("/categories"),
-        api.get("/platforms")
+        api.get("/platforms"),
+        api.get("/users/me"),
+        api.get("/payment-methods")
       ]);
-      setMenus(m);
-      setCategories(c);
-      setPlatforms(p);
+      if (mRes.status === "fulfilled") setMenus(mRes.value);
+      else error("Failed to load menus");
+      if (cRes.status === "fulfilled") setCategories(cRes.value);
+      else error("Failed to load categories");
+      if (pRes.status === "fulfilled") setPlatforms(pRes.value);
+      else error("Failed to load platforms");
+      
+      if (pmRes.status === "fulfilled") {
+        const activePMs = pmRes.value.filter(pm => pm.is_active);
+        setAllActivePMs(activePMs.length > 0 ? activePMs : defaultPaymentMethods);
+        // Default PM is set via effect on selectedPlatform
+      }
+
+      let userId = null;
+      if (uRes.status === "fulfilled" && uRes.value?.id) {
+        userId = uRes.value.id;
+        setUser(uRes.value);
+      } else {
+        // Fallback: try parsing token
+        const token = localStorage.getItem("token");
+        if (token) {
+          try {
+            const payload = JSON.parse(atob(token.split(".")[1]));
+            userId = payload.id;
+            setUser({ id: userId });
+          } catch (e) {}
+        }
+      }
+
+      if (userId) {
+        try {
+          const shift = await api.get(`/shifts/current/${userId}`);
+          setCurrentShift(shift);
+        } catch (e) {
+          console.error("No active shift found", e);
+        }
+      }
+
+      const p = pRes.status === "fulfilled" ? pRes.value : [];
       if (p.length > 0) {
         // Default to "Take Away" platform if exists, otherwise first one
         const defaultPlatform = p.find(plat => plat.name.toLowerCase() === "take away") || p[0];
@@ -108,6 +152,27 @@ export default function OrdersPage() {
       console.error(e);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const [qrisPM, setQrisPM] = useState(null);
+
+  const refetchPaymentMethods = async () => {
+    try {
+      const res = await api.get("/payment-methods");
+      const activePMs = res.filter(pm => pm.is_active);
+      setAllActivePMs(activePMs.length > 0 ? activePMs : defaultPaymentMethods);
+      
+      // Update selected PM if it exists in the new list to refresh its data (like images)
+      if (paymentMethodId) {
+        const updated = activePMs.find(pm => pm.id === paymentMethodId);
+        if (updated) {
+          setPaymentMethod(updated.name);
+          setQrisPM(updated);
+        }
+      }
+    } catch (e) {
+      console.error("Failed to refetch payment methods", e);
     }
   };
 
@@ -159,42 +224,60 @@ export default function OrdersPage() {
     }
   }, [selectedPlatform, menus, cart.length, getPrice]);
 
-  const subtotal = cart.reduce((acc, item) => acc + item.price * item.qty, 0);
-  const discountVal = discount ? parseInt(discount) : 0;
-  const total = Math.max(0, subtotal - discountVal);
-  const receivedPreview = paymentMethod === "CASH" ? parseAmountToInt(moneyReceived) : total;
-  const change = Number.isFinite(receivedPreview) ? Math.max(0, receivedPreview - total) : 0;
+  // Logic: When selectedPlatform changes, filter payment methods
+  const platform = platforms.find(p => p.id.toString() === selectedPlatform);
+  const isDelivery = platform?.type === "DELIVERY";
 
-  // Logic: When selectedPlatform changes, check if it's "DELIVERY"
+  const displayedPMs = isDelivery 
+    ? [
+        ...allActivePMs.filter(pm => pm.type === 'CASH'),
+        { id: 'platform', name: platform.name, type: 'PLATFORM' }
+      ]
+    : allActivePMs;
+
+  const currentPM = displayedPMs.find(pm => String(pm.id) === String(paymentMethodId));
+
+  const subtotal = cart.reduce((acc, item) => acc + item.price * item.qty, 0);
+  const discountRate = discount ? parseFloat(discount) : 0;
+  const appliedDiscount = discountType === "PERCENT" 
+    ? Math.round(subtotal * (discountRate / 100)) 
+    : discountRate;
+  const total = Math.max(0, subtotal - appliedDiscount);
+  const receivedPreview = currentPM?.type === "CASH" ? parseAmountToInt(moneyReceived) : total;
+  const change = Number.isFinite(receivedPreview) ? (receivedPreview - total) : 0;
+
   useEffect(() => {
-    if (!selectedPlatform || platforms.length === 0) return;
-    const platform = platforms.find(p => p.id.toString() === selectedPlatform);
-    if (platform && platform.type === "DELIVERY") {
-      // If delivery, restrict to CASH (COD) or PLATFORM (Online)
-      // If current method is not allowed, switch to PLATFORM or CASH
-      if (paymentMethod !== "CASH" && paymentMethod !== "PLATFORM") {
-        setPaymentMethod("PLATFORM");
+    if (!platform || displayedPMs.length === 0) return;
+
+    // For Delivery, force selection of the virtual Platform Payment
+    if (isDelivery) {
+      setPaymentMethod(platform.name);
+      setPaymentMethodId('platform');
+    } else {
+      // For Offline, if no PM selected or it was the 'platform' virtual one, revert to CASH
+      const current = displayedPMs.find(pm => pm.id === paymentMethodId);
+      if (!current || paymentMethodId === 'platform') {
+        const defaultPM = displayedPMs.find(pm => pm.type === 'CASH') || displayedPMs[0];
+        if (defaultPM) {
+          setPaymentMethod(defaultPM.name);
+          setPaymentMethodId(defaultPM.id);
+        }
       }
     }
-  }, [selectedPlatform, platforms, paymentMethod]);
+  }, [selectedPlatform, platforms, isDelivery]); // Removed allActivePMs.length to be more targeted
 
-  const availablePaymentMethods = (() => {
-    if (!selectedPlatform) return paymentMethods;
-    const platform = platforms.find(p => p.id.toString() === selectedPlatform);
-    if (platform && platform.type === "DELIVERY") {
-      return paymentMethods.filter(pm => ["CASH", "PLATFORM"].includes(pm.value));
-    }
-    // For Offline, exclude PLATFORM usually? Or allow all except PLATFORM?
-    // Let's exclude PLATFORM for offline unless needed.
-    return paymentMethods.filter(pm => pm.value !== "PLATFORM");
-  })();
 
   const handleProcessPaymentClick = () => {
     if (cart.length === 0) return;
+    if (!currentShift) {
+      error("You must start a shift before processing orders.");
+      return;
+    }
     if (!selectedPlatform && platforms.length > 0) {
       const defaultPlatform = platforms.find(plat => plat.name.toLowerCase() === "take away") || platforms[0];
       setSelectedPlatform(defaultPlatform.id.toString());
     }
+    refetchPaymentMethods();
     setIsCheckoutOpen(true);
   };
 
@@ -206,7 +289,7 @@ export default function OrdersPage() {
     }
 
     const received =
-      paymentMethod === "CASH"
+      currentPM?.type === "CASH"
         ? parseAmountToInt(moneyReceived)
         : total;
 
@@ -214,18 +297,12 @@ export default function OrdersPage() {
       error("Invalid amount. Use numbers only (optionally with up to 2 decimals).");
       return;
     }
-    if (paymentMethod === "CASH" && received < total) {
+    if (currentPM?.type === "CASH" && received < total) {
       error("Money received is less than total amount!");
       return;
     }
 
-    setPaymentConfirmData({
-      payment_method: paymentMethod,
-      total,
-      received,
-      change: paymentMethod === "CASH" ? Math.max(0, received - total) : 0,
-    });
-    setIsPaymentConfirmOpen(true);
+    performCheckout(received);
   };
 
   const performCheckout = async (received) => {
@@ -238,11 +315,14 @@ export default function OrdersPage() {
         platform_id: selectedPlatform,
         items: cart.map((i) => ({ menu_id: i.menu_id, qty: i.qty })),
         payment_method: paymentMethod,
-        money_received: paymentMethod === "CASH" ? received : total,
+        payment_method_id: paymentMethodId,
+        money_received: currentPM?.type === "CASH" ? received : total,
         note,
         customer_name: customerName,
-        discount: discountVal,
-        status: "COMPLETED"
+        discount: appliedDiscount,
+        discount_type: discountType,
+        discount_rate: discountRate,
+        status: currentPM?.type === "QRIS" ? "PENDING" : "COMPLETED"
       };
       
       let res;
@@ -252,10 +332,20 @@ export default function OrdersPage() {
         res = await api.post("/orders", payload);
       }
       
+      // If the response doesn't have the relation, we fetch it manually to be sure
+      if (currentPM?.type === "QRIS") {
+        const fullPM = allActivePMs.find(pm => pm.id === paymentMethodId);
+        setQrisPM(fullPM);
+        setQrisOrderData(res);
+        setIsQRISModalOpen(true);
+        success("QR Code ready for scan. Order saved as PENDING.");
+      } else {
+        setCompletedOrder(res);
+        success(`Order ${res.order_number || ''} processed successfully!`);
+      }
+      
       resetCart();
       setIsCheckoutOpen(false);
-      setCompletedOrder(res);
-      success(`Order ${res.order_number || ''} processed successfully!`);
       loadPendingOrders();
     } catch (e) {
       console.error(e);
@@ -279,10 +369,13 @@ export default function OrdersPage() {
         platform_id: selectedPlatform,
         items: cart.map((i) => ({ menu_id: i.menu_id, qty: i.qty })),
         payment_method: paymentMethod,
+        payment_method_id: paymentMethodId,
         money_received: 0, // Not relevant for pending
         note,
         customer_name: customerName,
-        discount: discountVal,
+        discount: appliedDiscount,
+        discount_type: discountType,
+        discount_rate: discountRate,
         status: "PENDING"
       };
 
@@ -310,8 +403,13 @@ export default function OrdersPage() {
     setNote("");
     setCustomerName("");
     setDiscount("");
+    setDiscountType("FIXED");
     setCurrentOrderId(null);
-    setPaymentMethod("CASH");
+    const defaultPM = displayedPMs.find(pm => pm.type === 'CASH') || displayedPMs[0];
+    if (defaultPM) {
+      setPaymentMethod(defaultPM.name);
+      setPaymentMethodId(defaultPM.id);
+    }
   };
 
   const handleResumeOrder = (order) => {
@@ -327,8 +425,11 @@ export default function OrdersPage() {
     if (order.platform_id) setSelectedPlatform(order.platform_id.toString());
     setCustomerName(order.customer_name || "");
     setNote(order.note || "");
-    setDiscount(order.discount ? order.discount.toString() : "");
+    const dType = order.discount_type || "FIXED";
+    setDiscountType(dType);
+    setDiscount(order.discount_rate !== undefined ? order.discount_rate.toString() : (order.discount ? order.discount.toString() : ""));
     setPaymentMethod(order.payment_method || "CASH");
+    setPaymentMethodId(order.payment_method_id);
     setCurrentOrderId(order.id);
     setIsPendingListOpen(false);
     success(`Resumed order ${order.order_number}`);
@@ -546,10 +647,17 @@ export default function OrdersPage() {
             <Button 
               size="lg" 
               className="w-full font-bold text-md shadow-md mt-2" 
-              disabled={cart.length === 0}
+              disabled={cart.length === 0 || !currentShift}
               onClick={handleProcessPaymentClick}
             >
-              Process Payment ({formatIDR(total)})
+              {!currentShift ? (
+                <>
+                  <AlertCircle className="w-4 h-4 mr-2" />
+                  Shift Not Started
+                </>
+              ) : (
+                `Process Payment (${formatIDR(total)})`
+              )}
             </Button>
           </div>
         </div>
@@ -567,17 +675,6 @@ export default function OrdersPage() {
           </div>
 
           <div className="space-y-2">
-            <Label className="text-xs text-gray-500 uppercase font-bold">Customer</Label>
-            <Input 
-              placeholder="Customer Name (Optional)..." 
-              className="text-sm"
-              value={customerName}
-              onChange={(e) => setCustomerName(e.target.value)}
-              autoFocus
-            />
-          </div>
-
-          <div className="space-y-2">
             <Label className="text-xs text-gray-500 uppercase font-bold">Order Source</Label>
             <Select
               value={selectedPlatform}
@@ -587,27 +684,85 @@ export default function OrdersPage() {
           </div>
 
           <div className="space-y-2">
+            <Label className="text-xs text-gray-500 uppercase font-bold">Customer</Label>
+            <Input 
+              placeholder="Customer Name (Optional)..." 
+              className="text-sm"
+              value={customerName}
+              onChange={(e) => setCustomerName(e.target.value)}
+            />
+          </div>
+
+          <div className="space-y-2">
              <Label className="text-xs text-gray-500 uppercase font-bold">Payment Method</Label>
              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-               {availablePaymentMethods.map(pm => (
-                 <button
-                   key={pm.value}
-                   className={cn(
-                     "flex flex-col items-center justify-center p-2 sm:p-3 rounded border text-xs transition-colors h-16 sm:h-20",
-                     paymentMethod === pm.value 
-                       ? "bg-blue-600 text-white border-blue-600 shadow-md ring-2 ring-blue-200" 
-                       : "bg-white text-gray-600 hover:bg-gray-50"
-                   )}
-                   onClick={() => setPaymentMethod(pm.value)}
-                 >
-                   <pm.icon className="w-5 h-5 mb-1.5 sm:mb-2" />
-                   {pm.label}
-                 </button>
-               ))}
+               {displayedPMs.map(pm => {
+                 const isSelected = paymentMethodId === pm.id;
+                 return (
+                   <button
+                     key={pm.id}
+                     className={cn(
+                       "flex flex-col items-center justify-center p-2 sm:p-3 rounded border text-xs transition-colors h-16 sm:h-20 break-words text-center",
+                       isSelected 
+                         ? "bg-blue-600 text-white border-blue-600 shadow-md ring-2 ring-blue-200" 
+                         : "bg-white text-gray-600 hover:bg-gray-50"
+                     )}
+                     onClick={() => {
+                        setPaymentMethod(pm.name);
+                        setPaymentMethodId(pm.id);
+                     }}
+                   >
+                     <span className="font-bold truncate w-full">{pm.name}</span>
+                     <span className="text-[10px] opacity-70 mt-1">{pm.type.replace('_', ' ')}</span>
+                   </button>
+                 );
+               })}
              </div>
           </div>
 
-          {paymentMethod === "CASH" && (
+          {currentPM && (currentPM.description || currentPM.imageUrl || currentPM.account_number) && (
+            <div className="bg-blue-50 p-4 rounded border border-blue-100 flex flex-col items-center gap-3">
+              <div className="text-center">
+                <div className="text-[10px] text-blue-600 uppercase font-bold mb-1">Transfer Total</div>
+                <div className="text-xl font-bold text-blue-900 font-mono">{formatIDR(total)}</div>
+              </div>
+
+              {currentPM.imageUrl && (
+                 <div className="w-32 h-32 bg-white p-2 rounded shadow-sm border border-blue-100">
+                   <img src={currentPM.imageUrl} alt="Payment Instruction" className="w-full h-full object-contain" />
+                 </div>
+              )}
+              
+              {currentPM.description && (
+                <p className="text-xs text-blue-800 text-center whitespace-pre-wrap italic">{currentPM.description}</p>
+              )}
+              
+              {currentPM.account_number && (
+                <div className="w-full space-y-2">
+                  <div className="text-[10px] text-blue-600 uppercase font-bold px-1">Payment Target</div>
+                  <div className="text-xs font-mono bg-white px-3 py-2.5 rounded border border-blue-100 flex justify-between items-center shadow-sm">
+                    <div>
+                      {currentPM.account_name && <div className="text-gray-400 text-[10px] mb-0.5">{currentPM.account_name}</div>}
+                      <div className="font-bold text-blue-900 tracking-wider">{currentPM.account_number}</div>
+                    </div>
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      className="h-7 w-7 text-blue-600 hover:bg-blue-50" 
+                      onClick={() => {
+                        navigator.clipboard.writeText(currentPM.account_number);
+                        success("Account number copied!");
+                      }}
+                    >
+                      <Save className="w-3 h-3" />
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {currentPM?.type === "CASH" && (
             <div className="space-y-2 bg-gray-50 p-4 rounded border">
               <div className="space-y-1">
                 <Label className="text-xs">Money Received</Label>
@@ -651,13 +806,37 @@ export default function OrdersPage() {
           <div className="space-y-2">
             <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2">
               <Label className="text-xs text-gray-500 uppercase font-bold">Discount</Label>
-              <Input 
-                type="number" 
-                className="h-10 sm:h-8 w-full sm:w-32 text-right text-base sm:text-sm" 
-                placeholder="0"
-                value={discount} 
-                onChange={e => setDiscount(e.target.value)}
-              />
+              <div className="flex items-center gap-2">
+                <div className="flex border rounded overflow-hidden h-10 sm:h-8">
+                  <button
+                    type="button"
+                    className={cn(
+                      "px-3 text-xs font-bold transition-colors",
+                      discountType === "FIXED" ? "bg-blue-600 text-white" : "bg-white text-gray-400 hover:bg-gray-50"
+                    )}
+                    onClick={() => setDiscountType("FIXED")}
+                  >
+                    Rp
+                  </button>
+                  <button
+                    type="button"
+                    className={cn(
+                      "px-3 text-xs font-bold transition-colors",
+                      discountType === "PERCENT" ? "bg-blue-600 text-white" : "bg-white text-gray-400 hover:bg-gray-50"
+                    )}
+                    onClick={() => setDiscountType("PERCENT")}
+                  >
+                    %
+                  </button>
+                </div>
+                <Input 
+                  type="number" 
+                  className="h-10 sm:h-8 w-full sm:w-24 text-right text-base sm:text-sm font-mono" 
+                  placeholder="0"
+                  value={discount} 
+                  onChange={e => setDiscount(e.target.value)}
+                />
+              </div>
             </div>
             <Input 
               placeholder="Order Notes (Optional)..." 
@@ -670,6 +849,7 @@ export default function OrdersPage() {
           <div className="pt-4 flex flex-col gap-2 sm:flex-row sm:gap-3">
              <Button variant="outline" className="w-full sm:flex-1" onClick={() => setIsCheckoutOpen(false)}>Cancel</Button>
              <Button 
+               type="button"
                variant="secondary" 
                className="w-full sm:flex-1 bg-yellow-50 text-yellow-700 border-yellow-200 hover:bg-yellow-100" 
                onClick={handleSavePending}
@@ -680,7 +860,7 @@ export default function OrdersPage() {
              </Button>
           <Button 
   className="w-full sm:flex-[2] font-bold text-md" 
-  disabled={processing || (paymentMethod === "CASH" && (parseInt(moneyReceived)||0) < total)}
+  disabled={processing || (currentPM?.type === "CASH" && (parseInt(moneyReceived)||0) < total)}
   onClick={requestCheckout} // <-- Ubah dari handleCheckout ke requestCheckout
 >
   {processing ? "Processing..." : (currentOrderId ? "Update & Pay" : "Complete Payment")}
@@ -732,14 +912,46 @@ export default function OrdersPage() {
                   <div className="text-right space-y-2 shrink-0">
                     <div className="font-bold text-lg">{formatIDR(order.total)}</div>
                     <div className="flex flex-col sm:flex-row gap-2 justify-end">
-                      <Button
-                        size="sm"
-                        variant="destructive"
-                        aria-label={`Cancel ${order.order_number}`}
-                        onClick={(e) => handleCancelPendingOrder(e, order)}
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
+                      {confirmCancelPendingId === order.id ? (
+                        <span className="inline-flex items-center gap-1">
+                          <span className="text-xs text-gray-500 mr-1 font-bold">Cancel?</span>
+                          <Button 
+                            variant="destructive" 
+                            size="sm" 
+                            className="h-8 px-3 text-xs" 
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleCancelPendingOrder(e, order);
+                              setConfirmCancelPendingId(null);
+                            }}
+                          >
+                            Yes
+                          </Button>
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            className="h-8 px-3 text-xs" 
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setConfirmCancelPendingId(null);
+                            }}
+                          >
+                            No
+                          </Button>
+                        </span>
+                      ) : (
+                        <Button
+                          size="sm"
+                          variant="destructive"
+                          aria-label={`Cancel ${order.order_number}`}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setConfirmCancelPendingId(order.id);
+                          }}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      )}
                       <Button size="sm" className="w-full sm:w-auto" onClick={() => handleResumeOrder(order)}>
                         Resume Order
                       </Button>
@@ -819,6 +1031,112 @@ export default function OrdersPage() {
           order={completedOrder} 
         />
       )}
+
+      {/* QRIS Scan Modal */}
+      <Dialog 
+        open={isQRISModalOpen} 
+        onOpenChange={(open) => {
+          if (!open) {
+            setIsQRISCancelConfirmOpen(true);
+          } else {
+            setIsQRISModalOpen(true);
+          }
+        }}
+      >
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="text-center font-bold text-xl">Scan QRIS to Pay</DialogTitle>
+          </DialogHeader>
+          <div className="flex flex-col items-center space-y-4 py-4">
+            <div className="text-center">
+              <div className="text-sm text-gray-500 uppercase font-bold mb-1 tracking-tight">Total Payment</div>
+              <div className="text-3xl font-mono font-bold text-blue-600">{formatIDR(qrisOrderData?.total || 0)}</div>
+            </div>
+
+            <div className="w-64 h-64 bg-white p-3 rounded-xl border-4 border-blue-50 shadow-xl relative overflow-hidden group">
+              {qrisPM?.imageUrl ? (
+                <img src={qrisPM.imageUrl} alt="QRIS" className="w-full h-full object-contain" />
+              ) : (
+                <div className="w-full h-full flex flex-col items-center justify-center bg-gray-50 text-gray-400 text-xs text-center p-4">
+                  <Smartphone className="w-12 h-12 mb-2 opacity-20 text-blue-600" />
+                  <p>Check "Settings &gt; Payment Methods" to upload a QRIS image.</p>
+                </div>
+              )}
+            </div>
+
+            <div className="text-center space-y-1">
+              <p className="font-bold text-gray-800">{qrisPM?.name}</p>
+              {qrisPM?.account_name && <p className="text-xs text-gray-500 uppercase tracking-wider">{qrisPM.account_name}</p>}
+            </div>
+
+            <div className="bg-yellow-50 border border-yellow-100 p-3 rounded-lg text-center w-full">
+              <p className="text-[10px] text-yellow-700 font-medium">Please ensure the customer has successfully scanned and completed the payment before proceeding.</p>
+            </div>
+
+            <Button 
+              className="w-full h-12 text-lg font-bold shadow-lg shadow-blue-100 mt-2"
+              disabled={processing}
+              onClick={async () => {
+                setProcessing(true);
+                try {
+                  // Update order status to COMPLETED
+                  const res = await api.put(`/orders/${qrisOrderData.id}`, {
+                    ...qrisOrderData,
+                    status: "COMPLETED",
+                    items: qrisOrderData.orderItems.map(i => ({ menu_id: i.menu_id, qty: i.qty }))
+                  });
+                  setIsQRISModalOpen(false);
+                  setCompletedOrder(res);
+                  success("Payment confirmed & Order completed!");
+                } catch (e) {
+                  console.error(e);
+                  error("Failed to complete order. Please try again.");
+                } finally {
+                  setProcessing(false);
+                }
+              }}
+            >
+              {processing ? "Confirming..." : "Confirmed & Print Receipt"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+      {/* QRIS Cancel Confirmation Dialog */}
+      <Dialog open={isQRISCancelConfirmOpen} onOpenChange={setIsQRISCancelConfirmOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-rose-600">
+              <AlertCircle className="w-5 h-5" />
+              Unconfirmed Payment
+            </DialogTitle>
+            <DialogDescription className="pt-2 text-gray-600">
+              Payment hasn't been confirmed yet. If you close this, the order will stay as <span className="font-bold text-gray-900">PENDING</span> and won't be recorded in the history.
+              <br /><br />
+              Are you sure you want to close the QRIS scan?
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="flex-col sm:flex-row gap-2 mt-4">
+            <Button
+              variant="outline"
+              className="flex-1"
+              onClick={() => setIsQRISCancelConfirmOpen(false)}
+            >
+              Go Back to QRIS
+            </Button>
+            <Button 
+              variant="destructive"
+              className="flex-1"
+              onClick={() => {
+                setIsQRISCancelConfirmOpen(false);
+                setIsQRISModalOpen(false);
+                success("QRIS scanner closed. Order remains PENDING.");
+              }}
+            >
+              Yes, Close
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

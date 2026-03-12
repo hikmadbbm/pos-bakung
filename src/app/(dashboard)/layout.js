@@ -17,7 +17,9 @@ const navItems = [
   { href: "/orders-list", label: "Order History", icon: ClipboardList },
   { href: "/menu", label: "Menu Management", icon: Utensils },
   { href: "/expenses", label: "Expenses & Costs", icon: DollarSign },
-  { href: "/reports", label: "Reports & Analytics", icon: BarChart },
+  { href: "/reports", label: "Reports", icon: BarChart },
+  { href: "/analytics", label: "AI Analytics", icon: Activity },
+  { href: "/recipes", label: "Recipe Management", icon: ClipboardList },
   { href: "/shift", label: "Shift Management", icon: Clock },
   { href: "/settings", label: "Settings", icon: Settings },
 ];
@@ -30,18 +32,46 @@ function DashboardContent({ children }) {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const { isFocusMode, setIsFocusMode } = useFocusMode();
 
+  const [mounted, setMounted] = useState(false);
+  const [user, setUser] = useState(null);
+
   useEffect(() => {
+    setMounted(true);
     const token = localStorage.getItem("token");
+    const userStr = localStorage.getItem("user");
     if (!token) {
       router.push("/login");
+    } else if (userStr) {
+      setUser(JSON.parse(userStr));
     }
   }, [router]);
 
+  // Define permissions mapping
+  const rolePermissions = {
+    OWNER: ["/dashboard", "/orders", "/orders-list", "/menu", "/expenses", "/reports", "/analytics", "/shift", "/settings", "/kitchen", "/recipes"],
+    MANAGER: ["/dashboard", "/orders", "/orders-list", "/menu", "/reports", "/analytics", "/shift", "/kitchen", "/recipes"],
+    CASHIER: ["/orders", "/orders-list", "/reports", "/shift"],
+    KITCHEN: ["/kitchen", "/orders-list", "/menu"]
+  };
+
+  const filteredNavItems = navItems
+    .concat([{ href: "/kitchen", label: "Kitchen View", icon: Utensils }])
+    .filter(item => {
+    if (!user) return false;
+    const allowedPaths = rolePermissions[user.role] || [];
+    return allowedPaths.some(path => item.href.startsWith(path));
+  });
+
+  // Auto-exit Focus Mode if navigating away from the POS page
+  useEffect(() => {
+    if (pathname !== "/orders") {
+      setIsFocusMode(false);
+    }
+  }, [pathname, setIsFocusMode]);
+
   const handleLogout = async () => {
     try {
-      const userStr = localStorage.getItem("user");
-      if (userStr) {
-        const user = JSON.parse(userStr);
+      if (user) {
         const shift = await api.get(`/shifts/current/${user.id}`);
         if (shift) {
           error("Active Shift Detected: You must stop your shift and reconcile cash before logging out.");
@@ -55,9 +85,28 @@ function DashboardContent({ children }) {
     router.push("/login");
   };
 
-  const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
+  // Prevent Hydration Mismatch by only rendering dashboard shell after mount
+  if (!mounted) {
+    return <div className="flex items-center justify-center h-screen bg-gray-100">Loading system...</div>;
+  }
+
+  const token = localStorage.getItem("token");
   if (!token) {
-    return <div className="flex items-center justify-center h-screen bg-gray-100">Checking authentication...</div>;
+    return <div className="flex items-center justify-center h-screen bg-gray-100">Redirecting to login...</div>;
+  }
+
+  // Basic Page Authorization Redirect
+  if (user && mounted) {
+    const allowedPaths = rolePermissions[user.role] || [];
+    const isAllowed = allowedPaths.some(path => pathname.startsWith(path));
+    if (!isAllowed && pathname !== "/dashboard") { // Dashboard usually safe or has separate logic
+       // If on root dashboard redirect to first allowed or POS
+       if (pathname === "/dashboard" && !allowedPaths.includes("/dashboard")) {
+          // handled in children or below
+       }
+       // router.push(allowedPaths[0] || "/login"); 
+       // For now just hide nav and let API fail, but better would be a redirect.
+    }
   }
 
   return (
@@ -95,7 +144,7 @@ function DashboardContent({ children }) {
           </div>
 
           <nav className="flex-1 p-2 space-y-1 overflow-y-auto">
-            {navItems.map((item) => {
+            {filteredNavItems.map((item) => {
               const Icon = item.icon;
               const isActive = pathname.startsWith(item.href);
               return (
@@ -171,13 +220,15 @@ function DashboardContent({ children }) {
             
             <div className="flex items-center space-x-4">
               <StopShiftButton />
-              <button
-                onClick={() => setIsFocusMode(true)} 
-                className="p-2 text-gray-500 hover:bg-gray-100 rounded-full transition-colors"
-                title="Enter Focus Mode"
-              >
-                 <Maximize2 className="w-5 h-5" />
-              </button>
+              {pathname === "/orders" && (
+                <button
+                  onClick={() => setIsFocusMode(true)} 
+                  className="p-2 text-gray-500 hover:bg-gray-100 rounded-full transition-colors"
+                  title="Enter Focus Mode"
+                >
+                   <Maximize2 className="w-5 h-5" />
+                </button>
+              )}
               <UserMenu />
             </div>
           </header>

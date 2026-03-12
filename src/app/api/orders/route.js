@@ -1,12 +1,31 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { logger } from '@/lib/logger';
+import jwt from 'jsonwebtoken';
+import { verifyAuth } from '@/lib/auth';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
+const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret';
+
+function getUserIdFromAuth(req) {
+  const auth = req.headers.get('authorization') || '';
+  const match = auth.match(/^Bearer\s+(.+)$/i);
+  if (!match) return null;
+  try {
+    const payload = jwt.verify(match[1], JWT_SECRET);
+    const id = Number(payload?.id);
+    return Number.isFinite(id) ? id : null;
+  } catch {
+    return null;
+  }
+}
+
 export async function GET(req) {
   try {
+    const { response } = await verifyAuth(req, ['OWNER', 'MANAGER', 'CASHIER', 'KITCHEN']);
+    if (response) return response;
     const searchParams = req.nextUrl.searchParams;
     const limit = parseInt(searchParams.get('limit') || '50');
     const status = searchParams.get('status');
@@ -21,8 +40,6 @@ export async function GET(req) {
       include: {
         orderItems: { include: { menu: true } },
         platform: true,
-        createdByUser: { select: { id: true, name: true, role: true } },
-        processedByUser: { select: { id: true, name: true, role: true } },
       },
     });
 
@@ -35,6 +52,10 @@ export async function GET(req) {
 
 export async function POST(req) {
   try {
+    const { user, response } = await verifyAuth(req, ['OWNER', 'MANAGER', 'CASHIER']);
+    if (response) return response;
+
+    const creatorId = user.id;
     const body = await req.json();
     const {
       items,
@@ -44,25 +65,36 @@ export async function POST(req) {
       customer_name,
       platform_id,
       discount,
+      discount_type,
+      discount_rate,
       created_by_user_id,
+      status,
     } = body;
 
     if (!items || items.length === 0) {
       return NextResponse.json({ error: 'Order items cannot be empty' }, { status: 400 });
     }
 
-    let subtotal = 0;
-    let totalCost = 0;
+    const finalCreatorId = created_by_user_id ? Number(created_by_user_id) : creatorId;
+    const platId = platform_id ? Number(platform_id) : null;
 
     const created = await prisma.$transaction(async (tx) => {
-      for (const item of items) {
-        const menu = await tx.menu.findUnique({
-          where: { id: item.menu_id },
-          include: {
-            prices: platform_id ? { where: { platform_id } } : false,
-          },
-        });
+      // 1. Fetch all required menus at once to avoid multiple round-trips
+      const menuIds = items.map(i => i.menu_id);
+      const dbMenus = await tx.menu.findMany({
+        where: { id: { in: menuIds } },
+        include: {
+          prices: platId ? { where: { platform_id: platId } } : false,
+        },
+      });
 
+      const menuMap = new Map(dbMenus.map(m => [m.id, m]));
+      let subtotal = 0;
+      let totalCost = 0;
+
+      // 2. Map and validate items
+      const itemsToCreate = items.map(item => {
+        const menu = menuMap.get(item.menu_id);
         if (!menu) {
           throw new Error(`Menu item ${item.menu_id} not found`);
         }
@@ -72,69 +104,90 @@ export async function POST(req) {
         
         if (explicitPrice !== undefined && explicitPrice !== null) {
           finalPrice = explicitPrice;
-        } else if (platform_id && menu.prices.length > 0) {
+        } else if (platId && menu.prices.length > 0) {
           finalPrice = menu.prices[0].price;
         }
 
-        item.calculatedPrice = finalPrice;
-        item.calculatedCost = menu.cost;
-
         subtotal += finalPrice * item.qty;
         totalCost += menu.cost * item.qty;
+
+        return {
+          menu_id: item.menu_id,
+          qty: item.qty,
+          price: finalPrice,
+          cost: menu.cost,
+        };
+      });
+
+      const finalDiscountType = discount_type || "FIXED";
+      const finalDiscountRate = Number(discount_rate) || 0;
+      let appliedDiscount = 0;
+
+      if (finalDiscountType === "PERCENT") {
+        appliedDiscount = Math.round(subtotal * (finalDiscountRate / 100));
+      } else {
+        appliedDiscount = finalDiscountRate || Number(discount) || 0;
       }
 
-      const appliedDiscount = discount || 0;
       let netSubtotal = subtotal - appliedDiscount;
       if (netSubtotal < 0) netSubtotal = 0;
 
       let commission = 0;
-      if (platform_id) {
-        const platform = await tx.platform.findUnique({ where: { id: platform_id } });
+      if (platId) {
+        const platform = await tx.platform.findUnique({ where: { id: platId } });
         if (platform && platform.commission_rate > 0) {
           commission = Math.round(netSubtotal * (platform.commission_rate / 100));
         }
       }
 
       const net_revenue = netSubtotal - commission;
-      const change_amount = money_received ? money_received - netSubtotal : 0;
+      const receivedNum = Number(money_received) || 0;
+      const change_amount = receivedNum ? receivedNum - netSubtotal : 0;
 
+      // 3. Create the order
       const newOrder = await tx.order.create({
         data: {
           total: subtotal,
           discount: appliedDiscount,
+          discount_type: finalDiscountType,
+          discount_rate: finalDiscountRate,
           commission,
           net_revenue,
-          platform_id: platform_id || null,
+          platform_id: platId,
           payment_method,
-          money_received: money_received || 0,
+          money_received: receivedNum,
           change_amount,
-          note,
-          customer_name,
-          created_by_user_id,
-          processed_by_user_id: created_by_user_id,
+          status: status || 'COMPLETED',
+          note: note || null,
+          customer_name: customer_name || null,
+          created_by_user_id: finalCreatorId,
+          processed_by_user_id: finalCreatorId,
           orderItems: {
-            create: items.map((item) => ({
-              menu_id: item.menu_id,
-              qty: item.qty,
-              price: item.calculatedPrice,
-              cost: item.calculatedCost,
-            })),
+            create: itemsToCreate,
           },
         },
+      });
+
+      // 4. Update order_number with the ID
+      const orderNumber = `TRX-${String(newOrder.id).padStart(3, '0')}`;
+      return await tx.order.update({
+        where: { id: newOrder.id },
+        data: { order_number: orderNumber },
         include: {
           orderItems: { include: { menu: true } },
           platform: true,
         },
       });
-      return newOrder;
+    }, {
+      timeout: 15000 // Increase timeout to 15s to handle potentially slow cold starts
     });
 
-    logger.info('Order created', { id: created.id, subtotal });
+    logger.info('Order created', { id: created.id, total: created.total });
     return NextResponse.json(created, { status: 201 });
   } catch (error) {
     console.error('Failed to create order:', error);
-    const message = error?.message?.includes('not found') ? error.message : 'Failed to create order';
+    const message = error?.message?.includes('not found') ? error.message : (error?.message || 'Failed to create order');
     const status = message.includes('not found') ? 400 : 500;
-    return NextResponse.json({ error: message }, { status });
+    return NextResponse.json({ error: message, detail: error?.message }, { status });
   }
 }

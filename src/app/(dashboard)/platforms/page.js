@@ -17,6 +17,7 @@ export default function PlatformsPage() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [formData, setFormData] = useState({ name: "", type: "OFFLINE", commission_rate: "0" });
   const [isEditing, setIsEditing] = useState(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState(null);
 
   useEffect(() => {
     loadPlatforms();
@@ -52,13 +53,16 @@ export default function PlatformsPage() {
   };
 
   const handleDelete = async (id) => {
-    if (!confirm("Delete platform? This will fail if orders exist for this platform.")) return;
+    // Optimistic UI
+    const previous = platforms;
+    setConfirmDeleteId(null);
+    setPlatforms(prev => prev.filter(p => p.id !== id));
     try {
       await api.delete(`/platforms/${id}`);
-      loadPlatforms();
       success("Platform deleted");
     } catch (e) {
       console.error(e);
+      setPlatforms(previous); // rollback
       error("Failed to delete platform. It might be in use.");
     }
   };
@@ -120,12 +124,22 @@ export default function PlatformsPage() {
                   </TableCell>
                   <TableCell>{p.commission_rate}%</TableCell>
                   <TableCell className="text-right space-x-2">
-                    <Button variant="ghost" size="icon" onClick={() => openEdit(p)}>
-                      <Edit2 className="w-4 h-4 text-gray-500" />
-                    </Button>
-                    <Button variant="ghost" size="icon" onClick={() => handleDelete(p.id)}>
-                      <Trash2 className="w-4 h-4 text-red-500" />
-                    </Button>
+                    {confirmDeleteId === p.id ? (
+                      <span className="inline-flex items-center gap-1">
+                        <span className="text-xs text-gray-500 mr-1">Delete?</span>
+                        <Button variant="destructive" size="sm" className="h-6 px-2 text-xs" onClick={() => handleDelete(p.id)}>Yes</Button>
+                        <Button variant="ghost" size="sm" className="h-6 px-2 text-xs" onClick={() => setConfirmDeleteId(null)}>Cancel</Button>
+                      </span>
+                    ) : (
+                      <>
+                        <Button variant="ghost" size="icon" onClick={() => openEdit(p)}>
+                          <Edit2 className="w-4 h-4 text-gray-500" />
+                        </Button>
+                        <Button variant="ghost" size="icon" onClick={() => setConfirmDeleteId(p.id)}>
+                          <Trash2 className="w-4 h-4 text-red-500" />
+                        </Button>
+                      </>
+                    )}
                   </TableCell>
                 </TableRow>
               ))

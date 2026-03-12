@@ -3,10 +3,9 @@ import { PrismaClient } from '@prisma/client'
 const globalForPrisma = globalThis
 
 const connectionString =
-  process.env.TEST_DATABASE_URL ||
+  process.env.DATABASE_URL ||
   process.env.POSTGRES_URL_NON_POOLING ||
   process.env.DATABASE_URL_UNPOOLED ||
-  process.env.DATABASE_URL ||
   ''
 
 export const prisma =

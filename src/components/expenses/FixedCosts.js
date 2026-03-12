@@ -25,6 +25,7 @@ export default function FixedCosts() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [formData, setFormData] = useState({ name: "", amount: "", frequency: "MONTHLY" });
   const [isEditing, setIsEditing] = useState(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState(null);
 
   useEffect(() => {
     loadFixedCosts();
@@ -45,14 +46,16 @@ export default function FixedCosts() {
     e.preventDefault();
     try {
       if (isEditing) {
-        await api.put(`/fixed-costs/${isEditing}`, formData);
+        const updated = await api.put(`/fixed-costs/${isEditing}`, formData);
+        setFixedCosts(prev => prev.map(ex => ex.id === isEditing ? { ...ex, ...updated } : ex));
+        success("Fixed cost updated");
       } else {
-        await api.post("/fixed-costs", formData);
+        const created = await api.post("/fixed-costs", formData);
+        setFixedCosts(prev => [created, ...prev]);
+        success("Fixed cost added");
       }
       setIsDialogOpen(false);
       resetForm();
-      loadFixedCosts();
-      success(isEditing ? "Fixed cost updated" : "Fixed cost added");
     } catch (e) {
       console.error(e);
       error("Failed to save fixed cost");
@@ -60,13 +63,15 @@ export default function FixedCosts() {
   };
 
   const handleDelete = async (id) => {
-    if (!confirm("Delete this fixed cost?")) return;
+    const previous = fixedCosts;
+    setConfirmDeleteId(null);
+    setFixedCosts(prev => prev.filter(fc => fc.id !== id));
     try {
       await api.delete(`/fixed-costs/${id}`);
-      loadFixedCosts();
       success("Fixed cost deleted");
     } catch (e) {
       console.error(e);
+      setFixedCosts(previous);
       error("Failed to delete fixed cost");
     }
   };
@@ -175,13 +180,23 @@ export default function FixedCosts() {
                     </TableCell>
                     <TableCell className="text-right font-medium">{formatIDR(fc.amount)}</TableCell>
                     <TableCell className="text-right text-blue-600 font-bold">{formatIDR(daily)}</TableCell>
-                    <TableCell className="text-right space-x-1">
-                      <Button variant="ghost" size="icon" className="h-8 w-8 text-gray-400 hover:text-blue-600" onClick={() => openEdit(fc)}>
-                        <Edit2 className="w-3.5 h-3.5" />
-                      </Button>
-                      <Button variant="ghost" size="icon" className="h-8 w-8 text-gray-400 hover:text-red-600" onClick={() => handleDelete(fc.id)}>
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </Button>
+                    <TableCell className="text-right">
+                      {confirmDeleteId === fc.id ? (
+                        <span className="inline-flex items-center justify-end gap-1 w-full">
+                          <span className="text-xs text-gray-500 mr-1">Delete?</span>
+                          <Button variant="destructive" size="sm" className="h-6 px-2 text-xs" onClick={() => handleDelete(fc.id)}>Yes</Button>
+                          <Button variant="ghost" size="sm" className="h-6 px-2 text-xs" onClick={() => setConfirmDeleteId(null)}>Cancel</Button>
+                        </span>
+                      ) : (
+                        <div className="flex items-center justify-end gap-1">
+                          <Button variant="ghost" size="icon" className="h-8 w-8 text-gray-400 hover:text-blue-600" onClick={() => openEdit(fc)}>
+                            <Edit2 className="w-4 h-4" />
+                          </Button>
+                          <Button variant="ghost" size="icon" className="h-8 w-8 text-gray-400 hover:text-red-600" onClick={() => setConfirmDeleteId(fc.id)}>
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      )}
                     </TableCell>
                   </TableRow>
                 );
