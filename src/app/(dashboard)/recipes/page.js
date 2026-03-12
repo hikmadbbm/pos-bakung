@@ -66,7 +66,7 @@ function IngredientManager() {
   const [isAdding, setIsAdding] = useState(false);
   const [editing, setEditing] = useState(null);
   const [form, setForm] = useState({ name: "", unit: "", cost_per_unit: 0 });
-  const { toast } = useToast();
+  const { success, error } = useToast();
 
   useEffect(() => {
     loadIngredients();
@@ -87,16 +87,16 @@ function IngredientManager() {
     try {
       if (editing) {
         await api.put(`/api/ingredients/${editing.id}`, form);
-        toast({ title: "Ingredient updated" });
+        success("Ingredient updated");
       } else {
         await api.post("/api/ingredients", form);
-        toast({ title: "Ingredient added" });
+        success("Ingredient added");
       }
       setEditing(null);
       setIsAdding(false);
       loadIngredients();
     } catch (e) {
-      toast({ title: "Error saving ingredient", variant: "destructive" });
+      error("Error saving ingredient");
     }
   };
 
@@ -106,7 +106,7 @@ function IngredientManager() {
       await api.delete(`/api/ingredients/${id}`);
       loadIngredients();
     } catch (e) {
-      toast({ title: "Could not delete. Ingredient might be in use.", variant: "destructive" });
+      error("Could not delete. Ingredient might be in use.");
     }
   };
 
@@ -407,7 +407,7 @@ function RecipeForm({ id, onClose }) {
   const [menus, setMenus] = useState([]);
   const [dbIngredients, setDbIngredients] = useState([]);
   const [loading, setLoading] = useState(true);
-  const { toast } = useToast();
+  const { success, error } = useToast();
 
   useEffect(() => {
     loadData();
@@ -525,10 +525,10 @@ function RecipeForm({ id, onClose }) {
       } else {
         await api.post("/api/recipes", recipe);
       }
-      toast({ title: "Recipe Saved" });
+      success("Recipe Saved");
       onClose();
     } catch (e) {
-      toast({ title: "Save Failed", variant: "destructive" });
+      error("Save Failed");
     }
   };
 
@@ -804,7 +804,7 @@ function RecipeForm({ id, onClose }) {
                   <Save className="w-4 h-4 mr-2" /> {id ? "Update Recipe" : "Save Recipe"}
                 </Button>
                 {id && (
-                  <Button variant="ghost" className="w-full text-white/70 text-xs" onClick={() => toast({ title: "Snapshot feature active" })}>
+                  <Button variant="ghost" className="w-full text-white/70 text-xs" onClick={() => success("Snapshot feature active")}>
                     <History className="w-4 h-4 mr-2" /> Viewed as version {new Date().toLocaleDateString()}
                   </Button>
                 )}

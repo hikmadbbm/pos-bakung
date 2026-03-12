@@ -49,7 +49,7 @@ export default function MenuPage() {
     setLoading(true);
     try {
       const [mRes, cRes, pRes] = await Promise.allSettled([
-        api.get("/menus"),
+        api.get("/menus?all=true"),
         api.get("/categories"),
         api.get("/platforms"),
       ]);

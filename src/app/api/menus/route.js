@@ -7,10 +7,19 @@ export const runtime = 'nodejs';
 
 export async function GET(req) {
   try {
+    const { response } = await verifyAuth(req, ['OWNER', 'MANAGER', 'KITCHEN', 'CASHIER']);
+    if (response) return response;
+
+    const searchParams = req.nextUrl.searchParams;
+    const all = searchParams.get('all') === 'true';
+
+    const where = {};
+    if (!all) {
+      where.is_active = true;
+    }
+
     const menus = await prisma.menu.findMany({
-      where: {
-        is_active: true,
-      },
+      where,
       include: {
         category: true,
         prices: {

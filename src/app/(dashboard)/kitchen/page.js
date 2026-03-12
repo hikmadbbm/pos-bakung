@@ -126,7 +126,7 @@ export default function KitchenViewPage() {
                         <span className="bg-blue-600 text-white w-6 h-6 flex items-center justify-center rounded-md text-xs font-bold">
                           {item.qty}
                         </span>
-                        <span className="text-sm font-medium text-gray-800">{item.menu.name}</span>
+                        <span className="text-sm font-medium text-gray-800">{item.menu?.name || "Deleted Item"}</span>
                       </div>
                     </div>
                   ))}
