@@ -57,6 +57,9 @@ model UserShift {
   status         String    @default("OPEN")
   user           User      @relation(fields: [user_id], references: [id], onDelete: Cascade)
 
+  @@index([user_id])
+  @@index([status])
+  @@index([start_time])
   @@map("user_shift")
 }
 
@@ -146,6 +149,10 @@ model Order {
   platform             Platform?      @relation(fields: [platform_id], references: [id])
   orderItems           OrderItem[]
 
+  @@index([date])
+  @@index([status])
+  @@index([payment_method_id])
+  @@index([created_by_user_id])
   @@map("order")
 }
 
@@ -176,6 +183,8 @@ model OrderItem {
   menu     Menu  @relation(fields: [menu_id], references: [id])
   order    Order @relation(fields: [order_id], references: [id], onDelete: Cascade)
 
+  @@index([menu_id])
+  @@index([order_id])
   @@map("orderitem")
 }
 
@@ -297,4 +306,20 @@ model HppSnapshot {
   recipe          Recipe   @relation(fields: [recipe_id], references: [id], onDelete: Cascade)
 
   @@map("hpp_snapshot")
+}
+
+model DailySummary {
+  id              Int      @id @default(autoincrement())
+  date            DateTime @unique
+  revenue         Int      @default(0)
+  net_revenue     Int      @default(0)
+  cogs            Int      @default(0)
+  expenses        Int      @default(0)
+  total_orders    Int      @default(0)
+  top_menus_json  Json?    // Store JSON of top menus for that day
+  created_at      DateTime @default(now())
+  updated_at      DateTime @updatedAt
+
+  @@index([date])
+  @@map("daily_summary")
 }
