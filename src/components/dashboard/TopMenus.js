@@ -10,7 +10,7 @@ export default function TopMenus({ menus = [], loading = false }) {
   }
 
   return (
-    <Card className="col-span-4">
+    <Card className="shadow-sm border-blue-50 overflow-hidden">
       <CardHeader>
         <CardTitle>Top Performing Menu Items</CardTitle>
         <CardDescription>Menu items generating the most profit today.</CardDescription>

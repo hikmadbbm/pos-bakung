@@ -76,10 +76,10 @@ export default function DashboardPage() {
         </Button>
       </div>
 
-      <div className="grid gap-6">
+      <div className="flex flex-col gap-8">
         {/* AI Assistant Section */}
-        <Suspense fallback={<div className="h-40 bg-gray-50 rounded-lg animate-pulse"></div>}>
-          <AiInsights insights={insights} loading={loading} />
+        <Suspense fallback={<div className="h-48 bg-gray-50 rounded-xl animate-pulse"></div>}>
+          <AiInsights insights={insights} loading={loading} data={data} />
         </Suspense>
 
         {/* Summary Cards */}
@@ -93,9 +93,11 @@ export default function DashboardPage() {
         </Suspense>
 
         {/* Top Performing Menu */}
-        <Suspense fallback={<div className="h-64 bg-gray-50 animate-pulse"></div>}>
-          <TopMenus menus={data?.topMenus || []} loading={loading} />
-        </Suspense>
+        <div className="pt-2">
+          <Suspense fallback={<div className="h-64 bg-gray-50 animate-pulse"></div>}>
+            <TopMenus menus={data?.topMenus || []} loading={loading} />
+          </Suspense>
+        </div>
       </div>
     </div>
   );
