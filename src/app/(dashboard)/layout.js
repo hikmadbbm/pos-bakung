@@ -167,7 +167,7 @@ function DashboardContent({ children }) {
         >
           <div className={cn("h-16 flex items-center border-b px-4", isCollapsed ? "justify-center" : "justify-between")}>
             {!isCollapsed && (
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-6">
                 <div>
                   <h1 className="text-lg font-bold text-blue-600 truncate">POS Bakmi Youtje</h1>
                   <p className="text-[10px] text-gray-500 truncate">Powered by Bakung</p>
