@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { neon } from '@neondatabase/serverless';
+import { parseDateRange } from '../reports/utils';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -10,39 +11,41 @@ export async function GET(req) {
     const searchParams = req.nextUrl.searchParams;
     const range = searchParams.get('range') || 'today';
     
-    // Placeholder logic for the migration, keeping it simple to ensure compilation
-    // In a real scenario, you'd map the exact date filtering logic from dashboard.js
+    const { start, end } = parseDateRange(searchParams);
     
-    let orders = [];
-    try {
-      orders = await prisma.order.findMany({
-        where: { status: 'COMPLETED' },
+    const [orders, totalOrdersCount] = await Promise.all([
+      prisma.order.findMany({
+        where: { 
+          status: 'COMPLETED',
+          date: { gte: start, lte: end }
+        },
         orderBy: { date: 'desc' },
-        take: 100
-      });
-    } catch {
-      const sql = neon(
-        process.env.POSTGRES_URL_NON_POOLING ||
-          process.env.DATABASE_URL_UNPOOLED ||
-          process.env.DATABASE_URL ||
-          ''
-      );
-      const rows = await sql(
-        'SELECT id, date, total, net_revenue, status FROM "order" WHERE status = $1 ORDER BY date DESC LIMIT 100',
-        ['COMPLETED']
-      );
-      orders = rows || [];
-    }
-    
-    const totalRevenue = orders.reduce((sum, o) => sum + o.total, 0);
-    const totalNetRevenue = orders.reduce((sum, o) => sum + o.net_revenue, 0);
-    const totalOrders = orders.length;
+        take: 5
+      }),
+      prisma.order.count({
+        where: { 
+          status: 'COMPLETED',
+          date: { gte: start, lte: end }
+        }
+      })
+    ]);
+
+    const aggregate = await prisma.order.aggregate({
+      where: { 
+        status: 'COMPLETED',
+        date: { gte: start, lte: end }
+      },
+      _sum: {
+        total: true,
+        net_revenue: true
+      }
+    });
 
     return NextResponse.json({
-      revenue: totalRevenue,
-      net_revenue: totalNetRevenue,
-      orders: totalOrders,
-      recentOrders: orders.slice(0, 5)
+      revenue: aggregate._sum.total || 0,
+      net_revenue: aggregate._sum.net_revenue || 0,
+      orders: totalOrdersCount,
+      recentOrders: orders
     });
   } catch (error) {
     console.error('Failed to fetch dashboard stats:', error);

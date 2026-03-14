@@ -2,7 +2,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, ShoppingCart, Utensils, DollarSign, BarChart, LogOut, Settings, Activity, Calendar, ClipboardList, Menu, X, Wallet, Smartphone, Users, Clock, Maximize2, Minimize2 } from "lucide-react";
+import { LayoutDashboard, ShoppingCart, Utensils, DollarSign, BarChart, LogOut, Settings, Activity, Calendar, ClipboardList, Menu, X, Wallet, Smartphone, Users, Clock, Maximize2, Minimize2, RefreshCw } from "lucide-react";
 import { setAuth, api } from "../../lib/api";
 import { useRouter } from "next/navigation";
 import { cn } from "../../lib/utils";
@@ -167,9 +167,18 @@ function DashboardContent({ children }) {
         >
           <div className={cn("h-16 flex items-center border-b px-4", isCollapsed ? "justify-center" : "justify-between")}>
             {!isCollapsed && (
-              <div>
-                <h1 className="text-lg font-bold text-blue-600 truncate">Bakmie You-Tje</h1>
-                <p className="text-[10px] text-gray-500 truncate">Powered by Bakung</p>
+              <div className="flex items-center gap-2">
+                <div>
+                  <h1 className="text-lg font-bold text-blue-600 truncate">POS Bakmi Youtje</h1>
+                  <p className="text-[10px] text-gray-500 truncate">Powered by Bakung</p>
+                </div>
+                <button 
+                  onClick={() => window.location.reload()} 
+                  className="p-1.5 rounded-full hover:bg-blue-50 text-blue-600 transition-colors"
+                  title="Refresh Page"
+                >
+                  <RefreshCw className="w-4 h-4" />
+                </button>
               </div>
             )}
             <button 

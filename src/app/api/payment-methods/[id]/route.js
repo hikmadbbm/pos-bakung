@@ -9,7 +9,7 @@ export async function PUT(req, { params }) {
     const resolvedParams = await params;
     const id = Number(resolvedParams.id);
     const body = await req.json();
-    const { name, type, account_number, account_name, description, imageUrl, is_active, display_order } = body;
+    const { name, type, account_number, account_name, description, imageUrl, qris_data, is_active, display_order } = body;
 
     const updated = await prisma.paymentMethod.update({
       where: { id },
@@ -20,6 +20,7 @@ export async function PUT(req, { params }) {
         account_name,
         description,
         imageUrl,
+        qris_data,
         is_active,
         display_order: Number(display_order) || 0,
       },

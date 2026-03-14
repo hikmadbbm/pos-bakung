@@ -6,19 +6,19 @@ export function parseDateRange(searchParams) {
   const toDate = to ? new Date(to) : null;
 
   const start = fromDate && !Number.isNaN(fromDate.getTime()) ? fromDate : new Date();
-  start.setHours(0, 0, 0, 0);
+  start.setUTCHours(0, 0, 0, 0);
 
   const end = toDate && !Number.isNaN(toDate.getTime()) ? toDate : new Date();
-  end.setHours(23, 59, 59, 999);
+  end.setUTCHours(23, 59, 59, 999);
 
   return { start, end };
 }
 
 export function daysBetweenInclusive(start, end) {
   const a = new Date(start);
-  a.setHours(0, 0, 0, 0);
+  a.setUTCHours(0, 0, 0, 0);
   const b = new Date(end);
-  b.setHours(0, 0, 0, 0);
+  b.setUTCHours(0, 0, 0, 0);
   const diff = Math.max(0, b.getTime() - a.getTime());
   return Math.floor(diff / (24 * 60 * 60 * 1000)) + 1;
 }

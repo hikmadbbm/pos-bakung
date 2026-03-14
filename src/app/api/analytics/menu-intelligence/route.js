@@ -5,14 +5,26 @@ import { verifyAuth } from '@/lib/auth';
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
+import { parseDateRange } from '../../reports/utils';
+
 export async function GET(req) {
   try {
     const { response } = await verifyAuth(req, ['OWNER', 'MANAGER']);
     if (response) return response;
+
+    const { start, end } = parseDateRange(req.nextUrl.searchParams);
+
     const menus = await prisma.menu.findMany({
       include: {
         category: true,
-        orderItems: true
+        orderItems: {
+          where: {
+            order: {
+              date: { gte: start, lte: end },
+              status: 'COMPLETED'
+            }
+          }
+        }
       }
     });
 

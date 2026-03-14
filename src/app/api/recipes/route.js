@@ -4,6 +4,27 @@ import { verifyAuth } from '@/lib/auth';
 
 export const dynamic = 'force-dynamic';
 
+// Helper for recursive HPP calculation
+async function calculateDeepHpp(items) {
+  let totalVariable = 0;
+  
+  for (const item of items) {
+    if (item.item_type === 'INGREDIENT' && item.ingredient_id) {
+      const ing = await prisma.ingredient.findUnique({ where: { id: Number(item.ingredient_id) } });
+      if (ing) {
+        totalVariable += (ing.cost_per_unit || 0) * (Number(item.quantity) || 0);
+      }
+    } else if (item.item_type === 'COMPONENT' && item.component_recipe_id) {
+      const comp = await prisma.recipe.findUnique({ where: { id: Number(item.component_recipe_id) } });
+      if (comp) {
+        const costPerPortion = (comp.total_hpp || 0) / (comp.base_quantity || 1);
+        totalVariable += costPerPortion * (Number(item.quantity) || 0);
+      }
+    }
+  }
+  return Math.round(totalVariable);
+}
+
 export async function GET(req) {
   try {
     const { response } = await verifyAuth(req, ['OWNER', 'MANAGER']);
@@ -11,8 +32,11 @@ export async function GET(req) {
 
     const recipes = await prisma.recipe.findMany({
       include: {
-        ingredients: {
-          include: { ingredient: true }
+        items: {
+          include: { 
+            ingredient: true,
+            component_recipe: true
+          }
         },
         menu: true
       },
@@ -33,52 +57,22 @@ export async function POST(req) {
     const body = await req.json();
     const { 
       name, 
+      type, // STANDARD, COMPONENT
       menu_id, 
       base_quantity, 
-      ingredients, // Array of { ingredient_id, manual_name, manual_unit, manual_cost, quantity, source }
+      items, // Array of { item_type, ingredient_id, component_recipe_id, quantity, unit }
       monthly_fixed_cost,
       monthly_production_volume
     } = body;
 
-    if (!name || !ingredients || !Array.isArray(ingredients)) {
-      return NextResponse.json({ error: 'Name and ingredients are required' }, { status: 400 });
+    if (!name || !items || !Array.isArray(items)) {
+      return NextResponse.json({ error: 'Name and items are required' }, { status: 400 });
     }
 
-    // 1. Fetch live costs for database ingredients
-    const dbIngredientIds = ingredients
-      .filter(i => i.source === 'DATABASE' && i.ingredient_id)
-      .map(i => i.ingredient_id);
-    
-    const dbIngredients = await prisma.ingredient.findMany({
-      where: { id: { in: dbIngredientIds } }
-    });
-    const dbIngredMap = new Map(dbIngredients.map(i => [i.id, i]));
+    // 1. Calculate Total Variable Cost
+    const totalVariableCost = await calculateDeepHpp(items);
 
-    // 2. Calculate Total Variable Cost
-    let totalVariableCost = 0;
-    const ingredientsToCreate = ingredients.map(i => {
-      let costPerUnit = 0;
-      if (i.source === 'DATABASE' && i.ingredient_id) {
-        const dbIng = dbIngredMap.get(i.ingredient_id);
-        costPerUnit = dbIng ? dbIng.cost_per_unit : 0;
-      } else {
-        costPerUnit = Number(i.manual_cost) || 0;
-      }
-      
-      const itemTotal = (Number(i.quantity) || 0) * costPerUnit;
-      totalVariableCost += itemTotal;
-
-      return {
-        ingredient_id: i.source === 'DATABASE' ? i.ingredient_id : null,
-        manual_name: i.source === 'MANUAL' ? i.manual_name : null,
-        manual_unit: i.source === 'MANUAL' ? i.manual_unit : null,
-        manual_cost: i.source === 'MANUAL' ? Number(i.manual_cost) : null,
-        quantity: Number(i.quantity) || 0,
-        source: i.source || 'DATABASE'
-      };
-    });
-
-    // 3. Calculate Fixed Cost Allocation
+    // 2. Calculate Fixed Cost Allocation
     let fixedCostPerUnit = 0;
     if (monthly_fixed_cost && monthly_production_volume > 0) {
       fixedCostPerUnit = Math.round(Number(monthly_fixed_cost) / Number(monthly_production_volume));
@@ -86,30 +80,40 @@ export async function POST(req) {
 
     const totalHpp = Math.round(totalVariableCost + fixedCostPerUnit);
 
-    // 4. Create Recipe and Ingredients in Transaction
+    // 3. Create Recipe and Items in Transaction
     const recipe = await prisma.$transaction(async (tx) => {
       const created = await tx.recipe.create({
         data: {
           name,
+          type: type || 'STANDARD',
           menu_id: menu_id ? Number(menu_id) : null,
           base_quantity: Number(base_quantity) || 1,
           monthly_fixed_cost: Number(monthly_fixed_cost) || 0,
           monthly_production_volume: Number(monthly_production_volume) || 0,
-          total_variable_cost: Math.round(totalVariableCost),
+          total_variable_cost: totalVariableCost,
           fixed_cost_allocation: fixedCostPerUnit,
           total_hpp: totalHpp,
-          ingredients: {
-            create: ingredientsToCreate
+          items: {
+            create: items.map(item => ({
+              item_type: item.item_type,
+              ingredient_id: item.ingredient_id ? Number(item.ingredient_id) : null,
+              component_recipe_id: item.component_recipe_id ? Number(item.component_recipe_id) : null,
+              quantity: Number(item.quantity) || 0,
+              unit: item.unit || ""
+            }))
           }
         },
         include: {
-          ingredients: {
-            include: { ingredient: true }
+          items: {
+            include: { 
+              ingredient: true,
+              component_recipe: true
+            }
           }
         }
       });
 
-      // 5. Update Menu cost if linked
+      // 4. Update Menu cost if linked
       if (menu_id) {
         await tx.menu.update({
           where: { id: Number(menu_id) },

@@ -7,6 +7,7 @@ export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
 export async function GET(req) {
+  const startTime = Date.now();
   try {
     const { response } = await verifyAuth(req, ['OWNER', 'MANAGER', 'KITCHEN', 'CASHIER']);
     if (response) return response;
@@ -21,14 +22,23 @@ export async function GET(req) {
 
     const menus = await prisma.menu.findMany({
       where,
-      include: {
-        category: true,
+      select: {
+        id: true,
+        name: true,
+        price: true,
+        cost: true,
+        categoryId: true,
+        is_active: true,
+        category: {
+          select: { id: true, name: true, color: true }
+        },
         prices: {
           select: { platform_id: true, price: true },
         },
       },
       orderBy: { name: 'asc' },
     });
+    
     const normalized = menus.map((m) => {
       const prices = {};
       for (const p of m.prices || []) {
@@ -40,7 +50,15 @@ export async function GET(req) {
         profit: (m.price || 0) - (m.cost || 0),
       };
     });
-    return NextResponse.json(normalized);
+
+    const duration = Date.now() - startTime;
+    console.log(`GET /api/menus took ${duration}ms`);
+
+    return NextResponse.json(normalized, {
+      headers: {
+        'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=30',
+      }
+    });
   } catch (error) {
     console.error('Failed to fetch menus:', error);
     return NextResponse.json({ error: 'Failed to fetch menus' }, { status: 500 });

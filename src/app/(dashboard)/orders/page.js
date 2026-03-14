@@ -16,6 +16,9 @@ import { ReceiptPreview } from "../../../components/receipt-preview";
 import { useFocusMode } from "../../../lib/focus-mode-context";
 import { Maximize2, Minimize2 } from "lucide-react";
 import { PinDialog } from "../../../components/pin-dialog";
+import { usePrinter } from "../../../lib/printer-context";
+import QRCode from "qrcode";
+import { generateDynamicQRIS } from "../../../lib/qris";
 
 // Dynamically loaded from /api/payment-methods
 const defaultPaymentMethods = [
@@ -33,6 +36,107 @@ function parseAmountToInt(value) {
   if (!Number.isFinite(num)) return NaN;
   if (num <= 0) return NaN;
   return Math.round(num);
+}
+
+function QRISImage({ baseQRIS, amount, staticImage }) {
+  const [qrSrc, setQrSrc] = useState(null);
+  const [error, setError] = useState(false);
+  const [debugInfo, setDebugInfo] = useState("");
+
+  useEffect(() => {
+    console.log("QRISImage: Generating for", { amount, hasBase: !!baseQRIS });
+    
+    if (!baseQRIS) {
+        console.warn("QRISImage: No base QRIS provided, using static image");
+        setQrSrc(staticImage);
+        setError(false);
+        return;
+    }
+
+    // Reset error state and debug info at start of new attempt
+    setError(false);
+    setDebugInfo("");
+
+    let isMounted = true;
+    const timer = setTimeout(() => {
+      if (isMounted && !qrSrc) { // Note: qrSrc here is still the value from the current render's scope
+        console.error("QRISImage: Generation timed out");
+        setError(true);
+        setQrSrc(staticImage);
+        setDebugInfo("Generation timed out");
+      }
+    }, 5000);
+
+    try {
+        const dynamicQRIS = generateDynamicQRIS(baseQRIS, amount);
+        console.log("QRISImage: Dynamic string generated", dynamicQRIS.substring(0, 20) + "...");
+        
+        QRCode.toDataURL(dynamicQRIS, {
+            margin: 2,
+            width: 512,
+            color: {
+                dark: '#012345',
+                light: '#ffffff'
+            }
+        })
+        .then(url => {
+            if (!isMounted) return;
+            clearTimeout(timer);
+            console.log("QRISImage: QRCode.toDataURL success");
+            setQrSrc(url);
+            setError(false);
+        })
+        .catch(err => {
+            if (!isMounted) return;
+            clearTimeout(timer);
+            console.error("QRISImage: QRCode.toDataURL error:", err);
+            setError(true);
+            setQrSrc(staticImage);
+            setDebugInfo(err.message);
+        });
+    } catch (e) {
+        clearTimeout(timer);
+        console.error("QRISImage: processing error:", e);
+        setError(true);
+        setQrSrc(staticImage);
+        setDebugInfo(e.message);
+    }
+
+    return () => {
+      isMounted = false;
+      clearTimeout(timer);
+    };
+  }, [baseQRIS, amount, staticImage]);
+
+  if (!qrSrc && !error) {
+    return (
+        <div className="w-full h-full flex flex-col items-center justify-center bg-gray-50 text-gray-400 text-xs text-center p-4">
+            <Smartphone className="w-12 h-12 mb-2 opacity-20 text-blue-600 animate-pulse" />
+            <p>Generating QR Code...</p>
+        </div>
+    );
+  }
+
+  if (!qrSrc && error) {
+    return (
+        <div className="w-full h-full flex flex-col items-center justify-center bg-red-50 text-red-400 text-xs text-center p-4">
+            <AlertCircle className="w-12 h-12 mb-2 opacity-20" />
+            <p>Failed to generate QR</p>
+            {debugInfo && <p className="mt-1 opacity-60 text-[8px]">{debugInfo}</p>}
+        </div>
+    );
+  }
+
+  return (
+    <div className="relative w-full h-full flex items-center justify-center">
+        <img src={qrSrc} alt="QRIS" className="w-full h-full object-contain" />
+        {error && (
+            <div className="absolute bottom-0 inset-x-0 bg-red-500/80 text-white text-[8px] py-1 px-2 text-center">
+                Using fallback static image
+            </div>
+        )}
+    </div>
+  );
 }
 
 export default function OrdersPage() {
@@ -66,6 +170,7 @@ export default function OrdersPage() {
   const [discount, setDiscount] = useState("");
   const [discountType, setDiscountType] = useState("FIXED"); // "FIXED" or "PERCENT"
   const { isFocusMode, setIsFocusMode } = useFocusMode();
+  const { connectionStatus } = usePrinter();
 
   // Pending Orders State
   const [pendingOrders, setPendingOrders] = useState([]);
@@ -97,59 +202,22 @@ export default function OrdersPage() {
   const loadData = async () => {
     setLoading(true);
     try {
-      const [mRes, cRes, pRes, uRes, pmRes] = await Promise.allSettled([
-        api.get("/menus"),
-        api.get("/categories"),
-        api.get("/platforms"),
-        api.get("/users/me"),
-        api.get("/payment-methods")
-      ]);
-      if (mRes.status === "fulfilled") setMenus(mRes.value);
-      else error("Failed to load menus");
-      if (cRes.status === "fulfilled") setCategories(cRes.value);
-      else error("Failed to load categories");
-      if (pRes.status === "fulfilled") setPlatforms(pRes.value);
-      else error("Failed to load platforms");
-      
-      if (pmRes.status === "fulfilled") {
-        const activePMs = pmRes.value.filter(pm => pm.is_active);
-        setAllActivePMs(activePMs.length > 0 ? activePMs : defaultPaymentMethods);
-        // Default PM is set via effect on selectedPlatform
-      }
+      const res = await api.get("/pos/init");
+      setMenus(res.menus);
+      setCategories(res.categories);
+      setPlatforms(res.platforms);
+      setAllActivePMs(res.paymentMethods.length > 0 ? res.paymentMethods : defaultPaymentMethods);
+      setUser(res.user);
+      setCurrentShift(res.currentShift);
 
-      let userId = null;
-      if (uRes.status === "fulfilled" && uRes.value?.id) {
-        userId = uRes.value.id;
-        setUser(uRes.value);
-      } else {
-        // Fallback: try parsing token
-        const token = localStorage.getItem("token");
-        if (token) {
-          try {
-            const payload = JSON.parse(atob(token.split(".")[1]));
-            userId = payload.id;
-            setUser({ id: userId });
-          } catch (e) {}
-        }
-      }
-
-      if (userId) {
-        try {
-          const shift = await api.get(`/shifts/current/${userId}`);
-          setCurrentShift(shift);
-        } catch (e) {
-          console.error("No active shift found", e);
-        }
-      }
-
-      const p = pRes.status === "fulfilled" ? pRes.value : [];
-      if (p.length > 0) {
-        // Default to "Take Away" platform if exists, otherwise first one
+      if (res.platforms.length > 0) {
+        const p = res.platforms;
         const defaultPlatform = p.find(plat => plat.name.toLowerCase() === "take away") || p[0];
         setSelectedPlatform(defaultPlatform.id.toString());
       }
     } catch (e) {
-      console.error(e);
+      console.error("Failed to load POS data", e);
+      error("Failed to load POS data");
     } finally {
       setLoading(false);
     }
@@ -532,7 +600,7 @@ export default function OrdersPage() {
                 key={menu.id}
                 className={cn(
                   "relative w-full text-left bg-white border rounded-lg shadow-sm transition-all active:scale-95 focus:outline-none focus:ring-2 focus:ring-blue-500",
-                  "p-6 min-h-[120px] flex flex-col justify-between group overflow-hidden",
+                  "p-2 sm:p-4 lg:p-6 min-h-[80px] sm:min-h-[100px] lg:min-h-[120px] flex flex-col justify-between group overflow-hidden",
                   inCart ? "ring-2 ring-blue-500 bg-blue-50/50" : "hover:bg-gray-50 hover:shadow-md hover:-translate-y-0.5"
                 )}
                 onClick={() => addToCart(menu)}
@@ -540,7 +608,7 @@ export default function OrdersPage() {
                 style={{ borderLeft: `6px solid ${menu.category ? menu.category.color : '#ccc'}` }}
               >
                 <div className="flex-1 w-full">
-                  <h3 className="text-lg lg:text-xl font-bold text-gray-900 leading-snug mb-2 line-clamp-3">
+                  <h3 className="text-xs sm:text-sm lg:text-xl font-bold text-gray-900 leading-snug mb-1 line-clamp-2">
                     {menu.name}
                   </h3>
                 </div>
@@ -568,12 +636,28 @@ export default function OrdersPage() {
       <div className="lg:flex-1 flex flex-col min-h-0 gap-4 order-1 lg:order-2 shrink-0 lg:h-full">
         
         {/* Cart Section */}
-        <div className="flex-1 bg-white rounded-lg border flex flex-col overflow-hidden shadow-sm lg:h-full max-h-[30dvh] lg:max-h-none transition-all">
+        <div className="flex-1 bg-white rounded-lg border flex flex-col overflow-hidden shadow-sm lg:h-full max-h-[45dvh] lg:max-h-none transition-all">
           <div className="p-3 border-b bg-gray-50 flex justify-between items-center shrink-0">
             <h3 className="font-semibold text-gray-800 flex items-center gap-2">
               <ShoppingCart className="w-4 h-4" /> Current Order
             </h3>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-1.5 px-2 py-1 bg-white border rounded text-[10px] font-bold uppercase transition-all shadow-sm">
+                <div className={cn(
+                  "w-2 h-2 rounded-full animate-pulse",
+                  connectionStatus === "connected" ? "bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]" :
+                  connectionStatus === "connecting" ? "bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.5)]" :
+                  "bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.5)]"
+                )} />
+                <span className={cn(
+                  connectionStatus === "connected" ? "text-emerald-700" :
+                  connectionStatus === "connecting" ? "text-amber-700" :
+                  "text-rose-700"
+                )}>
+                  Printer: {connectionStatus}
+                </span>
+              </div>
+
               <Button 
                 variant="outline" 
                 size="sm" 
@@ -602,9 +686,9 @@ export default function OrdersPage() {
               </div>
             ) : (
               cart.map((item) => (
-                <div key={item.menu_id} className="flex justify-between items-start md:items-center p-3 md:p-2 rounded-lg border border-gray-100 hover:border-blue-100 bg-white shadow-sm transition-all min-h-[80px] md:min-h-0">
+                <div key={item.menu_id} className="flex justify-between items-start md:items-center p-2 rounded-lg border border-gray-100 hover:border-blue-100 bg-white shadow-sm transition-all min-h-0">
                   <div className="flex-1 min-w-0 w-[70%] md:w-auto pr-2">
-                    <div className="font-bold text-base md:text-sm text-gray-900 truncate leading-tight">{item.name}</div>
+                    <div className="font-bold text-sm text-gray-900 truncate leading-tight">{item.name}</div>
                     <div className="text-sm md:text-xs text-gray-500 mt-1 md:mt-0">{formatIDR(item.price)}</div>
                   </div>
                   <div className="flex flex-col md:flex-row items-end md:items-center gap-3 md:gap-0 md:space-x-2">
@@ -1053,15 +1137,12 @@ export default function OrdersPage() {
               <div className="text-3xl font-mono font-bold text-blue-600">{formatIDR(qrisOrderData?.total || 0)}</div>
             </div>
 
-            <div className="w-64 h-64 bg-white p-3 rounded-xl border-4 border-blue-50 shadow-xl relative overflow-hidden group">
-              {qrisPM?.imageUrl ? (
-                <img src={qrisPM.imageUrl} alt="QRIS" className="w-full h-full object-contain" />
-              ) : (
-                <div className="w-full h-full flex flex-col items-center justify-center bg-gray-50 text-gray-400 text-xs text-center p-4">
-                  <Smartphone className="w-12 h-12 mb-2 opacity-20 text-blue-600" />
-                  <p>Check "Settings &gt; Payment Methods" to upload a QRIS image.</p>
-                </div>
-              )}
+            <div className="w-64 h-64 bg-white p-3 rounded-xl border-4 border-blue-50 shadow-xl relative overflow-hidden group flex items-center justify-center">
+              <QRISImage 
+                baseQRIS={qrisPM?.qris_data} 
+                amount={qrisOrderData?.total || 0} 
+                staticImage={qrisPM?.imageUrl}
+              />
             </div>
 
             <div className="text-center space-y-1">

@@ -122,6 +122,7 @@ model MenuPrice {
   platform    Platform @relation(fields: [platform_id], references: [id], onDelete: Cascade)
 
   @@unique([menu_id, platform_id])
+  @@index([platform_id])
   @@map("menuprice")
 }
 
@@ -152,7 +153,7 @@ model Order {
   @@index([date])
   @@index([status])
   @@index([payment_method_id])
-  @@index([created_by_user_id])
+  @@index([platform_id])
   @@map("order")
 }
 
@@ -164,6 +165,7 @@ model PaymentMethod {
   account_name   String?
   description    String?
   imageUrl       String?
+  qris_data      String?
   is_active      Boolean           @default(true)
   display_order  Int               @default(0)
   created_at     DateTime          @default(now())
@@ -185,6 +187,7 @@ model OrderItem {
 
   @@index([menu_id])
   @@index([order_id])
+  @@index([price])
   @@map("orderitem")
 }
 
@@ -249,23 +252,52 @@ enum PaymentMethodType {
 }
 
 model Ingredient {
-  id              Int                @id @default(autoincrement())
-  name            String
-  unit            String             // e.g., "kg", "gr", "ml", "pcs"
-  cost_per_unit   Int                @default(0)
-  created_at      DateTime           @default(now())
-  updated_at      DateTime           @updatedAt
-  recipeIngredients RecipeIngredient[]
+  id                Int                      @id @default(autoincrement())
+  category          String
+  item_name         String
+  brand             String
+  volume            Float                    // Packaging size/volume
+  unit              String                   // e.g., "kg", "gr", "ml", "pcs"
+  price             Int                      // Purchase price
+  cost_per_unit     Float                    @default(0) // price / volume
+  purchase_location String?
+  purchase_link     String?
+  notes             String?
+  created_at        DateTime                 @default(now())
+  updated_at        DateTime                 @updatedAt
+  price_history     IngredientPriceHistory[]
+  recipe_items      RecipeItem[]
 
   @@map("ingredient")
+}
+
+model IngredientPriceHistory {
+  id            Int        @id @default(autoincrement())
+  ingredient_id Int
+  price         Int
+  date          DateTime   @default(now())
+  ingredient    Ingredient @relation(fields: [ingredient_id], references: [id], onDelete: Cascade)
+
+  @@map("ingredient_price_history")
+}
+
+enum RecipeType {
+  STANDARD
+  COMPONENT
+}
+
+enum RecipeItemType {
+  INGREDIENT
+  COMPONENT
 }
 
 model Recipe {
   id              Int                @id @default(autoincrement())
   name            String
+  type            RecipeType         @default(STANDARD)
   menu_id         Int?               @unique
   menu            Menu?              @relation(fields: [menu_id], references: [id])
-  base_quantity   Float              @default(1) // Usually 1 portion
+  base_quantity   Float              @default(1) // Usually 1 portion or yield
   monthly_fixed_cost Int           @default(0)
   monthly_production_volume Int    @default(0)
   cost_change_alert Float           @default(0) // Percentage change
@@ -274,25 +306,26 @@ model Recipe {
   total_hpp       Int                @default(0)
   created_at      DateTime           @default(now())
   updated_at      DateTime           @updatedAt
-  ingredients     RecipeIngredient[]
+  items           RecipeItem[]       @relation("RecipeToItems")
+  used_in_items   RecipeItem[]       @relation("ComponentToItems")
   snapshots       HppSnapshot[]
 
   @@map("recipe")
 }
 
-model RecipeIngredient {
-  id              Int         @id @default(autoincrement())
-  recipe_id       Int
-  ingredient_id   Int?        // Optional for DB ingredients
-  manual_name     String?     // For one-off/manual ingredients
-  manual_unit     String?
-  manual_cost     Int?
-  quantity        Float
-  source          String      @default("DATABASE") // "DATABASE" or "MANUAL"
-  recipe          Recipe      @relation(fields: [recipe_id], references: [id], onDelete: Cascade)
-  ingredient      Ingredient? @relation(fields: [ingredient_id], references: [id])
+model RecipeItem {
+  id                  Int            @id @default(autoincrement())
+  recipe_id           Int
+  item_type           RecipeItemType @default(INGREDIENT)
+  ingredient_id       Int?
+  component_recipe_id Int?
+  quantity            Float
+  unit                String?        // Usage unit (e.g. gr)
+  recipe              Recipe         @relation("RecipeToItems", fields: [recipe_id], references: [id], onDelete: Cascade)
+  ingredient          Ingredient?    @relation(fields: [ingredient_id], references: [id])
+  component_recipe    Recipe?        @relation("ComponentToItems", fields: [component_recipe_id], references: [id])
 
-  @@map("recipe_ingredient")
+  @@map("recipe_item")
 }
 
 model HppSnapshot {

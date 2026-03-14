@@ -19,23 +19,31 @@ export default function OrderHistoryPage() {
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   
-  // Status Change State
+  const [pagination, setPagination] = useState({ page: 1, limit: 20, total: 0, totalPages: 0 });
   const [isPinDialogOpen, setIsPinDialogOpen] = useState(false);
-  const [pendingStatusChange, setPendingStatusChange] = useState(null); // { orderId, newStatus }
+  const [pendingStatusChange, setPendingStatusChange] = useState(null); 
 
   useEffect(() => {
-    loadOrders();
-  }, []);
+    loadOrders(1);
+  }, [searchTerm]);
 
-  const loadOrders = async () => {
+  const loadOrders = async (page = 1) => {
+    setLoading(true);
     try {
-      const res = await api.get("/orders");
-      setOrders(res);
+      const res = await api.get(`/orders?page=${page}&limit=${pagination.limit}&search=${searchTerm}`);
+      setOrders(res.orders);
+      setPagination(res.pagination);
     } catch (e) {
       console.error(e);
+      error("Failed to load orders");
     } finally {
       setLoading(false);
     }
+  };
+
+  const handlePageChange = (newPage) => {
+    if (newPage < 1 || newPage > pagination.totalPages) return;
+    loadOrders(newPage);
   };
 
   const handleStatusChangeClick = (order, newStatus) => {
@@ -55,11 +63,10 @@ export default function OrderHistoryPage() {
       
       success(`Order status updated to ${pendingStatusChange.newStatus}`);
       
-      // Update local state
       if (selectedOrder && selectedOrder.id === pendingStatusChange.orderId) {
         setSelectedOrder({ ...selectedOrder, status: pendingStatusChange.newStatus });
       }
-      loadOrders();
+      loadOrders(pagination.page);
       setIsPinDialogOpen(false);
       setPendingStatusChange(null);
     } catch (e) {
@@ -68,11 +75,7 @@ export default function OrderHistoryPage() {
     }
   };
 
-  const filteredOrders = orders.filter(o => 
-    (o.order_number || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (o.customer_name || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (o.note || "").toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredOrders = orders; // Filtering is now handled by the backend
 
   const openDetail = (order) => {
     setSelectedOrder(order);
@@ -150,6 +153,33 @@ export default function OrderHistoryPage() {
             )}
           </TableBody>
         </Table>
+      </div>
+
+      <div className="flex items-center justify-between mt-4 px-2 pb-10">
+        <div className="text-sm text-gray-500">
+          Showing <span className="font-medium">{pagination.total > 0 ? (pagination.page - 1) * pagination.limit + 1 : 0}</span> to <span className="font-medium">{Math.min(pagination.page * pagination.limit, pagination.total)}</span> of <span className="font-medium">{pagination.total}</span> orders
+        </div>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => handlePageChange(pagination.page - 1)}
+            disabled={pagination.page <= 1 || loading}
+          >
+            Previous
+          </Button>
+          <div className="text-sm font-medium">
+            Page {pagination.page} of {pagination.totalPages}
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => handlePageChange(pagination.page + 1)}
+            disabled={pagination.page >= pagination.totalPages || loading}
+          >
+            Next
+          </Button>
+        </div>
       </div>
 
       {/* Order Detail Dialog */}
@@ -289,7 +319,7 @@ export default function OrderHistoryPage() {
               <Button onClick={() => setIsDetailOpen(false)}>Close</Button>
             </div>
           </div>
-        )}
+          )}
         </DialogContent>
       </Dialog>
 

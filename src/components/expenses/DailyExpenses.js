@@ -18,7 +18,12 @@ const categoryOptions = [
   { value: "OTHERS", label: "Others" },
 ];
 
-const emptyForm = { item: "", category: "RAW_MATERIAL", amount: "" };
+const emptyForm = { 
+  item: "", 
+  category: "RAW_MATERIAL", 
+  amount: "", 
+  date: new Date().toISOString().split('T')[0] // Default to today (YYYY-MM-DD)
+};
 
 export default function DailyExpenses() {
   const { success, error } = useToast();
@@ -57,7 +62,12 @@ export default function DailyExpenses() {
 
   const openEdit = (ex) => {
     setEditingId(ex.id);
-    setFormData({ item: ex.item, category: ex.category, amount: String(ex.amount) });
+    setFormData({ 
+      item: ex.item, 
+      category: ex.category, 
+      amount: String(ex.amount),
+      date: new Date(ex.date).toISOString().split('T')[0]
+    });
     setIsDialogOpen(true);
   };
 
@@ -179,6 +189,15 @@ export default function DailyExpenses() {
             <DialogTitle>{editingId ? "Edit Expense" : "Add New Expense"}</DialogTitle>
           </DialogHeader>
           <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="space-y-2">
+              <Label>Expense Date</Label>
+              <Input
+                type="date"
+                value={formData.date}
+                onChange={(e) => setFormData({ ...formData, date: e.target.value })}
+                required
+              />
+            </div>
             <div className="space-y-2">
               <Label>Item Name</Label>
               <Input

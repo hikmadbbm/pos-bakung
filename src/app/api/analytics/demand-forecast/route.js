@@ -9,23 +9,36 @@ export async function GET(req) {
   try {
     const { response } = await verifyAuth(req, ['OWNER', 'MANAGER']);
     if (response) return response;
+    const today = new Date();
+    today.setUTCHours(0, 0, 0, 0);
+    const sevenDaysAgo = new Date(today);
+    sevenDaysAgo.setUTCDate(sevenDaysAgo.getUTCDate() - 7);
+
     const menus = await prisma.menu.findMany({
       include: {
-        orderItems: true
+        orderItems: {
+          where: {
+            order: {
+              date: { gte: sevenDaysAgo, lt: today },
+              status: 'COMPLETED'
+            }
+          }
+        }
       }
     });
 
-    // Simple forecast mock
     const forecast = menus.map(m => {
-      const avgDailySales = Math.floor(Math.random() * 20) + 5; 
-      const predictedTomorrow = Math.floor(avgDailySales * 1.1); 
+      const totalQty = m.orderItems.reduce((acc, curr) => acc + curr.qty, 0);
+      const avgDailySales = totalQty / 7;
+      const predictedTomorrow = Math.ceil(avgDailySales * 1.1) || 5; // Default to 5 if no sales
+      
       return {
         id: m.id,
         name: m.name,
-        avgDailySales,
+        avgDailySales: Math.round(avgDailySales * 10) / 10,
         predictedTomorrow,
         recommendedPrep: Math.ceil(predictedTomorrow * 1.1),
-        predictedNext7Days: predictedTomorrow * 7
+        predictedNext7Days: Math.ceil(predictedTomorrow * 7)
       };
     });
 

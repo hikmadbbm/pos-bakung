@@ -20,7 +20,15 @@ export async function GET(req) {
     const [orders, reconciliation] = await Promise.all([
       prisma.order.findMany({
         where: { status: 'COMPLETED', date: { gte: range.start, lte: range.end } },
-        select: { id: true, total: true, discount: true, payment_method: true },
+        select: { 
+          id: true, 
+          total: true, 
+          discount: true, 
+          payment_method: true,
+          platform: {
+            select: { name: true }
+          }
+        },
       }),
       prisma.cashierReconciliation.findUnique({
         where: { date: dayKey(dateStr) },
@@ -28,13 +36,24 @@ export async function GET(req) {
     ]);
 
     const paymentMethods = {};
+    const platforms = {};
+
     for (const o of orders) {
       const method = o.payment_method || 'UNKNOWN';
+      const platformName = o.platform?.name || 'OFFLINE';
       const due = Math.max(0, (o.total || 0) - (o.discount || 0));
-      const prev = paymentMethods[method] || { count: 0, amount: 0 };
-      prev.count += 1;
-      prev.amount += due;
-      paymentMethods[method] = prev;
+      
+      // Payment Methods Aggregation
+      const prevMethod = paymentMethods[method] || { count: 0, amount: 0 };
+      prevMethod.count += 1;
+      prevMethod.amount += due;
+      paymentMethods[method] = prevMethod;
+
+      // Platforms Aggregation
+      const prevPlatform = platforms[platformName] || { count: 0, amount: 0 };
+      prevPlatform.count += 1;
+      prevPlatform.amount += due;
+      platforms[platformName] = prevPlatform;
     }
 
     const totalOrders = orders.length;
@@ -46,6 +65,7 @@ export async function GET(req) {
     return NextResponse.json({
       date: dateStr,
       paymentMethods,
+      platforms,
       reconciliation: reconciliation || null,
       summary: {
         totalOrders,

@@ -26,14 +26,42 @@ export default function DashboardPage() {
   const [insights, setInsights] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [range, setRange] = useState("today"); // today, yesterday, last7, last30, custom
+  const [from, setFrom] = useState("");
+  const [to, setTo] = useState("");
 
   const loadData = useCallback(async (forced = false) => {
     if (forced) setRefreshing(true);
     else setLoading(true);
 
     try {
+      let qs = "";
+      if (range === "custom") {
+        qs = `?from=${from}&to=${to}`;
+      } else {
+        // Handle predefined ranges
+        const today = new Date();
+        let f = new Date();
+        let t = new Date();
+
+        if (range === "yesterday") {
+          f.setDate(today.getDate() - 1);
+          t.setDate(today.getDate() - 1);
+        } else if (range === "last7") {
+          f.setDate(today.getDate() - 7);
+        } else if (range === "last30") {
+          f.setDate(today.getDate() - 30);
+        } else if (range === "thisMonth") {
+          f.setDate(1);
+        }
+
+        const fStr = f.toISOString().split('T')[0];
+        const tStr = t.toISOString().split('T')[0];
+        qs = `?from=${fStr}&to=${tStr}`;
+      }
+
       // Use the optimized insights endpoint
-      const res = await api.get("/dashboard/insights");
+      const res = await api.get(`/dashboard/insights${qs}`);
       setData(res.summary);
       setInsights(res.insights);
     } catch (e) {
@@ -42,7 +70,7 @@ export default function DashboardPage() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, []);
+  }, [range, from, to]);
 
   useEffect(() => {
     loadData();
@@ -61,19 +89,52 @@ export default function DashboardPage() {
     <div className="space-y-6 max-w-7xl mx-auto pb-10">
       <div className="flex justify-between items-center">
         <div>
-           <h1 className="text-3xl font-extrabold tracking-tight text-gray-900">Dashboard</h1>
-           <p className="text-sm text-gray-500">Business performance and AI-driven insights.</p>
+          <h1 className="text-3xl font-extrabold tracking-tight text-gray-900">Dashboard</h1>
+          <p className="text-sm text-gray-500">Business performance and AI-driven insights.</p>
         </div>
-        <Button 
-          variant="outline" 
-          size="sm" 
-          onClick={() => loadData(true)} 
-          disabled={loading || refreshing}
-          className="flex items-center gap-2"
-        >
-          <RefreshCw className={`w-4 h-4 ${refreshing ? "animate-spin" : ""}`} />
-          {refreshing ? "Refreshing..." : "Refresh"}
-        </Button>
+        <div className="flex items-center gap-3">
+          <select 
+            value={range} 
+            onChange={(e) => setRange(e.target.value)}
+            className="text-sm border rounded-md px-2 py-1.5 bg-white shadow-sm"
+          >
+            <option value="today">Today</option>
+            <option value="yesterday">Yesterday</option>
+            <option value="last7">Last 7 Days</option>
+            <option value="last30">Last 30 Days</option>
+            <option value="thisMonth">This Month</option>
+            <option value="custom">Custom Range</option>
+          </select>
+
+          {range === "custom" && (
+            <div className="flex items-center gap-2 animate-in fade-in slide-in-from-right-2">
+              <input 
+                type="date" 
+                value={from} 
+                onChange={(e) => setFrom(e.target.value)}
+                className="text-sm border rounded-md px-2 py-1"
+              />
+              <span className="text-gray-400">-</span>
+              <input 
+                type="date" 
+                value={to} 
+                onChange={(e) => setTo(e.target.value)}
+                className="text-sm border rounded-md px-2 py-1"
+              />
+            </div>
+          )}
+
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={() => loadData(true)} 
+            disabled={loading || refreshing}
+            className="flex items-center gap-2"
+          >
+            <RefreshCw className={`w-4 h-4 ${refreshing ? "animate-spin" : ""}`} />
+            {refreshing ? "Refreshing..." : "Refresh"}
+          </Button>
+        </div>
       </div>
 
       <div className="flex flex-col gap-8">

@@ -22,70 +22,103 @@ function getDailyOverhead(fixedCosts) {
   }, 0);
 }
 
-export async function GET() {
+import { parseDateRange, daysBetweenInclusive } from '../../reports/utils';
+
+export async function GET(req) {
   try {
+    const searchParams = req.nextUrl.searchParams;
+    const { start, end } = parseDateRange(searchParams);
+    const rangeKey = `${start.toISOString()}_${end.toISOString()}`;
+    const CACHE_KEY = `dashboard_insights_${rangeKey}`;
+    
     // 1. Check in-memory cache first (60s TTL)
-    const CACHE_KEY = 'dashboard_insights';
     const cached = getCache(CACHE_KEY);
     if (cached) {
       return NextResponse.json(cached);
     }
 
-    const today = startOfToday();
-
-    // 2. Fetch DailySummary
-    let summaryRecord = await prisma.dailySummary.findUnique({
-      where: { date: today }
+    // 2. Fetch DailySummaries for the range
+    const summaries = await prisma.dailySummary.findMany({
+      where: { date: { gte: start, lte: end } },
+      orderBy: { date: 'asc' }
     });
 
-    // 3. If summary is missing or stale (older than 1 minute), sync it
-    const isStale = !summaryRecord || (Date.now() - new Date(summaryRecord.updated_at).getTime() > 60000);
+    // 3. If any summaries are missing (especially for today), sync them
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
     
-    if (isStale) {
-      summaryRecord = await syncDailySummary(today);
+    if (today >= start && today <= end) {
+      const todaySummary = summaries.find(s => s.date.getTime() === today.getTime());
+      const isStale = !todaySummary || (Date.now() - new Date(todaySummary.updated_at).getTime() > 60000);
+      if (isStale) {
+        await syncDailySummary(today);
+        // Re-fetch summaries
+        const freshSummaries = await prisma.dailySummary.findMany({
+          where: { date: { gte: start, lte: end } },
+          orderBy: { date: 'asc' }
+        });
+        summaries.splice(0, summaries.length, ...freshSummaries);
+      }
     }
 
-    // 4. Fetch FixedCosts for real-time overhead calculation
-    // (Fixed costs are small and change rarely, so direct fetch is okay)
+    // 4. Aggregate summaries
+    const grossRevenue = summaries.reduce((acc, s) => acc + (s.revenue || 0), 0);
+    const netRevenue = summaries.reduce((acc, s) => acc + (s.net_revenue || 0), 0);
+    const cogs = summaries.reduce((acc, s) => acc + (s.cogs || 0), 0);
+    const dailyExpenses = summaries.reduce((acc, s) => acc + (s.expenses || 0), 0);
+    const totalOrders = summaries.reduce((acc, s) => acc + (s.total_orders || 0), 0);
+
+    // Aggregate top menus
+    const menuMap = new Map();
+    summaries.forEach(s => {
+      const menus = s.top_menus_json || [];
+      menus.forEach(m => {
+        const prev = menuMap.get(m.id) || { ...m, qty: 0, profit: 0 };
+        prev.qty += m.qty;
+        prev.profit += m.profit;
+        menuMap.set(m.id, prev);
+      });
+    });
+    const topMenus = Array.from(menuMap.values()).sort((a,b) => b.profit - a.profit).slice(0, 10);
+
+    // 5. Fetch FixedCosts for real-time overhead calculation
     const fixedCosts = await prisma.fixedCost.findMany({
       where: { is_active: true }
     });
 
     const dailyOverhead = getDailyOverhead(fixedCosts);
-    const revenue = summaryRecord.revenue;
-    const cogs = summaryRecord.cogs;
-    const dailyExpenses = summaryRecord.expenses;
-    const totalExpenses = Math.round(dailyExpenses + dailyOverhead);
-    const netProfit = revenue - cogs - totalExpenses;
-    const topMenus = summaryRecord.top_menus_json || [];
+    const days = daysBetweenInclusive(start, end);
+    const totalOverhead = dailyOverhead * days;
+    const totalExpenses = Math.round(dailyExpenses + totalOverhead);
+    const netProfit = netRevenue - cogs - totalExpenses;
 
-    // 5. Build insights
+    // 6. Build insights
     const insights = [];
-    if (summaryRecord.total_orders === 0) {
+    if (totalOrders === 0) {
       insights.push({
         type: 'info',
         title: 'No sales yet',
-        message: 'Create your first order today to unlock profit insights.',
+        message: 'No completed orders found for this period.',
       });
     } else if (netProfit >= 0) {
       insights.push({
         type: 'positive',
-        title: 'Profitable day',
-        message: `Net profit is positive with ${summaryRecord.total_orders} completed orders today.`,
+        title: 'Profitable period',
+        message: `Net profit is positive with ${totalOrders} completed orders.`,
       });
     } else {
       insights.push({
         type: 'warning',
-        title: 'Below break-even',
-        message: 'Net profit is negative. Consider pushing higher-margin items or reducing waste.',
+        title: 'Loss-making period',
+        message: 'Net profit is negative for this period. Consider reviewing costs.',
       });
     }
     
-    if (dailyOverhead > 0) {
+    if (totalOverhead > 0) {
       insights.push({
         type: 'neutral',
         title: 'Fixed overhead applied',
-        message: `Daily overhead allocation is ${Math.round(dailyOverhead)} today.`,
+        message: `Total overhead allocation for this period is ${Math.round(totalOverhead)}.`,
       });
     }
     
@@ -99,17 +132,19 @@ export async function GET() {
 
     const responseData = {
       summary: {
-        revenue,
+        grossRevenue,
+        netRevenue,
+        revenue: netRevenue, // Maintain compatibility
         cogs,
         expenses: totalExpenses,
         netProfit,
-        dailyOverhead: Math.round(dailyOverhead),
+        dailyOverhead: Math.round(totalOverhead),
         topMenus,
       },
       insights,
     };
 
-    // 6. Set cache for 30 seconds
+    // 7. Set cache for 30 seconds
     setCache(CACHE_KEY, responseData, 30);
 
     return NextResponse.json(responseData);

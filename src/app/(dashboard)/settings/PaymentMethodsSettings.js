@@ -9,8 +9,9 @@ import { Label } from "../../../components/ui/label";
 import { Select } from "../../../components/ui/select";
 import { useToast } from "../../../components/ui/use-toast";
 import { Textarea } from "../../../components/ui/textarea";
-import { Plus, Edit2, Trash2, Image as ImageIcon, Check, X } from "lucide-react";
+import { Plus, Edit2, Trash2, Image as ImageIcon, Check, X, QrCode } from "lucide-react";
 import { api } from "../../../lib/api";
+import jsQR from "jsqr";
 
 export default function PaymentMethodsSettings() {
   const [methods, setMethods] = useState([]);
@@ -25,6 +26,7 @@ export default function PaymentMethodsSettings() {
     account_name: "",
     description: "",
     imageUrl: "",
+    qris_data: "",
     is_active: true,
     display_order: 0
   });
@@ -57,6 +59,7 @@ export default function PaymentMethodsSettings() {
       account_name: "",
       description: "",
       imageUrl: "",
+      qris_data: "",
       is_active: true,
       display_order: methods.length
     });
@@ -108,11 +111,36 @@ export default function PaymentMethodsSettings() {
     setUploading(true);
     try {
       const reader = new FileReader();
-      reader.onloadend = () => {
+      reader.onloadend = async () => {
         const base64String = reader.result;
-        setFormData({ ...formData, imageUrl: base64String });
-        success("Image processed successfully");
-        setUploading(false);
+        
+        // If type is QRIS, try to extract QR data
+        if (formData.type === "QRIS") {
+          const img = new Image();
+          img.onload = () => {
+            const canvas = document.createElement('canvas');
+            const context = canvas.getContext('2d');
+            canvas.width = img.width;
+            canvas.height = img.height;
+            context.drawImage(img, 0, 0);
+            const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
+            const code = jsQR(imageData.data, imageData.width, imageData.height);
+            
+            if (code) {
+              setFormData(prev => ({ ...prev, imageUrl: base64String, qris_data: code.data }));
+              success("QRIS data extracted successfully!");
+            } else {
+              setFormData(prev => ({ ...prev, imageUrl: base64String }));
+              error("Could not find a valid QR code in the image, but image was saved.");
+            }
+            setUploading(false);
+          };
+          img.src = base64String;
+        } else {
+          setFormData({ ...formData, imageUrl: base64String });
+          success("Image processed successfully");
+          setUploading(false);
+        }
       };
       reader.onerror = () => {
         error("Failed to read file");
@@ -211,6 +239,7 @@ export default function PaymentMethodsSettings() {
                               account_name: m.account_name || "",
                               description: m.description || "",
                               imageUrl: m.imageUrl || "",
+                              qris_data: m.qris_data || "",
                               is_active: m.is_active,
                               display_order: m.display_order
                             });
@@ -320,6 +349,26 @@ export default function PaymentMethodsSettings() {
                 )}
               </div>
             </div>
+
+            {formData.type === "QRIS" && (
+              <div className="space-y-2">
+                <Label className="flex items-center gap-2">
+                  <QrCode className="w-4 h-4" /> Base QRIS String
+                </Label>
+                <div className="flex gap-2">
+                  <Textarea 
+                    value={formData.qris_data}
+                    onChange={e => setFormData({...formData, qris_data: e.target.value})}
+                    placeholder="000201010211..."
+                    rows={3}
+                    className="font-mono text-xs"
+                  />
+                </div>
+                <p className="text-[10px] text-gray-500">
+                  This string will be used to generate dynamic QR codes with transaction amounts.
+                </p>
+              </div>
+            )}
 
             <div className="flex items-center gap-6 pt-2">
               <div className="flex items-center gap-2">

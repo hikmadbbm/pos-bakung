@@ -21,8 +21,11 @@ export default function KitchenViewPage() {
       const pendingRes = await api.get("/orders?status=PENDING&limit=100");
       const processingRes = await api.get("/orders?status=PROCESSING&limit=100");
       
+      const pendingOrders = pendingRes.orders || [];
+      const processingOrders = processingRes.orders || [];
+
       // Combine and sort by date (oldest first for FIFO)
-      const combined = [...pendingRes, ...processingRes].sort((a, b) => 
+      const combined = [...pendingOrders, ...processingOrders].sort((a, b) => 
         new Date(a.date) - new Date(b.date)
       );
       

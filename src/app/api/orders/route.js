@@ -23,27 +23,55 @@ function getUserIdFromAuth(req) {
 }
 
 export async function GET(req) {
+  const startTime = Date.now();
   try {
     const { response } = await verifyAuth(req, ['OWNER', 'MANAGER', 'CASHIER', 'KITCHEN']);
     if (response) return response;
+    
     const searchParams = req.nextUrl.searchParams;
-    const limit = parseInt(searchParams.get('limit') || '50');
+    const limit = parseInt(searchParams.get('limit') || '20');
+    const page = parseInt(searchParams.get('page') || '1');
     const status = searchParams.get('status');
+    const search = searchParams.get('search');
+
+    const skip = (page - 1) * limit;
 
     const where = {};
     if (status) where.status = status;
+    if (search) {
+      where.OR = [
+        { order_number: { contains: search, mode: 'insensitive' } },
+        { customer_name: { contains: search, mode: 'insensitive' } },
+        { note: { contains: search, mode: 'insensitive' } },
+      ];
+    }
 
-    const orders = await prisma.order.findMany({
-      where,
-      orderBy: { date: 'desc' },
-      take: limit,
-      include: {
-        orderItems: { include: { menu: true } },
-        platform: true,
-      },
+    const [orders, total] = await Promise.all([
+      prisma.order.findMany({
+        where,
+        orderBy: { date: 'desc' },
+        take: limit,
+        skip: skip,
+        include: {
+          orderItems: { include: { menu: { select: { name: true } } } },
+          platform: { select: { name: true } },
+        },
+      }),
+      prisma.order.count({ where })
+    ]);
+
+    const duration = Date.now() - startTime;
+    console.log(`GET /api/orders took ${duration}ms (page ${page}, limit ${limit})`);
+
+    return NextResponse.json({
+      orders,
+      pagination: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit)
+      }
     });
-
-    return NextResponse.json(orders);
   } catch (error) {
     console.error('Failed to fetch orders:', error);
     return NextResponse.json({ error: 'Failed to fetch orders' }, { status: 500 });

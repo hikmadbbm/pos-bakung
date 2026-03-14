@@ -46,6 +46,7 @@ export async function POST(req) {
         category,
         amount: Math.round(amt),
         description: description || null,
+        date: body.date ? new Date(body.date) : new Date(),
       },
     });
     return NextResponse.json(created, { status: 201 });

@@ -2,11 +2,12 @@
 import { useState, useEffect } from "react";
 import { Button } from "../../../components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "../../../components/ui/card";
-import { Printer, RefreshCw, Smartphone, Globe, Plus, Edit2, Trash2, Receipt, Lock, Users } from "lucide-react";
+import { Printer, RefreshCw, Smartphone, Globe, Plus, Edit2, Trash2, Receipt, Lock, Users, Upload, FileText } from "lucide-react";
 import UsersSettings from "./users/UsersSettings";
 import PaymentMethodsSettings from "./PaymentMethodsSettings";
 import { usePrinter } from "../../../lib/printer-context";
 import { api, getAuth } from "../../../lib/api";
+import { ESC_POS } from "../../../lib/printer-commands";
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "../../../components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "../../../components/ui/dialog";
 import { Input } from "../../../components/ui/input";
@@ -14,9 +15,10 @@ import { Label } from "../../../components/ui/label";
 import { Select } from "../../../components/ui/select";
 import { useToast } from "../../../components/ui/use-toast";
 import { Textarea } from "../../../components/ui/textarea";
+import { cn } from "../../../lib/utils";
 
 export default function SettingsPage() {
-  const { device, isConnecting, connect, disconnect } = usePrinter();
+  const { device, isConnecting, connectionStatus, connect, disconnect, print } = usePrinter();
   const [activeTab, setActiveTab] = useState("printer");
   const { success, error } = useToast();
   const currentUser = getAuth();
@@ -33,6 +35,10 @@ export default function SettingsPage() {
   const [receiptConfig, setReceiptConfig] = useState({
     store_name: "", address: "", phone: "", receipt_footer: ""
   });
+
+  // Import State
+  const [importFile, setImportFile] = useState(null);
+  const [isImporting, setIsImporting] = useState(false);
 
   useEffect(() => {
     if (activeTab === "platforms") loadPlatforms();
@@ -68,6 +74,31 @@ export default function SettingsPage() {
     } catch (e) {
       console.error(e);
       error("Failed to save settings");
+    }
+  };
+
+  const handleTestPrint = async () => {
+    if (!print) return;
+    try {
+      let data = ESC_POS.INIT;
+      data += ESC_POS.ALIGN_CENTER;
+      data += ESC_POS.BOLD_ON;
+      data += ESC_POS.DOUBLE_SIZE_ON;
+      data += "TEST PRINT\n";
+      data += ESC_POS.RESET_SIZE;
+      data += ESC_POS.BOLD_Off;
+      data += "\n";
+      data += ESC_POS.ALIGN_CENTER;
+      data += "POS System Ready\n";
+      data += "Printer Connected Successfully\n";
+      data += ESC_POS.separator();
+      data += ESC_POS.FEED_PAPER(3);
+      
+      const res = await print(data);
+      if (res) success("Test print sent!");
+    } catch (e) {
+      console.error(e);
+      error("Test print failed");
     }
   };
 
@@ -183,6 +214,16 @@ export default function SettingsPage() {
         >
           Payment Methods
         </button>
+        <button
+          className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
+            activeTab === "import" 
+              ? "border-blue-600 text-blue-600" 
+              : "border-transparent text-gray-500 hover:text-gray-700"
+          }`}
+          onClick={() => setActiveTab("import")}
+        >
+          Import Data
+        </button>
       </div>
 
       {activeTab === "users" && <UsersSettings />}
@@ -201,24 +242,38 @@ export default function SettingsPage() {
                 <div className="flex justify-between items-center mb-4">
                   <div>
                     <h3 className="font-medium text-gray-900">Connection Status</h3>
-                    <p className="text-sm text-gray-500">
+                    <div className="flex items-center gap-2 mt-1">
+                      <div className={cn(
+                        "w-2.5 h-2.5 rounded-full shadow-sm",
+                        connectionStatus === "connected" ? "bg-emerald-500 animate-pulse" :
+                        connectionStatus === "connecting" ? "bg-amber-500 animate-pulse" :
+                        "bg-rose-500"
+                      )} />
+                      <p className="text-sm font-semibold capitalize text-gray-700">
+                        {connectionStatus}
+                      </p>
+                    </div>
+                    <p className="text-xs text-gray-500 mt-1">
                       {device 
                         ? `Connected to: ${device.name}` 
-                        : "Not connected to any printer"}
+                        : localStorage.getItem("saved_printer_name") 
+                          ? `Previously: ${localStorage.getItem("saved_printer_name")}`
+                          : "No printer paired"}
                     </p>
                   </div>
                   <div className="flex items-center gap-2">
-                    {device ? (
-                      <Button variant="destructive" onClick={disconnect}>
+                    {connectionStatus === "connected" ? (
+                      <Button variant="destructive" size="sm" onClick={disconnect}>
                         Disconnect
                       </Button>
                     ) : (
-                      <Button onClick={connect} disabled={isConnecting}>
+                      <Button size="sm" onClick={connect} disabled={isConnecting}>
                         {isConnecting ? (
                           <>Connecting...</>
                         ) : (
                           <>
-                            <Smartphone className="w-4 h-4 mr-2" /> Connect Printer
+                            <Smartphone className="w-4 h-4 mr-2" /> 
+                            {localStorage.getItem("saved_printer_name") ? "Reconnect Printer" : "Connect Printer"}
                           </>
                         )}
                       </Button>
@@ -226,21 +281,23 @@ export default function SettingsPage() {
                   </div>
                 </div>
 
-                <div className="text-xs text-gray-500 space-y-1">
-                  <p><strong>Supported Printers:</strong> RP58, MTP-2, MTP-3, and other ESC/POS Bluetooth printers.</p>
-                  <p><strong>Note:</strong> Ensure your printer is turned on and paired with your device via Bluetooth settings first if required.</p>
-                  <p><strong>Browser Support:</strong> Works best on Chrome (Android/Desktop) or Bluefy (iOS).</p>
+                <div className="text-xs text-gray-500 space-y-1 bg-white p-3 rounded border border-gray-200">
+                  <p><strong>Supported Printers:</strong> RP58, MTP-2, MTP-3, and other 58mm ESC/POS Bluetooth printers.</p>
+                  <p><strong>Bluefy (iOS):</strong> Ensure Bluefy has Bluetooth permissions enabled in iOS Settings.</p>
+                  <p><strong>Stable Connection:</strong> Do not refresh the page while connected. If connection drops, use the Reconnect button above.</p>
                 </div>
               </div>
 
-              {device && (
-                <div className="flex gap-2">
-                  <Button variant="outline" size="sm" onClick={() => window.print()}>
-                    Test Browser Print
+              <div className="flex flex-wrap gap-2">
+                {connectionStatus === "connected" && (
+                  <Button variant="default" className="bg-emerald-600 hover:bg-emerald-700" size="sm" onClick={handleTestPrint}>
+                    <Printer className="w-4 h-4 mr-2" /> Send Test Print
                   </Button>
-                  {/* Add Test Print logic here later using context.print() */}
-                </div>
-              )}
+                )}
+                <Button variant="outline" size="sm" onClick={() => window.print()}>
+                  Test Browser Print
+                </Button>
+              </div>
             </CardContent>
           </Card>
         </div>
@@ -403,6 +460,78 @@ export default function SettingsPage() {
                   <Button type="submit">Save Settings</Button>
                 </div>
               </form>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {activeTab === "import" && (
+        <div className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Upload className="w-5 h-5" /> Import Historical Transactions
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="bg-blue-50 p-4 rounded-lg border border-blue-100 flex items-start gap-4">
+                <FileText className="w-6 h-6 text-blue-600 mt-1" />
+                <div className="flex-1">
+                  <h4 className="font-semibold text-blue-800">CSV Template</h4>
+                  <p className="text-sm text-blue-600 mb-4">
+                    Download our template to ensure your data is formatted correctly before importing.
+                  </p>
+                  <Button variant="outline" size="sm" asChild>
+                    <a href="/templates/transaction_import_template.csv" download>
+                      Download Template
+                    </a>
+                  </Button>
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label>Select CSV File</Label>
+                  <Input 
+                    type="file" 
+                    accept=".csv" 
+                    onChange={(e) => setImportFile(e.target.files[0])}
+                  />
+                  <p className="text-xs text-gray-500">
+                    Important: Order numbers must be unique. Duplicate orders will be skipped.
+                  </p>
+                </div>
+
+                <Button 
+                  onClick={async () => {
+                    if (!importFile) return error("Please select a file");
+                    setIsImporting(true);
+                    try {
+                      const reader = new FileReader();
+                      reader.onload = async (e) => {
+                        try {
+                          const csvData = e.target.result;
+                          const res = await api.post("/orders/import", { csvData });
+                          success(`Successfully imported ${res.count} orders`);
+                          setImportFile(null);
+                        } catch (err) {
+                          error(err?.response?.data?.error || "Import failed");
+                        } finally {
+                          setIsImporting(false);
+                        }
+                      };
+                      reader.readAsText(importFile);
+                    } catch (err) {
+                      error("Failed to read file");
+                      setIsImporting(false);
+                    }
+                  }} 
+                  disabled={!importFile || isImporting}
+                  className="w-full"
+                >
+                  {isImporting ? "Importing..." : "Start Import"}
+                </Button>
+              </div>
             </CardContent>
           </Card>
         </div>

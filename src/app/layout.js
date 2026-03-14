@@ -1,6 +1,6 @@
 export const metadata = {
-  title: "Bakmie You-Tje POS",
-  description: "Powered by Bakung Studio",
+  title: "POS Bakmi Youtje",
+  description: "POS System for Bakmi Youtje",
   icons: {
     icon: '/favicon.ico',
     shortcut: '/favicon.ico',
@@ -10,7 +10,7 @@ export const metadata = {
   appleWebApp: {
     capable: true,
     statusBarStyle: 'default',
-    title: 'Bakmie You-Tje POS',
+    title: 'POS Bakmi Youtje',
   },
 };
 

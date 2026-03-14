@@ -34,6 +34,9 @@ export async function PUT(req, { params }) {
     if (body.description !== undefined) {
       data.description = body.description || null;
     }
+    if (body.date !== undefined) {
+      data.date = new Date(body.date);
+    }
 
     const updated = await prisma.expense.update({ where: { id }, data });
     return NextResponse.json(updated);

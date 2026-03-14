@@ -13,6 +13,9 @@ export default function AnalyticsPage() {
   const [intelligenceData, setIntelligenceData] = useState(null);
   const [forecastData, setForecastData] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [range, setRange] = useState("thisMonth"); // today, last7, last30, thisMonth, custom
+  const [from, setFrom] = useState("");
+  const [to, setTo] = useState("");
 
   useEffect(() => {
     loadAnalytics();
@@ -21,9 +24,32 @@ export default function AnalyticsPage() {
   const loadAnalytics = async () => {
     setLoading(true);
     try {
+      let qs = "";
+      if (range === "custom") {
+        qs = `?from=${from}&to=${to}`;
+      } else {
+        const today = new Date();
+        let f = new Date();
+        let t = new Date();
+
+        if (range === "today") {
+          // f is today
+        } else if (range === "last7") {
+          f.setDate(today.getDate() - 7);
+        } else if (range === "last30") {
+          f.setDate(today.getDate() - 30);
+        } else if (range === "thisMonth") {
+          f.setDate(1);
+        }
+        
+        const fStr = f.toISOString().split('T')[0];
+        const tStr = t.toISOString().split('T')[0];
+        qs = `?from=${fStr}&to=${tStr}`;
+      }
+
       const [intel, forecast] = await Promise.all([
-        api.get("/analytics/menu-intelligence"),
-        api.get("/analytics/demand-forecast")
+        api.get(`/analytics/menu-intelligence${qs}`),
+        api.get("/analytics/demand-forecast") // Forecast always uses last 7 days from now
       ]);
       setIntelligenceData(intel);
       setForecastData(forecast);
@@ -34,29 +60,73 @@ export default function AnalyticsPage() {
     }
   };
 
+  useEffect(() => {
+    loadAnalytics();
+  }, [range, from, to]);
+
   if (loading) return <div className="flex items-center justify-center h-full">Loading AI Insights...</div>;
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h2 className="text-3xl font-bold tracking-tight text-gray-900">AI Business Intelligence</h2>
-        <div className="flex bg-white rounded-lg p-1 border shadow-sm">
-          <button
-            onClick={() => setActiveTab("intelligence")}
-            className={`px-4 py-2 text-sm font-medium rounded-md transition-all ${
-              activeTab === "intelligence" ? "bg-blue-600 text-white shadow" : "text-gray-500 hover:text-gray-900"
-            }`}
-          >
-            <PieChartIcon className="w-4 h-4 inline-block mr-2" /> Menu Intelligence
-          </button>
-          <button
-            onClick={() => setActiveTab("forecast")}
-            className={`px-4 py-2 text-sm font-medium rounded-md transition-all ${
-              activeTab === "forecast" ? "bg-blue-600 text-white shadow" : "text-gray-500 hover:text-gray-900"
-            }`}
-          >
-            <TrendingUp className="w-4 h-4 inline-block mr-2" /> Demand Forecast
-          </button>
+        <div>
+          <h2 className="text-3xl font-bold tracking-tight text-gray-900">AI Business Intelligence</h2>
+          <p className="text-sm text-gray-500">Data-driven insights for your business.</p>
+        </div>
+        
+        <div className="flex items-center gap-4">
+          {activeTab === "intelligence" && (
+            <div className="flex items-center gap-2">
+              <select 
+                value={range} 
+                onChange={(e) => setRange(e.target.value)}
+                className="text-sm border rounded-md px-2 py-1.5 bg-white shadow-sm"
+              >
+                <option value="today">Today</option>
+                <option value="last7">Last 7 Days</option>
+                <option value="last30">Last 30 Days</option>
+                <option value="thisMonth">This Month</option>
+                <option value="custom">Custom Range</option>
+              </select>
+
+              {range === "custom" && (
+                <div className="flex items-center gap-2 animate-in fade-in slide-in-from-right-2">
+                  <input 
+                    type="date" 
+                    value={from} 
+                    onChange={(e) => setFrom(e.target.value)}
+                    className="text-sm border rounded-md px-2 py-1"
+                  />
+                  <span className="text-gray-400">-</span>
+                  <input 
+                    type="date" 
+                    value={to} 
+                    onChange={(e) => setTo(e.target.value)}
+                    className="text-sm border rounded-md px-2 py-1"
+                  />
+                </div>
+              )}
+            </div>
+          )}
+
+          <div className="flex bg-white rounded-lg p-1 border shadow-sm">
+            <button
+              onClick={() => setActiveTab("intelligence")}
+              className={`px-4 py-2 text-sm font-medium rounded-md transition-all ${
+                activeTab === "intelligence" ? "bg-blue-600 text-white shadow" : "text-gray-500 hover:text-gray-900"
+              }`}
+            >
+              <PieChartIcon className="w-4 h-4 inline-block mr-2" /> Menu Intelligence
+            </button>
+            <button
+              onClick={() => setActiveTab("forecast")}
+              className={`px-4 py-2 text-sm font-medium rounded-md transition-all ${
+                activeTab === "forecast" ? "bg-blue-600 text-white shadow" : "text-gray-500 hover:text-gray-900"
+              }`}
+            >
+              <TrendingUp className="w-4 h-4 inline-block mr-2" /> Demand Forecast
+            </button>
+          </div>
         </div>
       </div>
 

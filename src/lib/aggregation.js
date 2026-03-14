@@ -6,10 +6,13 @@ import { prisma } from './prisma';
  * @param {Date} targetDate 
  */
 export async function syncDailySummary(targetDate = new Date()) {
+  // Use UTC Midnight for the summary record date to ensure consistency across shifts
   const startOfDay = new Date(targetDate);
-  startOfDay.setHours(0, 0, 0, 0);
+  startOfDay.setUTCHours(0, 0, 0, 0);
   const endOfDay = new Date(startOfDay);
-  endOfDay.setDate(endOfDay.getDate() + 1);
+  endOfDay.setUTCDate(endOfDay.getUTCDate() + 1);
+
+  const summaryDate = new Date(startOfDay); // This is UTC 00:00:00
 
   // 1. Fetch orders
   const orders = await prisma.order.findMany({
@@ -28,7 +31,12 @@ export async function syncDailySummary(targetDate = new Date()) {
   });
 
   // 3. Aggregate
+  // Gross Revenue: Sales after discount
   const revenue = orders.reduce((acc, o) => acc + Math.max(0, (o.total || 0) - (o.discount || 0)), 0);
+  
+  // Net Revenue: Revenue after platform commission
+  const net_revenue = orders.reduce((acc, o) => acc + (o.net_revenue || 0), 0);
+  
   const cogs = orders.reduce((acc, o) => {
     return acc + (o.orderItems || []).reduce((s, it) => s + (it.cost || 0) * (it.qty || 0), 0);
   }, 0);
@@ -42,7 +50,11 @@ export async function syncDailySummary(targetDate = new Date()) {
       const prev = menuAgg.get(key) || { id: key, name: it.menu?.name || `Menu ${key}`, qty: 0, profit: 0 };
       const qty = it.qty || 0;
       prev.qty += qty;
-      prev.profit += ((it.price || 0) - (it.cost || 0)) * qty;
+      const itemRevenue = (it.price || 0) * qty;
+      // Approximate item profit: (Revenue - Cost) - (pro-rated commission if any)
+      const commissionFrac = o.total > 0 ? (o.commission || 0) / o.total : 0;
+      const itemCommission = itemRevenue * commissionFrac;
+      prev.profit += (itemRevenue - (it.cost || 0) * qty) - itemCommission;
       menuAgg.set(key, prev);
     }
   }
@@ -52,10 +64,11 @@ export async function syncDailySummary(targetDate = new Date()) {
 
   // 5. Update DailySummary table
   return await prisma.dailySummary.upsert({
-    where: { date: startOfDay },
+    where: { date: summaryDate },
     create: {
-      date: startOfDay,
+      date: summaryDate,
       revenue,
+      net_revenue,
       cogs,
       expenses: totalExpenses,
       total_orders: orders.length,
@@ -63,6 +76,7 @@ export async function syncDailySummary(targetDate = new Date()) {
     },
     update: {
       revenue,
+      net_revenue,
       cogs,
       expenses: totalExpenses,
       total_orders: orders.length,

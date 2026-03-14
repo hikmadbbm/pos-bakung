@@ -10,7 +10,7 @@ export async function GET(req) {
     if (response) return response;
 
     const ingredients = await prisma.ingredient.findMany({
-      orderBy: { name: 'asc' },
+      orderBy: { item_name: 'asc' },
     });
     return NextResponse.json(ingredients);
   } catch (error) {
@@ -25,23 +25,54 @@ export async function POST(req) {
     if (response) return response;
 
     const body = await req.json();
-    const { name, unit, cost_per_unit } = body;
+    let { 
+      category, 
+      item_name, 
+      brand, 
+      volume, 
+      unit, 
+      price, 
+      purchase_location, 
+      purchase_link, 
+      notes 
+    } = body;
 
-    if (!name || !unit) {
-      return NextResponse.json({ error: 'Name and unit are required' }, { status: 400 });
+    if (!item_name || !unit || !category || !volume || !price) {
+      return NextResponse.json({ error: 'Category, Item Name, Volume, Unit, and Price are required' }, { status: 400 });
     }
+
+    // Normalization
+    category = category.trim();
+    item_name = item_name.trim();
+
+    const vol = parseFloat(volume);
+    const prc = parseInt(price);
+    const cpu = vol > 0 ? prc / vol : 0;
 
     const ingredient = await prisma.ingredient.create({
       data: {
-        name,
+        category,
+        item_name,
+        brand: brand || 'Local',
+        volume: vol,
         unit,
-        cost_per_unit: Number(cost_per_unit) || 0,
+        price: prc,
+        cost_per_unit: cpu,
+        purchase_location,
+        purchase_link,
+        notes,
+        price_history: {
+          create: { price: prc }
+        }
       },
     });
 
     return NextResponse.json(ingredient, { status: 201 });
   } catch (error) {
-    console.error('Failed to create ingredient:', error);
-    return NextResponse.json({ error: 'Failed to create ingredient' }, { status: 500 });
+    console.error('CRITICAL: Failed to create ingredient. Error details:', error);
+    return NextResponse.json({ 
+      error: 'Failed to create ingredient',
+      details: error.message 
+    }, { status: 500 });
   }
 }

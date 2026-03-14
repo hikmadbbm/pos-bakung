@@ -9,6 +9,7 @@ import html2canvas from "html2canvas";
 import { useToast } from "./ui/use-toast";
 import { usePrinter } from "../lib/printer-context";
 import { api } from "../lib/api";
+import { ESC_POS } from "../lib/printer-commands";
 
 export function ReceiptPreview({ isOpen, onClose, order }) {
   const { success, error } = useToast();
@@ -41,35 +42,52 @@ export function ReceiptPreview({ isOpen, onClose, order }) {
 
   const handlePrint = async () => {
     // Bluetooth Thermal Printer Logic (RP58) via Context
-    if (device) {
+    if (print && (device || localStorage.getItem("saved_printer_name"))) {
       try {
-        const ESC = '\x1B';
-        const GS = '\x1D';
-        const center = ESC + 'a' + '\x01';
-        const left = ESC + 'a' + '\x00';
-        const boldOn = ESC + 'E' + '\x01';
-        const boldOff = ESC + 'E' + '\x00';
+        let data = ESC_POS.INIT;
         
-        let data = '';
-        data += center + boldOn + (storeConfig.store_name || "BAKMIE YOU-TJE") + "\n" + boldOff;
+        // Header
+        data += ESC_POS.ALIGN_CENTER;
+        data += ESC_POS.BOLD_ON;
+        data += ESC_POS.DOUBLE_WIDTH_ON;
+        data += (storeConfig.store_name || "BAKMIE YOU-TJE") + "\n";
+        data += ESC_POS.RESET_SIZE;
+        data += ESC_POS.BOLD_Off;
+        
         data += (storeConfig.address || "") + "\n";
         if (storeConfig.phone) data += `Tel: ${storeConfig.phone}\n`;
-        data += "--------------------------------\n";
-        data += left + `Order: ${order.order_number}\n`;
+        data += ESC_POS.separator();
+        
+        // Order info
+        data += ESC_POS.ALIGN_LEFT;
+        data += `Order: ${order.order_number}\n`;
         data += `Date: ${new Date(order.date).toLocaleString()}\n`;
         if (order.customer_name) {
           data += `Customer: ${order.customer_name}\n`;
         }
-        data += "--------------------------------\n";
+        data += ESC_POS.separator();
         
+        // Items
         order.orderItems.forEach(item => {
           data += `${item.menu?.name}\n`;
-          data += `${item.qty} x ${formatIDR(item.price)} = ${formatIDR(item.qty * item.price)}\n`;
+          data += ESC_POS.formatTwoColumns(
+            `${item.qty} x ${formatIDR(item.price)}`,
+            formatIDR(item.qty * item.price)
+          );
         });
         
-        data += "--------------------------------\n";
-        data += `Total: ${formatIDR(order.total)}\n`;
-        data += center + (storeConfig.receipt_footer || "Thank You!") + "\n\n\n";
+        data += ESC_POS.separator();
+        
+        // Total
+        data += ESC_POS.BOLD_ON;
+        data += ESC_POS.formatTwoColumns("TOTAL", formatIDR(order.total));
+        data += ESC_POS.BOLD_Off;
+        
+        // Footer
+        data += ESC_POS.separator();
+        data += ESC_POS.ALIGN_CENTER;
+        data += (storeConfig.receipt_footer || "Thank You!") + "\n";
+        data += ESC_POS.FEED_PAPER(4);
         
         const result = await print(data);
         if (result) {

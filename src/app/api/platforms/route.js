@@ -6,13 +6,22 @@ export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
 export async function GET(req) {
+  const startTime = Date.now();
   try {
     const { response } = await verifyAuth(req, ['OWNER', 'MANAGER', 'CASHIER']);
     if (response) return response;
     const platforms = await prisma.platform.findMany({
       orderBy: { id: 'asc' },
     });
-    return NextResponse.json(platforms);
+    
+    const duration = Date.now() - startTime;
+    console.log(`GET /api/platforms took ${duration}ms`);
+
+    return NextResponse.json(platforms, {
+      headers: {
+        'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=60',
+      }
+    });
   } catch (error) {
     console.error('Failed to fetch platforms:', error);
     return NextResponse.json({ error: 'Failed to fetch platforms' }, { status: 500 });
