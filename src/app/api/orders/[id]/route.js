@@ -29,7 +29,7 @@ export async function PUT(req, { params }) {
     }
 
     const body = await req.json();
-    const { items, payment_method, money_received, note, customer_name, platform_id, discount, discount_type, discount_rate, status, created_by_user_id } =
+    const { items, payment_method, payment_method_id, money_received, note, customer_name, platform_id, discount, discount_type, discount_rate, status, created_by_user_id } =
       body;
 
     if (!items || items.length === 0) {
@@ -111,6 +111,7 @@ export async function PUT(req, { params }) {
           net_revenue,
           platform_id: platId,
           payment_method,
+          payment_method_id: payment_method_id || null,
           money_received: received,
           change_amount,
           status: status || 'PENDING',

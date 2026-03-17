@@ -33,6 +33,9 @@ export async function GET(req) {
     const page = parseInt(searchParams.get('page') || '1');
     const status = searchParams.get('status');
     const search = searchParams.get('search');
+    const startDate = searchParams.get('startDate');
+    const endDate = searchParams.get('endDate');
+    const range = searchParams.get('range'); // 'all', 'today', etc.
 
     const skip = (page - 1) * limit;
 
@@ -46,7 +49,30 @@ export async function GET(req) {
       ];
     }
 
-    const [orders, total] = await Promise.all([
+    // Default to "Today" if no range or dates provided, unless range is "all"
+    if (range !== 'all') {
+      if (startDate || endDate) {
+        where.date = {};
+        if (startDate) where.date.gte = new Date(startDate);
+        if (endDate) {
+          const end = new Date(endDate);
+          end.setHours(23, 59, 59, 999);
+          where.date.lte = end;
+        }
+      } else {
+        // Enforce TODAY as default
+        const todayStart = new Date();
+        todayStart.setHours(0, 0, 0, 0);
+        const todayEnd = new Date();
+        todayEnd.setHours(23, 59, 59, 999);
+        where.date = {
+          gte: todayStart,
+          lte: todayEnd,
+        };
+      }
+    }
+
+    const [orders, total, stats] = await Promise.all([
       prisma.order.findMany({
         where,
         orderBy: { date: 'desc' },
@@ -57,7 +83,14 @@ export async function GET(req) {
           platform: { select: { name: true } },
         },
       }),
-      prisma.order.count({ where })
+      prisma.order.count({ where }),
+      prisma.order.aggregate({
+        where: { ...where, status: 'COMPLETED' },
+        _sum: {
+          total: true,
+          net_revenue: true
+        }
+      })
     ]);
 
     const duration = Date.now() - startTime;
@@ -70,6 +103,10 @@ export async function GET(req) {
         page,
         limit,
         totalPages: Math.ceil(total / limit)
+      },
+      stats: {
+        total_gross: stats._sum.total || 0,
+        total_net: stats._sum.net_revenue || 0
       }
     });
   } catch (error) {
@@ -88,6 +125,7 @@ export async function POST(req) {
     const {
       items,
       payment_method,
+      payment_method_id,
       money_received,
       note,
       customer_name,
@@ -204,6 +242,7 @@ export async function POST(req) {
           net_revenue,
           platform_id: platId,
           payment_method,
+          payment_method_id: payment_method_id || null,
           money_received: receivedNum,
           change_amount,
           status: status || 'COMPLETED',

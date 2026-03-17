@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { api } from "../lib/api";
 import { formatIDR } from "../lib/format";
 import { Button } from "./ui/button";
@@ -7,7 +7,7 @@ import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "./ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "./ui/table";
-import { AlertTriangle, CheckCircle, Lock, Calculator, ArrowRight, ArrowLeft } from "lucide-react";
+import { AlertTriangle, CheckCircle, Lock, Calculator, ArrowRight, ArrowLeft, RefreshCcw } from "lucide-react";
 import { useToast } from "./ui/use-toast";
 import { cn } from "@/lib/utils";
 
@@ -24,15 +24,11 @@ const DENOMINATIONS = [
   { value: 100, label: "Coins (100)" },
 ];
 
-export default function StopShiftModal({ isOpen, onClose, onSuccess, currentUserId }) {
-  const { success, error } = useToast();
-  const [step, setStep] = useState("AUTH"); // auth, sales, cash, non-cash, review
+export default function StopShiftModal({ isOpen, onClose, onSuccess, currentUserId, authorizedManager }) {
+  const { success, error, confirm } = useToast();
+  const [step, setStep] = useState("SALES"); // sales, cash, non-cash, review
   const [loading, setLoading] = useState(false);
   
-  // Auth State
-  const [managerPin, setManagerPin] = useState("");
-  const [manager, setManager] = useState(null);
-
   // Summary State
   const [shiftSummary, setShiftSummary] = useState(null);
   const [nonCashActuals, setNonCashActuals] = useState({}); // { pmId: amount }
@@ -40,16 +36,40 @@ export default function StopShiftModal({ isOpen, onClose, onSuccess, currentUser
   const [totalCashCounted, setTotalCashCounted] = useState(0);
   const [note, setNote] = useState("");
 
+  const loadSummary = useCallback(async () => {
+    if (!currentUserId) return;
+    setLoading(true);
+    try {
+      const summaryRes = await api.get(`/shifts/summary/${currentUserId}`);
+      setShiftSummary(summaryRes.summary);
+      // Only set step to SALES if we don't have a summary yet (initial load)
+      setStep(prev => prev === "" ? "SALES" : prev);
+    } catch (err) {
+      console.error(err);
+      error(`Failed to load shift summary: ${err.message}`);
+      onClose();
+    } finally {
+      setLoading(false);
+    }
+  }, [currentUserId, error, onClose]);
+
   useEffect(() => {
     if (isOpen) {
-      setStep("AUTH");
-      setManagerPin("");
       setCounts({});
       setNonCashActuals({});
       setTotalCashCounted(0);
       setNote("");
+      setStep("SALES"); // Force reset to first step ONLY when isOpen changes from false to true
+      loadSummary();
     }
-  }, [isOpen]);
+  }, [isOpen]); // Only trigger when isOpen changes
+
+  // Separate effect for re-fetching summary if user changes but modal stays open (rare)
+  useEffect(() => {
+    if (isOpen && currentUserId) {
+      loadSummary();
+    }
+  }, [currentUserId, loadSummary, isOpen]);
 
   useEffect(() => {
     let total = 0;
@@ -59,29 +79,10 @@ export default function StopShiftModal({ isOpen, onClose, onSuccess, currentUser
     setTotalCashCounted(total);
   }, [counts]);
 
-  const handleAuth = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-    try {
-      const res = await api.post("/auth/verify-manager", { pin: managerPin });
-      setManager(res.manager);
-      
-      const summaryRes = await api.get(`/shifts/summary/${currentUserId}`);
-      setShiftSummary(summaryRes.summary);
-      
-      setStep("SALES");
-    } catch (err) {
-      console.error(err);
-      error(`Authentication Failed: ${err.response?.data?.error || err.message || "Invalid manager credentials"}`);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const handleFinalSubmit = async () => {
     setLoading(true);
     try {
-      if (!shiftSummary) return;
+      if (!shiftSummary || !authorizedManager) return;
       
       const actualCashSales = totalCashCounted - shiftSummary.startingCash;
       const actualNonCashSales = shiftSummary.methodTotals
@@ -106,7 +107,7 @@ export default function StopShiftModal({ isOpen, onClose, onSuccess, currentUser
             discrepancy: actual - system
           };
         }),
-        manager: manager.username,
+        manager: authorizedManager.username,
         timestamp: new Date().toISOString()
       };
       
@@ -145,15 +146,34 @@ export default function StopShiftModal({ isOpen, onClose, onSuccess, currentUser
     });
   };
 
+  const handleClose = async (openState) => {
+    // If user is trying to close the modal
+    if (!openState) {
+        const confirmed = await confirm({
+          title: "Cancel Reconciliation?",
+          message: "Are you sure you want to cancel? All progress will be lost.",
+          confirmText: "Yes, Cancel",
+          cancelText: "No, Continue",
+          variant: "destructive"
+        });
+        
+        if (!confirmed) return;
+        onClose();
+    }
+  };
+
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-hidden flex flex-col p-0">
+    <Dialog open={isOpen} onOpenChange={handleClose}>
+      <DialogContent 
+        className="sm:max-w-2xl p-0 overflow-hidden flex flex-col max-h-[90vh]"
+        onPointerDownOutside={(e) => e.preventDefault()}
+        onEscapeKeyDown={(e) => e.preventDefault()}
+      >
         <DialogHeader className="p-6 pb-0">
-          <DialogTitle className="flex items-center gap-2 text-blue-600">
+          <DialogTitle className="flex items-center gap-2 text-emerald-600">
              <Calculator className="w-5 h-5 text-red-600" /> Shift Reconciliation
           </DialogTitle>
           <DialogDescription>
-            {step === 'AUTH' && "Manager authorization required."}
             {step === 'SALES' && "Review shift sales summary."}
             {step === 'CASH' && "Count cash in drawer."}
             {step === 'NON_CASH' && "Input non-cash nominals."}
@@ -162,142 +182,113 @@ export default function StopShiftModal({ isOpen, onClose, onSuccess, currentUser
         </DialogHeader>
 
         <div className="flex-1 overflow-y-auto p-6 pt-2">
-          {step === "AUTH" && (
-            <form onSubmit={handleAuth} className="space-y-4 py-4">
-              <div className="bg-yellow-50 p-3 rounded-md border border-yellow-200">
-                <p className="text-sm text-yellow-800 flex items-center gap-2">
-                  <Lock className="w-4 h-4" />
-                  Authorized personnel only.
-                </p>
-              </div>
-              <div className="space-y-4">
-                <Label className="text-center block text-lg font-bold">Enter Manager PIN</Label>
-                <div className="flex justify-center">
-                  <Input 
-                    type="password"
-                    inputMode="numeric"
-                    maxLength={6}
-                    value={managerPin} 
-                    onChange={e => setManagerPin(e.target.value.replace(/\D/g, ""))}
-                    placeholder="••••••"
-                    className="text-center text-3xl tracking-[1em] h-16 w-full max-w-[250px] font-bold"
-                    required 
-                    autoFocus
-                  />
-                </div>
-              </div>
-              <DialogFooter className="pt-4">
-                <Button type="button" variant="outline" onClick={onClose} className="w-full sm:w-auto">Cancel</Button>
-                <Button type="submit" disabled={loading || managerPin.length < 4} className="w-full sm:w-auto">
-                  {loading ? "Verifying..." : "Authorize"}
-                </Button>
-              </DialogFooter>
-            </form>
-          )}
-
           {step === "SALES" && shiftSummary && (
             <div className="space-y-4 py-2">
               <div className="grid grid-cols-2 gap-4">
                 <div className="bg-gray-50 p-4 rounded-lg border text-center">
-                  <Label className="text-gray-500 uppercase text-[10px] font-bold">Total Sales</Label>
-                  <p className="text-2xl font-bold text-gray-900">{formatIDR(shiftSummary.totalSales)}</p>
+                  <Label className="text-gray-500 text-[10px] font-bold uppercase tracking-widest">Total Sales</Label>
+                  <p className="text-2xl font-black text-slate-900 mt-1">{formatIDR(shiftSummary.totalSales)}</p>
                 </div>
-                <div className="bg-blue-50 p-4 rounded-lg border border-blue-100 text-center">
-                  <Label className="text-blue-600 uppercase text-[10px] font-bold">Cash Expected</Label>
-                  <p className="text-2xl font-bold text-blue-700">{formatIDR(shiftSummary.expectedCash)}</p>
+                <div className="bg-emerald-50 p-4 rounded-lg border border-emerald-100 text-center">
+                  <Label className="text-emerald-600 text-[10px] font-bold uppercase tracking-widest">Cash Expected</Label>
+                  <p className="text-2xl font-black text-emerald-700 mt-1">{formatIDR(shiftSummary.expectedCash)}</p>
                 </div>
               </div>
 
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Payment Method</TableHead>
-                    <TableHead className="text-right">Count</TableHead>
-                    <TableHead className="text-right">Expected</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {shiftSummary.methodTotals.map(mt => (
-                    <TableRow key={mt.id}>
-                      <TableCell className="font-medium">{mt.name} <span className="text-[10px] text-gray-400">({mt.type})</span></TableCell>
-                      <TableCell className="text-right">{mt.count}</TableCell>
-                      <TableCell className="text-right font-mono">{formatIDR(mt.systemAmount)}</TableCell>
+              <div className="rounded-2xl border border-slate-100 overflow-hidden">
+                <Table>
+                  <TableHeader className="bg-slate-50">
+                    <TableRow>
+                      <TableHead className="text-[10px] font-black uppercase tracking-widest">Payment Method</TableHead>
+                      <TableHead className="text-right text-[10px] font-black uppercase tracking-widest">Amount</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                  </TableHeader>
+                  <TableBody>
+                    {shiftSummary.methodTotals.filter(mt => mt.count > 0).map(mt => (
+                      <TableRow key={mt.id} className="hover:bg-slate-50/50">
+                        <TableCell className="font-bold text-slate-700">
+                           {mt.name} <span className="text-[9px] font-medium text-slate-400 ml-1">{mt.type}</span>
+                        </TableCell>
+                        <TableCell className="text-right font-black text-slate-900">{formatIDR(mt.systemAmount)}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
 
-              <DialogFooter className="pt-4">
-                <Button variant="outline" onClick={() => setStep("AUTH")}>Back</Button>
-                <Button onClick={() => setStep("CASH")} className="gap-2">
+              <div className="flex gap-3 pt-4">
+                <Button variant="outline" onClick={() => onClose()} className="flex-1 h-12 rounded-xl font-bold">Cancel</Button>
+                <Button onClick={() => setStep("CASH")} className="flex-[2] h-12 rounded-xl bg-emerald-600 hover:bg-emerald-700 font-bold gap-2 shadow-lg shadow-emerald-600/20">
                   Next: Cash Count <ArrowRight className="w-4 h-4" />
                 </Button>
-              </DialogFooter>
+              </div>
             </div>
           )}
 
           {step === "CASH" && (
-            <div className="space-y-4 py-2">
-              <div className="bg-blue-50 p-4 rounded-lg border border-blue-100 flex justify-between items-center">
+            <div className="space-y-6 py-2">
+              <div className="bg-emerald-950 p-6 rounded-2xl text-white flex justify-between items-center shadow-xl">
                 <div>
-                  <Label className="text-blue-600 text-xs font-bold uppercase">Cash Counted</Label>
-                  <p className="text-2xl font-bold text-blue-700">{formatIDR(totalCashCounted)}</p>
+                  <Label className="text-emerald-400 text-[10px] font-black uppercase tracking-[0.2em]">Cash Counted</Label>
+                  <p className="text-3xl font-black tracking-tight">{formatIDR(totalCashCounted)}</p>
                 </div>
                 <div className="text-right">
-                  <Label className="text-gray-500 text-xs font-bold uppercase">Expected</Label>
-                  <p className="text-lg font-medium text-gray-600">{formatIDR(shiftSummary.expectedCash)}</p>
+                  <Label className="text-emerald-500/50 text-[10px] font-black uppercase tracking-[0.2em]">Expected</Label>
+                  <p className="text-lg font-bold opacity-60">{formatIDR(shiftSummary.expectedCash)}</p>
                 </div>
               </div>
               
-              <div className="grid grid-cols-2 sm:grid-cols-2 gap-x-6 gap-y-3 max-h-[350px] overflow-y-auto pr-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-4 max-h-[350px] overflow-y-auto pr-2 scrollbar-hide">
                 {DENOMINATIONS.map((denom) => (
-                  <div key={denom.value} className="flex items-center gap-3">
-                    <Label className="text-xs text-gray-500 w-24 shrink-0">{denom.label}</Label>
+                  <div key={denom.value} className="flex items-center gap-4 bg-slate-50 p-2 rounded-xl border border-slate-100 focus-within:border-emerald-500 transition-colors">
+                    <div className="w-24 shrink-0 text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none pl-2">{denom.label}</div>
                     <Input 
                       type="number" 
                       min="0"
+                      inputMode="numeric"
                       placeholder="0"
                       value={counts[denom.value] || ""}
                       onChange={(e) => setCounts({...counts, [denom.value]: e.target.value})}
-                      className="text-right h-8"
+                      className="text-right h-10 font-black text-lg bg-white border-none focus:ring-0"
                     />
                   </div>
                 ))}
               </div>
 
-              <DialogFooter className="pt-4">
-                <Button variant="outline" onClick={() => setStep("SALES")} className="gap-2">
+              <div className="flex gap-3 pt-4">
+                <Button variant="outline" onClick={() => setStep("SALES")} className="flex-1 h-12 rounded-xl font-bold gap-2">
                   <ArrowLeft className="w-4 h-4" /> Back
                 </Button>
-                <Button onClick={() => setStep("NON_CASH")} className="gap-2">
+                <Button onClick={() => setStep("NON_CASH")} className="flex-[2] h-12 rounded-xl bg-emerald-600 hover:bg-emerald-700 font-bold gap-2 shadow-lg shadow-emerald-600/20">
                   Next: Non-Cash <ArrowRight className="w-4 h-4" />
                 </Button>
-              </DialogFooter>
+              </div>
             </div>
           )}
 
           {step === "NON_CASH" && (
-            <div className="space-y-4 py-2">
-              <div className="bg-purple-50 p-4 rounded-lg border border-purple-100 mb-4">
-                <p className="text-xs text-purple-700 flex items-center gap-2">
-                  <AlertTriangle className="w-4 h-4" />
-                  Input final nominal received for each non-cash method.
+            <div className="space-y-6 py-2">
+              <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
+                <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-2">
+                  <AlertTriangle className="w-4 h-4 text-emerald-500" />
+                  Verify final nominal for online/third-party platforms
                 </p>
               </div>
 
-              <div className="space-y-4">
-                {shiftSummary.methodTotals.filter(m => m.type !== 'CASH').map(mt => (
-                  <div key={mt.id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-3 border rounded-lg hover:bg-gray-50 bg-white">
+              <div className="space-y-3">
+                {shiftSummary.methodTotals.filter(m => m.type !== 'CASH' && m.count > 0).map(mt => (
+                  <div key={mt.id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-5 border border-slate-100 rounded-2xl hover:border-emerald-200 bg-white transition-all shadow-sm">
                     <div className="flex-1">
-                      <Label className="font-bold text-gray-800">{mt.name}</Label>
-                      <p className="text-xs text-gray-500">Expected: {formatIDR(mt.systemAmount)}</p>
+                      <Label className="text-sm font-black text-slate-800 uppercase tracking-tight">{mt.name}</Label>
+                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Expected: {formatIDR(mt.systemAmount)}</p>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm font-bold text-gray-400">Rp</span>
+                    <div className="flex items-center gap-3 bg-slate-50 px-4 py-2 rounded-xl border border-slate-100 focus-within:border-emerald-500 transition-colors">
+                      <span className="text-xs font-black text-slate-300">Rp</span>
                       <Input 
                         type="number"
+                        inputMode="numeric"
                         placeholder="0"
-                        className="w-full sm:w-40 text-right font-bold"
+                        className="w-full sm:w-40 text-right font-black text-lg bg-transparent border-none focus:ring-0"
                         value={nonCashActuals[mt.id] || ""}
                         onChange={(e) => setNonCashActuals({...nonCashActuals, [mt.id]: e.target.value})}
                       />
@@ -305,49 +296,48 @@ export default function StopShiftModal({ isOpen, onClose, onSuccess, currentUser
                   </div>
                 ))}
                 
-                {shiftSummary.methodTotals.filter(m => m.type !== 'CASH').length === 0 && (
-                  <div className="text-center py-10 text-gray-400 border rounded-lg border-dashed">
-                    No non-cash transactions in this shift.
+                {shiftSummary.methodTotals.filter(m => m.type !== 'CASH' && m.count > 0).length === 0 && (
+                  <div className="text-center py-16 text-slate-300 font-black uppercase tracking-[0.2em] border-2 border-dashed border-slate-100 rounded-3xl">
+                    No Non-Cash Activity
                   </div>
                 )}
               </div>
 
-              <DialogFooter className="pt-4">
-                <Button variant="outline" onClick={() => setStep("CASH")} className="gap-2">
-                  <ArrowLeft className="w-4 h-4" /> Back
+              <div className="flex gap-3 pt-4">
+                <Button variant="outline" onClick={() => setStep("CASH")} className="flex-1 h-12 rounded-xl font-bold gap-2">
+                   <ArrowLeft className="w-4 h-4" /> Back
                 </Button>
-                <Button onClick={() => setStep("REVIEW")} className="gap-2">
+                <Button onClick={() => setStep("REVIEW")} className="flex-[2] h-12 rounded-xl bg-emerald-600 hover:bg-emerald-700 font-bold gap-2 shadow-lg shadow-emerald-600/20">
                   Next: Final Review <ArrowRight className="w-4 h-4" />
                 </Button>
-              </DialogFooter>
+              </div>
             </div>
           )}
 
           {step === "REVIEW" && (
             <div className="space-y-6 py-2">
-              <div className="border rounded-lg overflow-hidden">
+              <div className="rounded-2xl border border-slate-100 overflow-hidden shadow-sm">
                 <Table>
-                  <TableHeader className="bg-gray-50">
+                  <TableHeader className="bg-slate-50">
                     <TableRow>
-                      <TableHead>Method</TableHead>
-                      <TableHead className="text-right">Expected</TableHead>
-                      <TableHead className="text-right">Actual</TableHead>
-                      <TableHead className="text-right">Diff</TableHead>
+                      <TableHead className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Method</TableHead>
+                      <TableHead className="text-right text-[10px] font-black text-slate-500 uppercase tracking-widest">Diff</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {shiftSummary.methodTotals.map(mt => {
+                    {shiftSummary.methodTotals.filter(mt => mt.count > 0).map(mt => {
                       const system = mt.type === 'CASH' ? shiftSummary.expectedCash : mt.systemAmount;
                       const actual = mt.type === 'CASH' ? totalCashCounted : (Number(nonCashActuals[mt.id]) || 0);
                       const diff = actual - system;
                       return (
-                        <TableRow key={mt.id}>
-                          <TableCell className="font-medium text-xs">{mt.name}</TableCell>
-                          <TableCell className="text-right font-mono text-xs">{formatIDR(system)}</TableCell>
-                          <TableCell className="text-right font-mono text-xs font-bold text-blue-600">{formatIDR(actual)}</TableCell>
+                        <TableRow key={mt.id} className="hover:bg-slate-50/50">
+                          <TableCell>
+                             <p className="font-bold text-slate-700 text-sm">{mt.name}</p>
+                             <p className="text-[9px] font-medium text-slate-400">Actual: {formatIDR(actual)}</p>
+                          </TableCell>
                           <TableCell className={cn(
-                            "text-right font-mono text-xs font-bold",
-                            diff === 0 ? "text-green-600" : "text-red-500"
+                            "text-right font-black text-sm",
+                            diff === 0 ? "text-emerald-600" : "text-rose-500"
                           )}>
                             {diff > 0 ? "+" : ""}{formatIDR(diff)}
                           </TableCell>
@@ -359,21 +349,23 @@ export default function StopShiftModal({ isOpen, onClose, onSuccess, currentUser
               </div>
 
               {hasDiscrepancy() && (
-                <div className="bg-red-50 p-4 rounded-lg border border-red-200 animate-pulse">
+                <div className="bg-rose-50 p-5 rounded-2xl border border-rose-100">
                   <div className="flex gap-3">
-                    <AlertTriangle className="w-5 h-5 text-red-600 shrink-0" />
+                    <AlertTriangle className="w-6 h-6 text-rose-500 shrink-0" />
                     <div>
-                      <p className="text-sm font-bold text-red-800">Variance Detected!</p>
-                      <p className="text-xs text-red-700 mt-1">Please provide a reason for the discrepancy before closing the shift.</p>
+                      <p className="text-xs font-black text-rose-900 uppercase tracking-tight">Security Variance Detected</p>
+                      <p className="text-[10px] font-medium text-rose-700 mt-1 leading-relaxed">
+                        The current drawer balance does not match the system record. Personnel must provide a valid justification before session termination.
+                      </p>
                     </div>
                   </div>
                 </div>
               )}
 
-              <div className="space-y-2">
-                <Label className="text-xs text-gray-500 uppercase font-bold">Reconciliation Note</Label>
+              <div className="space-y-3">
+                <Label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] pl-1">Operational Justification</Label>
                 <textarea 
-                  className="w-full min-h-[80px] p-3 text-sm border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                  className="w-full min-h-[100px] p-4 text-sm font-medium border border-slate-200 rounded-2xl focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 outline-none transition-all placeholder:text-slate-300"
                   value={note}
                   onChange={(e) => setNote(e.target.value)}
                   placeholder={hasDiscrepancy() ? "Explain the discrepancy here (REQUIRED)..." : "Notes about this shift (optional)..."}
@@ -381,18 +373,25 @@ export default function StopShiftModal({ isOpen, onClose, onSuccess, currentUser
                 />
               </div>
 
-              <DialogFooter className="pt-4">
-                <Button variant="outline" onClick={() => setStep("NON_CASH")} className="gap-2">
-                  <ArrowLeft className="w-4 h-4" /> Back
+              <div className="flex flex-col sm:flex-row gap-3 pt-4">
+                <Button 
+                   variant="outline" 
+                   onClick={() => setStep("NON_CASH")} 
+                   className="h-14 rounded-2xl font-bold flex-1"
+                >
+                  <ArrowLeft className="w-4 h-4 mr-2" /> Adjust Values
                 </Button>
                 <Button 
                   onClick={handleFinalSubmit} 
                   disabled={loading || (hasDiscrepancy() && !note.trim())}
-                  className={cn("gap-2", hasDiscrepancy() ? "bg-red-600 hover:bg-red-700" : "")}
+                  className={cn(
+                    "h-14 rounded-2xl font-black uppercase tracking-widest text-sm flex-[2] shadow-xl transition-all active:scale-95 gap-2",
+                    hasDiscrepancy() ? "bg-rose-600 hover:bg-rose-700 shadow-rose-600/20" : "bg-emerald-600 hover:bg-emerald-700 shadow-emerald-600/20"
+                  )}
                 >
-                  {loading ? "Closing Shift..." : "Finish & Close Shift"} <CheckCircle className="w-4 h-4" />
+                  {loading ? <RefreshCcw className="w-5 h-5 animate-spin" /> : "Authorize & Close Shift"} <CheckCircle className="w-5 h-5" />
                 </Button>
-              </DialogFooter>
+              </div>
             </div>
           )}
         </div>

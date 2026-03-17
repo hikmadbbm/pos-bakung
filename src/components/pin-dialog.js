@@ -51,8 +51,8 @@ export function PinDialog({ isOpen, onClose, onVerify, title = "Enter PIN" }) {
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4 pt-4">
           <div className="text-center space-y-2">
-            <div className="bg-blue-50 w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-2">
-              <Lock className="w-6 h-6 text-blue-600" />
+            <div className="bg-emerald-50 w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-2">
+              <Lock className="w-6 h-6 text-emerald-600" />
             </div>
             <p className="text-sm text-gray-500">
               Authorization required. Please enter your PIN to proceed.
@@ -62,13 +62,14 @@ export function PinDialog({ isOpen, onClose, onVerify, title = "Enter PIN" }) {
           <div className="space-y-2">
             <Input 
               type="password" 
+              inputMode="numeric"
               value={pin}
               onChange={(e) => {
-                setPin(e.target.value);
+                setPin(e.target.value.replace(/\D/g, ""));
                 setError("");
               }}
-              placeholder="Enter PIN"
-              className="text-center text-lg tracking-widest"
+              placeholder="••••"
+              className="text-center text-4xl tracking-[0.3em] h-16 w-full font-black bg-slate-50 border-2 border-slate-200 focus:border-emerald-500 rounded-2xl text-slate-900"
               maxLength={6}
               autoFocus
             />

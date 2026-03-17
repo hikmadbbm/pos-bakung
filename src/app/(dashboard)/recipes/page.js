@@ -6,11 +6,16 @@ import {
   ChevronRight, ArrowLeft, Save, Info, Calculator, 
   Sparkles, Scale, RefreshCw, TrendingUp, History,
   AlertTriangle, Eye, X,
-  CheckCircle2
+  CheckCircle2, Layers
 } from "lucide-react";
+import { 
+  Dialog, DialogContent, DialogHeader, DialogTitle 
+} from "../../../components/ui/dialog";
 import { 
   Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle 
 } from "../../../components/ui/card";
+
+
 import { Button } from "../../../components/ui/button";
 import { Input } from "../../../components/ui/input";
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "../../../components/ui/table";
@@ -35,32 +40,38 @@ export default function RecipesPage() {
   }
 
   return (
-    <div className="max-w-6xl mx-auto space-y-6">
-      <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-bold tracking-tight">Recipe Management</h2>
-        <div className="flex bg-white rounded-lg p-1 border shadow-sm h-10">
+    <div className="max-w-7xl mx-auto space-y-10 animate-fade-in pb-20">
+      <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+        <div>
+            <span className="text-sm font-medium text-slate-500 mt-1 flex items-center gap-2">
+              HPP Calculator & Ingredient Management
+              <span className="inline-block w-1 h-1 bg-emerald-600 rounded-full" />
+            </span>
+        </div>
+        
+        <div className="flex bg-slate-100/50 backdrop-blur-sm rounded-[1.25rem] p-1.5 border border-slate-200/50 shadow-inner">
           <button
             onClick={() => setActiveTab("recipes")}
             className={cn(
-              "px-4 text-sm font-medium rounded-md transition-all",
-              activeTab === "recipes" ? "bg-blue-600 text-white shadow" : "text-gray-500 hover:text-gray-900"
+              "px-6 py-2.5 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all flex items-center gap-2",
+              activeTab === "recipes" ? "bg-white text-slate-900 shadow-xl shadow-slate-200/50" : "text-slate-400 hover:text-slate-600"
             )}
           >
-            Recipes
+            <ClipboardList className="w-3.5 h-3.5" /> Recipes
           </button>
           <button
             onClick={() => setActiveTab("ingredients")}
             className={cn(
-              "px-4 text-sm font-medium rounded-md transition-all",
-              activeTab === "ingredients" ? "bg-blue-600 text-white shadow" : "text-gray-500 hover:text-gray-900"
+              "px-6 py-2.5 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all flex items-center gap-2",
+              activeTab === "ingredients" ? "bg-white text-slate-900 shadow-xl shadow-slate-200/50" : "text-slate-400 hover:text-slate-600"
             )}
           >
-            Ingredients
+            <Scale className="w-3.5 h-3.5" /> Ingredients
           </button>
         </div>
       </div>
 
-      <div className="animate-in fade-in duration-300">
+      <div className="animate-in fade-in duration-500">
         {activeTab === "ingredients" ? (
           <IngredientManager />
         ) : (
@@ -78,6 +89,7 @@ function RecipeList({ onAdd, onEdit }) {
   const [subTab, setSubTab] = useState("STANDARD"); // STANDARD or COMPONENT
   const [confirmDeleteId, setConfirmDeleteId] = useState(null);
   const [viewingRecipeId, setViewingRecipeId] = useState(null);
+  const viewingRecipe = recipes.find(r => r.id === viewingRecipeId);
   const { success, error } = useToast();
 
   useEffect(() => {
@@ -135,22 +147,22 @@ function RecipeList({ onAdd, onEdit }) {
 
   if (loading) return (
     <div className="flex flex-col items-center justify-center py-20 gap-4">
-      <RefreshCw className="w-8 h-8 text-blue-600 animate-spin" />
-      <p className="text-gray-500 font-medium">Fetching recipes...</p>
+      <RefreshCw className="w-8 h-8 text-emerald-600 animate-spin" />
+      <p className="text-slate-500 font-medium uppercase tracking-widest text-[10px]">Synchronizing Vault...</p>
     </div>
   );
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center bg-white p-4 rounded-3xl border shadow-sm gap-4">
-        <div className="flex flex-col">
-          <h3 className="font-black text-gray-900 text-lg">Your Recipes</h3>
-          <div className="flex bg-gray-50 p-1 rounded-xl mt-2">
+    <div className="space-y-10">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center glass-card p-6 rounded-[2rem] shadow-2xl border-none gap-6">
+        <div className="flex flex-col gap-3">
+          <h3 className="font-black text-slate-900 text-lg uppercase tracking-tight">Recipe Vault</h3>
+          <div className="flex bg-slate-100/50 p-1 rounded-xl">
             <button 
               onClick={() => setSubTab("STANDARD")}
               className={cn(
-                "px-4 py-1.5 text-[10px] font-black uppercase rounded-lg transition-all",
-                subTab === "STANDARD" ? "bg-white text-blue-600 shadow-sm" : "text-gray-400 hover:text-gray-600"
+                "px-6 py-2 text-[9px] font-black uppercase rounded-lg transition-all tracking-widest",
+                subTab === "STANDARD" ? "bg-white text-emerald-600 shadow-lg shadow-emerald-100" : "text-slate-400 hover:text-slate-600"
               )}
             >
               Menu Items
@@ -158,173 +170,184 @@ function RecipeList({ onAdd, onEdit }) {
             <button 
               onClick={() => setSubTab("COMPONENT")}
               className={cn(
-                "px-4 py-1.5 text-[10px] font-black uppercase rounded-lg transition-all",
-                subTab === "COMPONENT" ? "bg-white text-purple-600 shadow-sm" : "text-gray-400 hover:text-gray-600"
+                "px-6 py-2 text-[9px] font-black uppercase rounded-lg transition-all tracking-widest",
+                subTab === "COMPONENT" ? "bg-white text-purple-600 shadow-lg shadow-purple-100" : "text-slate-400 hover:text-slate-600"
               )}
             >
               Components
             </button>
           </div>
         </div>
-        <div className="flex gap-2">
-          <Button onClick={onAdd} className="bg-blue-600 hover:bg-blue-700 shadow-lg shadow-blue-100 rounded-2xl md:h-12 px-6">
-            <Plus className="w-4 h-4 mr-2" /> New Recipe
-          </Button>
+        <div className="flex gap-4">
+          <button 
+            onClick={onAdd} 
+            className="flex items-center gap-3 bg-slate-900 hover:bg-black text-white px-8 py-4 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] shadow-2xl shadow-slate-200 transition-all active:scale-95"
+          >
+            <Plus className="w-4 h-4" /> Create Recipe
+          </button>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
         {filteredRecipes.map(recipe => (
-          <div key={recipe.id} className="relative">
-            <Card className="group hover:shadow-xl hover:scale-[1.01] transition-all relative overflow-hidden rounded-3xl border-none shadow-sm h-full flex flex-col">
-              {recipe.cost_change_alert > 5 && (
-                 <div className="absolute top-0 left-0 w-full h-1 bg-red-500 animate-pulse" />
-              )}
-              <CardHeader className="pb-3 px-6">
-                <div className="flex justify-between items-start pt-2">
-                  <div className="space-y-1">
-                    <div className={cn("px-2 py-0.5 rounded text-[8px] font-black uppercase inline-block mb-1", recipe.type === 'STANDARD' ? "bg-blue-100 text-blue-600" : "bg-purple-100 text-purple-600")}>
-                      {recipe.type === 'STANDARD' ? 'Menu Item' : 'Component'}
-                    </div>
-                    <CardTitle className="text-lg font-black text-gray-900 group-hover:text-blue-600 transition-colors">{recipe.name}</CardTitle>
+          <div key={recipe.id} className="relative group">
+            <div className="glass-card hover:shadow-[0_20px_60px_-15px_rgba(0,0,0,0.1)] hover:-translate-y-2 transition-all duration-500 relative overflow-hidden rounded-[2.5rem] border-none shadow-2xl h-full flex flex-col p-8 bg-white/40">
+              <div className="flex justify-between items-start mb-6">
+                <div className="space-y-3">
+                  <div className={cn(
+                    "px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest inline-block border", 
+                    recipe.type === 'STANDARD' ? "bg-emerald-400/10 text-emerald-600 border-emerald-400/20" : "bg-purple-400/10 text-purple-600 border-purple-400/20"
+                  )}>
+                    {recipe.type === 'STANDARD' ? 'Menu Item' : 'Component'}
                   </div>
-                  <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-all -mr-2 scale-90">
+                  <h3 className="text-xl font-black text-slate-900 tracking-tight uppercase leading-tight group-hover:text-emerald-600 transition-colors">{recipe.name}</h3>
+                </div>
+                <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-all scale-90 -mr-4">
                   {confirmDeleteId === recipe.id ? (
-                    <div className="flex items-center gap-1 bg-red-50 p-1 rounded-xl border border-red-100 animate-in fade-in zoom-in slide-in-from-right-1 duration-200">
-                       <span className="text-[8px] font-black text-red-600 px-2 uppercase tracking-tighter">Delete?</span>
-                       <Button variant="destructive" size="sm" className="h-6 px-2 text-[8px] font-black rounded-lg" onClick={(e) => { e.stopPropagation(); handleDelete(recipe.id); }}>YES</Button>
-                       <Button variant="ghost" size="sm" className="h-6 px-2 text-[8px] font-black rounded-lg" onClick={(e) => { e.stopPropagation(); setConfirmDeleteId(null); }}>NO</Button>
+                    <div className="flex items-center gap-1 bg-rose-50 p-1.5 rounded-2xl border border-rose-100 animate-in fade-in zoom-in slide-in-from-right-2">
+                       <Button variant="destructive" size="sm" className="h-8 px-3 text-[9px] font-black rounded-xl" onClick={(e) => { e.stopPropagation(); handleDelete(recipe.id); }}>DELETE</Button>
+                       <Button variant="ghost" size="sm" className="h-8 px-3 text-[9px] font-black rounded-xl" onClick={(e) => { e.stopPropagation(); setConfirmDeleteId(null); }}>ESC</Button>
                     </div>
                   ) : (
-                    <>
-                      <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); setViewingRecipeId(recipe.id); }} className="rounded-full w-8 h-8 hover:bg-blue-50 hover:text-blue-600 group" title="View Recipe Details">
-                        <Eye className="w-3.5 h-3.5 text-gray-400 group-hover:text-blue-600 transition-colors" />
-                      </Button>
-                      <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); handleDuplicate(recipe); }} className="rounded-full w-8 h-8 hover:bg-blue-50 hover:text-blue-600 group" title="Duplicate">
-                        <History className="w-3.5 h-3.5 text-gray-400 group-hover:text-blue-600 transition-colors" />
-                      </Button>
-                      <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); onEdit(recipe.id); }} className="rounded-full w-8 h-8 hover:bg-blue-50 hover:text-blue-600 group" title="Edit">
-                        <Edit2 className="w-3.5 h-3.5 text-gray-400 group-hover:text-blue-600 transition-colors" />
-                      </Button>
-                      <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); setConfirmDeleteId(recipe.id); }} className="rounded-full w-8 h-8 hover:bg-red-50 hover:text-red-500 group" title="Delete">
-                        <Trash2 className="w-3.5 h-3.5 text-gray-400 group-hover:text-red-500 transition-colors" />
-                      </Button>
-                    </>
+                    <div className="flex items-center gap-2">
+                      <button onClick={(e) => { e.stopPropagation(); setViewingRecipeId(recipe.id); }} className="w-10 h-10 rounded-2xl bg-white shadow-lg flex items-center justify-center hover:bg-slate-900 hover:text-white transition-all">
+                        <Eye className="w-4 h-4" />
+                      </button>
+                      <button onClick={(e) => { e.stopPropagation(); handleDuplicate(recipe); }} className="w-10 h-10 rounded-2xl bg-white shadow-lg flex items-center justify-center hover:bg-slate-900 hover:text-white transition-all">
+                        <History className="w-4 h-4" />
+                      </button>
+                      <button onClick={(e) => { e.stopPropagation(); onEdit(recipe.id); }} className="w-10 h-10 rounded-2xl bg-white shadow-lg flex items-center justify-center hover:bg-slate-900 hover:text-white transition-all">
+                        <Edit2 className="w-4 h-4" />
+                      </button>
+                    </div>
                   )}
                 </div>
               </div>
-            </CardHeader>
-              <CardContent className="px-6 pb-6 pt-2 flex-1">
-                <div className="flex justify-between items-end">
+
+              <div className="flex-1">
+                <div className="flex justify-between items-end mt-4">
                   <div>
-                    <div className="text-[10px] text-gray-400 uppercase font-black tracking-widest mb-1">HPP / Unit</div>
-                    <div className="text-3xl font-black text-gray-900 tracking-tighter">{formatIDR(recipe.total_hpp)}</div>
+                    <div className="text-[9px] text-slate-400 uppercase font-black tracking-[0.2em] mb-2">HPP / Unit</div>
+                    <div className="text-3xl font-black text-slate-900 tracking-tighter tabular-nums">{formatIDR(recipe.total_hpp)}</div>
                   </div>
                   {recipe.cost_change_alert !== 0 && (
                      <div className={cn(
-                       "flex items-center gap-1 text-[10px] font-black px-2 py-1 rounded-full",
-                       recipe.cost_change_alert > 0 ? "bg-red-50 text-red-600" : "bg-green-50 text-green-600"
+                       "flex items-center gap-1.5 text-[10px] font-black px-3 py-1.5 rounded-xl shadow-sm border",
+                       recipe.cost_change_alert > 0 ? "bg-rose-50 text-rose-600 border-rose-100" : "bg-emerald-50 text-emerald-600 border-emerald-100"
                      )}>
-                       {recipe.cost_change_alert > 0 ? <TrendingUp className="w-3 h-3" /> : <TrendingUp className="w-3 h-3 rotate-180" />}
+                       {recipe.cost_change_alert > 0 ? <TrendingUp className="w-3.5 h-3.5" /> : <TrendingUp className="w-3.5 h-3.5 rotate-180" />}
                        {Math.abs(recipe.cost_change_alert).toFixed(1)}%
                      </div>
                   )}
                 </div>
                 
-                <div className="mt-4 pt-4 border-t border-gray-50 flex items-center justify-between text-[10px] font-bold text-gray-400 uppercase">
-                   <span className="flex items-center gap-1.5">
-                     <Info className="w-3 h-3" /> Yield: {recipe.base_quantity}
-                   </span>
-                   <span className="truncate max-w-[120px]">
-                     {recipe.menu?.name ? `Linked: ${recipe.menu.name}` : "No link"}
-                   </span>
-                </div>
-              </CardContent>
-              {recipe.cost_change_alert > 5 && (
-                <CardFooter className="py-2.5 bg-red-500 text-white flex items-center justify-center gap-2 text-[10px] font-black uppercase px-6">
-                  <AlertTriangle className="w-3 h-3" /> Cost Warning: Review Prices
-                </CardFooter>
-              )}
-
-              {/* Explicit Preview Overlay */}
-              <div className={cn(
-                "absolute inset-x-0 bottom-0 top-0 bg-white/98 backdrop-blur-md p-6 transition-all duration-300 transform flex flex-col overflow-hidden z-20",
-                viewingRecipeId === recipe.id ? "opacity-100 translate-y-0 visible pointer-events-auto" : "opacity-0 translate-y-8 invisible pointer-events-none"
-              )}>
-                <div className="flex justify-between items-center mb-4 pb-2 border-b border-gray-100">
+                <div className="mt-8 pt-6 border-t border-slate-100 flex items-center justify-between text-[10px] font-black text-slate-400 uppercase tracking-widest">
                    <div className="flex items-center gap-2">
-                     <h4 className="text-[10px] font-black uppercase text-gray-400 tracking-widest">Recipe Details</h4>
-                     <span className="text-[10px] font-black text-blue-600 uppercase bg-blue-50 px-2 py-0.5 rounded-full">{recipe.items?.length || 0} Items</span>
+                     <Scale className="w-3.5 h-3.5 text-slate-300" /> 
+                     <span>Yield: {recipe.base_quantity}</span>
                    </div>
-                   <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); setViewingRecipeId(null); }} className="rounded-full w-7 h-7 hover:bg-gray-100 hover:text-gray-900 transition-all">
-                     <X className="w-4 h-4" />
-                   </Button>
-                </div>
-                <div className="overflow-auto flex-1">
-                   <table className="w-full text-left text-[11px]">
-                     <thead>
-                       <tr className="text-gray-400 font-bold border-b border-gray-50">
-                         <th className="pb-2 font-black uppercase tracking-tighter">Item</th>
-                         <th className="pb-2 font-black uppercase tracking-tighter text-right">Qty</th>
-                       </tr>
-                     </thead>
-                     <tbody className="divide-y divide-gray-50">
-                       {(recipe.items || []).map((item, idx) => (
-                         <tr key={idx} className="hover:bg-gray-50 transition-colors">
-                           <td className="py-2.5 font-bold text-gray-700 leading-tight pr-4">
-                             {item.item_type === 'INGREDIENT' ? item.ingredient?.item_name : item.component_recipe?.name}
-                           </td>
-                           <td className="py-2.5 text-right font-black text-gray-900 tabular-nums">
-                             {item.quantity} <span className="text-[8px] text-gray-400 uppercase">{item.unit || (item.item_type === 'INGREDIENT' ? item.ingredient?.unit : 'portion')}</span>
-                           </td>
-                         </tr>
-                       ))}
-                     </tbody>
-                   </table>
-                </div>
-                <div className="mt-4 pt-3 border-t border-gray-100 flex justify-between items-center gap-4">
-                   <div className="flex items-center gap-1.5 tabular-nums">
-                     <span className="text-[10px] font-black text-gray-400 uppercase">Yield:</span>
-                     <span className="text-[10px] font-black text-gray-900">{recipe.base_quantity}</span>
-                   </div>
-                   <div className="flex gap-1">
-                      {confirmDeleteId === recipe.id ? (
-                        <div className="flex items-center gap-1 bg-red-50 p-1 rounded-xl border border-red-100 animate-in fade-in zoom-in slide-in-from-right-1 duration-200">
-                           <span className="text-[8px] font-black text-red-600 px-2 uppercase tracking-tighter">Delete?</span>
-                           <Button variant="destructive" size="sm" className="h-6 px-2 text-[8px] font-black rounded-lg" onClick={(e) => { e.stopPropagation(); handleDelete(recipe.id); }}>YES</Button>
-                           <Button variant="ghost" size="sm" className="h-6 px-2 text-[8px] font-black rounded-lg" onClick={(e) => { e.stopPropagation(); setConfirmDeleteId(null); }}>NO</Button>
-                        </div>
-                      ) : (
-                        <>
-                          <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); handleDuplicate(recipe); }} title="Duplicate" className="rounded-full w-8 h-8 hover:bg-blue-50 hover:text-blue-600 group">
-                            <History className="w-3.5 h-3.5 text-gray-400 group-hover:text-blue-600 transition-colors" />
-                          </Button>
-                          <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); onEdit(recipe.id); }} className="rounded-full w-8 h-8 hover:bg-blue-50 hover:text-blue-600 group">
-                            <Edit2 className="w-3.5 h-3.5 text-gray-400 group-hover:text-blue-600 transition-colors" />
-                          </Button>
-                          <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); setConfirmDeleteId(recipe.id); }} className="rounded-full w-8 h-8 hover:bg-red-50 hover:text-red-500 group">
-                            <Trash2 className="w-3.5 h-3.5 text-gray-400 group-hover:text-red-500 transition-colors" />
-                          </Button>
-                        </>
-                      )}
+                   <div className="flex items-center gap-2 max-w-[140px] truncate">
+                     <Sparkles className="w-3.5 h-3.5 text-emerald-300" />
+                     <span>{recipe.menu?.name || "Unlinked"}</span>
                    </div>
                 </div>
               </div>
-            </Card>
+
+              {recipe.cost_change_alert > 5 && (
+                <div className="absolute top-0 left-0 w-full h-1.5 bg-rose-500 animate-pulse" />
+              )}
+
+            </div>
           </div>
         ))}
       </div>
+
+      <Dialog open={!!viewingRecipeId} onOpenChange={(open) => !open && setViewingRecipeId(null)}>
+        <DialogContent className="max-w-3xl p-0 overflow-hidden rounded-[2.5rem] border-none shadow-2xl bg-white">
+          {viewingRecipe && (
+            <div className="flex flex-col h-[85vh] sm:h-auto max-h-[90vh]">
+              <div className="p-8 sm:p-10 border-b border-slate-100 bg-slate-50/50">
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="w-2 h-2 bg-emerald-600 rounded-full animate-pulse" />
+                  <h4 className="text-[10px] font-black uppercase text-emerald-600 tracking-[0.3em]">Material Blueprint Breakdown</h4>
+                </div>
+                <h3 className="text-3xl font-black text-slate-900 uppercase tracking-tight leading-none">{viewingRecipe.name}</h3>
+              </div>
+              
+              <div className="flex-1 overflow-y-auto px-8 sm:px-10 py-6 custom-scrollbar">
+                <Table className="w-full">
+                  <TableHeader className="sticky top-0 bg-white/90 backdrop-blur-md z-10 border-b-2 border-slate-100">
+                    <TableRow className="hover:bg-transparent">
+                      <TableHead className="py-4 text-[11px] font-black uppercase text-slate-500 tracking-widest pl-0">Composition</TableHead>
+                      <TableHead className="py-4 text-[11px] font-black uppercase text-slate-500 tracking-widest text-right pr-0">Volume / Metric</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {(viewingRecipe.items || []).map((item, idx) => (
+                      <TableRow key={idx} className="group/row hover:bg-emerald-50/30 transition-all border-slate-50">
+                        <TableCell className="py-6 pl-0">
+                          <p className="text-lg font-black text-slate-900 uppercase tracking-tight leading-tight">
+                            {item.item_type === 'INGREDIENT' ? item.ingredient?.item_name : item.component_recipe?.name}
+                          </p>
+                          <div className="flex items-center gap-2 mt-2">
+                            <span className={cn(
+                              "text-[8px] font-black px-2 py-0.5 rounded-md uppercase tracking-widest border",
+                              item.item_type === 'INGREDIENT' ? "bg-emerald-50 text-emerald-600 border-emerald-100" : "bg-purple-50 text-purple-600 border-purple-100"
+                            )}>
+                              {item.item_type}
+                            </span>
+                          </div>
+                        </TableCell>
+                        <TableCell className="py-6 text-right pr-0">
+                          <span className="text-xl font-black text-slate-900 tabular-nums">
+                            {item.quantity}
+                          </span>
+                          <span className="text-[11px] font-black text-slate-400 uppercase ml-2 tracking-widest">
+                            {item.unit || (item.item_type === 'INGREDIENT' ? item.ingredient?.unit : 'portion')}
+                          </span>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+
+              <div className="p-8 sm:p-10 border-t border-slate-100 bg-slate-50/50 flex justify-between items-center">
+                <div>
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Net Batch Yield Output</p>
+                  <p className="text-3xl font-black text-emerald-600 tracking-tight">{viewingRecipe.base_quantity} <span className="text-sm text-slate-400 ml-1">UNITS</span></p>
+                </div>
+                <div className="flex items-center gap-4">
+                  <button 
+                    onClick={() => setViewingRecipeId(null)} 
+                    className="px-8 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-slate-900 transition-all"
+                  >
+                    Close
+                  </button>
+                  <button 
+                    onClick={() => { onEdit(viewingRecipe.id); setViewingRecipeId(null); }} 
+                    className="px-10 py-5 bg-slate-900 hover:bg-black text-white text-[10px] font-black uppercase tracking-widest rounded-2xl transition-all active:scale-95 shadow-2xl shadow-slate-200 flex items-center gap-3"
+                  >
+                    <Edit2 className="w-4 h-4" /> Edit Blueprint
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
       
       {recipes.length === 0 && (
-        <div className="text-center py-32 bg-white rounded-3xl border-2 border-dashed border-gray-100 shadow-sm">
-          <ClipboardList className="w-16 h-16 text-gray-200 mx-auto mb-6" />
-          <h3 className="text-xl font-black text-gray-900 tracking-tight">No Recipes Found</h3>
-          <p className="text-sm text-gray-400 mt-2 max-w-[280px] mx-auto uppercase tracking-wider font-bold">Start building your menu by creating your first recipe above</p>
+        <div className="text-center py-32 glass-card rounded-[2.5rem] border-none shadow-2xl">
+          <ClipboardList className="w-16 h-16 text-slate-200 mx-auto mb-6" />
+          <h3 className="text-xl font-black text-slate-900 tracking-tight uppercase">No Recipes Found</h3>
+          <p className="text-[10px] text-slate-400 mt-4 max-w-[280px] mx-auto uppercase tracking-widest font-black leading-relaxed">Start building your menu by creating your first recipe above</p>
         </div>
       )}
     </div>
   );
 }
+
 
 // 4. Recipe Form (Builder + Calculator)
 function RecipeForm({ id, onClose }) {
@@ -468,167 +491,187 @@ function RecipeForm({ id, onClose }) {
 
   if (loading) return (
     <div className="flex flex-col items-center justify-center min-h-[400px] gap-4">
-      <RefreshCw className="w-8 h-8 text-blue-600 animate-spin" />
+      <RefreshCw className="w-8 h-8 text-emerald-600 animate-spin" />
       <p className="text-gray-500 font-medium">Loading recipe builder...</p>
     </div>
   );
 
   return (
-    <div className="space-y-6 max-w-4xl mx-auto pb-32">
-      {/* Header */}
-      <div className="flex items-center justify-between sticky top-0 z-40 bg-gray-50/80 backdrop-blur-md py-4 -mx-4 px-4 sm:mx-0 sm:px-0">
-        <div className="flex items-center gap-3">
-          <Button variant="ghost" onClick={onClose} size="icon" className="rounded-full">
-            <ArrowLeft className="w-5 h-5" />
-          </Button>
+    <div className="space-y-12 max-w-6xl mx-auto pb-32 animate-in fade-in slide-in-from-bottom-4 duration-700">
+      {/* Premium Header */}
+      <div className="flex flex-col md:flex-row items-start md:items-center justify-between sticky top-0 z-[100] bg-slate-50/80 backdrop-blur-xl py-6 -mx-4 px-4 sm:mx-0 sm:px-0 border-b border-slate-200/50 mb-10">
+        <div className="flex items-center gap-6">
+          <button 
+            onClick={onClose} 
+            className="w-14 h-14 rounded-2xl bg-white shadow-xl shadow-slate-200 flex items-center justify-center hover:bg-slate-900 hover:text-white transition-all active:scale-95 group"
+          >
+            <ArrowLeft className="w-6 h-6 group-hover:-translate-x-1 transition-transform" />
+          </button>
           <div>
-            <h2 className="text-xl font-bold text-gray-900">{id ? "Edit Recipe" : "New Recipe"}</h2>
-            <p className="text-[10px] text-gray-500 uppercase tracking-wider font-bold">HPP Calculator & Builder</p>
+            <h2 className="text-3xl font-black text-slate-900 tracking-tight uppercase leading-none">{id ? "Refine Blueprint" : "Architect Recipe"}</h2>
+            <div className="flex items-center gap-3 mt-2">
+              <div className="w-2 h-2 bg-emerald-600 rounded-full animate-pulse" />
+              <p className="text-[10px] text-slate-400 uppercase tracking-[0.3em] font-black">HPP Intelligence & Material Builder</p>
+            </div>
           </div>
         </div>
-        <Button onClick={handleSave} disabled={isSaving} className="bg-blue-600 hover:bg-blue-700 shadow-lg shadow-blue-200">
-          <Save className="w-4 h-4 mr-2" /> {isSaving ? "Saving..." : "Save"}
-        </Button>
+        <div className="flex items-center gap-4 mt-6 md:mt-0">
+          <button 
+            onClick={onClose} 
+            className="px-8 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-rose-500 transition-all"
+          >
+            Discard Draft
+          </button>
+          <button 
+            onClick={handleSave} 
+            disabled={isSaving} 
+            className="px-10 py-4 bg-slate-900 hover:bg-black text-white rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-2xl shadow-slate-300 transition-all active:scale-95 flex items-center gap-3"
+          >
+            {isSaving ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+            {isSaving ? "Syncing..." : "Commit Recipe"}
+          </button>
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
         {/* Main Section */}
-        <div className="lg:col-span-2 space-y-6">
-          {/* Basic Info */}
-          <Card className="border-none shadow-sm overflow-hidden">
-            <CardHeader className="bg-gray-50/50 pb-4">
-              <CardTitle className="text-sm font-bold uppercase tracking-tight text-gray-600">Recipe Basics</CardTitle>
-            </CardHeader>
-            <CardContent className="pt-6 space-y-4">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="space-y-1.5 col-span-1 sm:col-span-2">
-                  <label className="text-xs font-bold text-gray-500 uppercase">Recipe Name</label>
-                  <Input 
+        <div className="lg:col-span-8 space-y-10">
+          {/* Identity Block */}
+          <div className="glass-card rounded-[2.5rem] p-10 bg-white/60">
+             <div className="flex items-center gap-4 mb-8">
+                <div className="w-10 h-10 rounded-xl bg-slate-900 flex items-center justify-center">
+                  <Info className="w-5 h-5 text-white" />
+                </div>
+                <h3 className="text-[10px] font-black uppercase tracking-[0.4em] text-slate-400">Identity Definitions</h3>
+             </div>
+             
+             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <div className="space-y-3 col-span-1 md:col-span-2">
+                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Recipe Designation</label>
+                  <input 
                     value={recipe.name} 
                     onChange={(e) => setRecipe({...recipe, name: e.target.value})} 
-                    placeholder="e.g. Signature Chicken Noodle"
-                    className="h-11 font-medium text-lg border-gray-200 focus:border-blue-500"
+                    placeholder="e.g. ULTRA SIGNATURE RAMEN"
+                    className="w-full h-16 bg-white border border-slate-100 rounded-[1.25rem] px-8 font-black text-lg uppercase tracking-tight text-slate-900 focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 outline-none transition-all shadow-sm placeholder:text-slate-200"
                   />
                 </div>
-                <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-gray-500 uppercase">Recipe Type</label>
+                <div className="space-y-3">
+                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Classification</label>
                   <select 
-                    className="w-full h-11 rounded-md border border-gray-200 bg-white px-3 py-2 text-sm font-medium focus:ring-2 focus:ring-blue-500 outline-none"
+                    className="w-full h-16 bg-white border border-slate-100 rounded-[1.25rem] px-8 font-black uppercase text-[11px] tracking-widest text-slate-900 focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 outline-none transition-all shadow-sm appearance-none cursor-pointer"
                     value={recipe.type}
                     onChange={(e) => setRecipe({...recipe, type: e.target.value})}
                   >
-                    <option value="STANDARD">Standard Menu</option>
-                    <option value="COMPONENT">Component / Sub-recipe</option>
+                    <option value="STANDARD">Standard Menu Item</option>
+                    <option value="COMPONENT">Component / Sub-Recipe</option>
                   </select>
                 </div>
-                <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-gray-500 uppercase">Total Yield (Portions)</label>
-                  <Input 
+                <div className="space-y-3">
+                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Batch Yield (Units)</label>
+                  <input 
                     type="number" 
                     value={recipe.base_quantity} 
                     onChange={(e) => setRecipe({...recipe, base_quantity: parseFloat(e.target.value) || 1})}
-                    className="h-11 font-bold text-blue-600"
+                    className="w-full h-16 bg-emerald-50/30 border border-emerald-100 rounded-[1.25rem] px-8 font-black text-2xl text-emerald-600 focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 outline-none transition-all shadow-inner"
                   />
                 </div>
-              </div>
+             </div>
 
-              {recipe.type === 'STANDARD' && (
-                <div className="pt-2">
-                   <label className="text-xs font-bold text-gray-500 uppercase mb-1.5 block">Link to Menu Item</label>
+             {recipe.type === 'STANDARD' && (
+                <div className="mt-8 pt-8 border-t border-slate-100">
+                   <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1 mb-3 block">Digital Ledger Corelation (Menu Link)</label>
                    <select 
-                    className="w-full h-11 rounded-md border border-gray-200 bg-white px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+                    className="w-full h-16 bg-white border border-slate-100 rounded-[1.25rem] px-8 font-black uppercase text-[11px] tracking-widest text-slate-900 focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 outline-none transition-all shadow-sm appearance-none cursor-pointer"
                     value={recipe.menu_id || ""}
                     onChange={(e) => setRecipe({...recipe, menu_id: e.target.value ? Number(e.target.value) : null})}
                   >
-                    <option value="">No Menu Linked</option>
+                    <option value="">STANDALONE (NO LINK)</option>
                     {menus.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
                   </select>
                 </div>
-              )}
-            </CardContent>
-          </Card>
+             )}
+          </div>
 
-          {/* Builder Section */}
-          <Card className="border-none shadow-sm overflow-hidden min-h-[400px]">
-            <CardHeader className="bg-gray-50/50 flex flex-row items-center justify-between pb-4">
-              <div>
-                <CardTitle className="text-sm font-bold uppercase tracking-tight text-gray-600">Recipe Items</CardTitle>
-                <CardDescription className="text-[10px]">Ingredients & components</CardDescription>
-              </div>
-              <div className="flex bg-white rounded-lg p-1 border shadow-sm">
-                <button 
-                  onClick={() => setSelectionType("INGREDIENT")}
-                  className={cn("px-3 py-1 text-[10px] font-bold rounded transition-all", selectionType === "INGREDIENT" ? "bg-blue-600 text-white" : "text-gray-500")}
-                >Ingredient</button>
-                <button 
-                  onClick={() => setSelectionType("COMPONENT")}
-                  className={cn("px-3 py-1 text-[10px] font-bold rounded transition-all", selectionType === "COMPONENT" ? "bg-blue-600 text-white" : "text-gray-500")}
-                >Component</button>
-              </div>
-            </CardHeader>
-            <CardContent className="pt-6 space-y-6">
-              {/* Search Dropdown */}
-              <div className="relative group">
+          {/* Builder Block */}
+          <div className="glass-card rounded-[2.5rem] p-10 bg-white/60 min-h-[500px]">
+             <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-10">
+                <div className="flex items-center gap-4">
+                  <div className="w-10 h-10 rounded-xl bg-emerald-600 flex items-center justify-center">
+                    <Layers className="w-5 h-5 text-white" />
+                  </div>
+                  <h3 className="text-[10px] font-black uppercase tracking-[0.4em] text-slate-400">Material Composition</h3>
+                </div>
+                <div className="flex bg-slate-100 p-1 rounded-[1.25rem]">
+                  <button 
+                    onClick={() => setSelectionType("INGREDIENT")}
+                    className={cn("px-6 py-2.5 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all", selectionType === "INGREDIENT" ? "bg-white text-emerald-600 shadow-xl shadow-emerald-100" : "text-slate-400 hover:text-slate-600")}
+                  >Ingredients</button>
+                  <button 
+                    onClick={() => setSelectionType("COMPONENT")}
+                    className={cn("px-6 py-2.5 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all", selectionType === "COMPONENT" ? "bg-white text-purple-600 shadow-xl shadow-purple-100" : "text-slate-400 hover:text-slate-600")}
+                  >Sub-Recipes</button>
+                </div>
+             </div>
+
+             {/* Search Interface */}
+             <div className="relative mb-10 group">
                 <div className="relative">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                  <Input 
-                    placeholder={selectionType === 'INGREDIENT' ? "Search Ingredient Master..." : "Search Component Recipes..."}
+                  <Search className="absolute left-6 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-300 group-hover:text-emerald-500 transition-colors" />
+                  <input 
+                    placeholder={selectionType === 'INGREDIENT' ? "ASSEMBLY: SCAN MATERIAL MASTER..." : "ASSEMBLY: SCAN SUB-RECIPE VAULT..."}
                     value={suggestionTerm}
                     onChange={(e) => setSuggestionTerm(e.target.value)}
-                    className="pl-10 h-12 bg-gray-50/50 border-gray-100 group-hover:border-blue-300 transition-colors"
+                    className="w-full h-16 bg-white border border-slate-100 rounded-[1.25rem] pl-16 pr-8 font-black uppercase text-[10px] tracking-widest text-slate-900 focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 outline-none transition-all shadow-sm placeholder:text-slate-200"
                   />
                 </div>
                 
                 {suggestionTerm && (
-                  <div className="absolute z-50 w-full mt-2 bg-white border border-gray-100 rounded-xl shadow-2xl max-h-72 overflow-y-auto animate-in fade-in slide-in-from-top-2">
+                  <div className="absolute z-40 w-full mt-4 bg-white/95 backdrop-blur-xl border border-slate-100 rounded-[2rem] shadow-2xl max-h-[400px] overflow-y-auto animate-in fade-in slide-in-from-top-4 p-4 border-none">
                     {selectionType === 'INGREDIENT' ? (
-                      <>
+                      <div className="space-y-2">
                         {filteredIngs.map(i => (
                           <button 
                             key={i.id} 
                             onClick={() => addItem(i, 'INGREDIENT')}
-                            className="w-full flex items-center justify-between p-4 border-b last:border-0 hover:bg-blue-50 transition-colors text-left"
+                            className="w-full flex items-center justify-between p-6 rounded-2xl hover:bg-slate-50 transition-all text-left border border-transparent hover:border-slate-100 group"
                           >
-                            <div className="flex-1">
-                              <div className="font-bold text-gray-900">{i.item_name}</div>
-                              <div className="text-[10px] text-gray-500">{i.brand} • {i.volume} {i.unit}</div>
+                            <div>
+                               <div className="font-black text-slate-900 uppercase tracking-tight group-hover:text-emerald-600 transition-colors">{i.item_name}</div>
+                               <div className="text-[9px] font-black text-slate-400 uppercase tracking-widest mt-1">{i.brand || "UNBRANDED"} • {i.volume} {i.unit}</div>
                             </div>
                             <div className="text-right">
-                              <div className="font-black text-blue-600 text-sm">{formatIDR(i.price)}</div>
-                              <div className="text-[10px] text-gray-400">Rp/{i.unit}</div>
+                               <div className="font-black text-slate-900">{formatIDR(i.price)}</div>
+                               <div className="text-[9px] font-black text-emerald-500 uppercase tracking-widest mt-1">SELECT MATERIAL</div>
                             </div>
                           </button>
                         ))}
-                        <button 
-                          onClick={() => { window.location.href='/ingredients'; }}
-                          className="w-full p-4 text-center bg-gray-50 text-blue-600 font-bold text-xs hover:bg-blue-100 transition-colors"
-                        >
-                          + Create New Ingredient
-                        </button>
-                      </>
+                      </div>
                     ) : (
-                      <>
+                      <div className="space-y-2">
                         {filteredComps.map(r => (
                           <button 
                             key={r.id} 
                             onClick={() => addItem(r, 'COMPONENT')}
-                            className="w-full flex items-center justify-between p-4 border-b last:border-0 hover:bg-blue-50 transition-colors text-left"
+                            className="w-full flex items-center justify-between p-6 rounded-2xl hover:bg-slate-50 transition-all text-left border border-transparent hover:border-slate-100 group"
                           >
-                            <div className="flex-1">
-                              <div className="font-bold text-gray-900">{r.name}</div>
-                              <div className="text-[10px] text-gray-500">Sub-recipe • Yield: {r.base_quantity}</div>
+                            <div>
+                               <div className="font-black text-slate-900 uppercase tracking-tight group-hover:text-purple-600 transition-colors">{r.name}</div>
+                               <div className="text-[9px] font-black text-slate-400 uppercase tracking-widest mt-1">COMPONENT • YIELD: {r.base_quantity}</div>
                             </div>
-                            <div className="text-right font-black text-blue-600 text-sm">{formatIDR(r.total_hpp)}</div>
+                            <div className="text-right">
+                               <div className="font-black text-slate-900">{formatIDR(r.total_hpp)}</div>
+                               <div className="text-[9px] font-black text-purple-500 uppercase tracking-widest mt-1">SELECT COMPONENT</div>
+                            </div>
                           </button>
                         ))}
-                      </>
+                      </div>
                     )}
                   </div>
                 )}
-              </div>
+             </div>
 
-              {/* Items List */}
-              <div className="space-y-4">
+             {/* Items Registry */}
+             <div className="space-y-4">
                 {(recipe.items || []).map((item, idx) => {
                   const data = item.item_type === 'INGREDIENT' ? item.ingredient : item.component_recipe;
                   const itemCost = item.item_type === 'INGREDIENT' 
@@ -636,41 +679,44 @@ function RecipeForm({ id, onClose }) {
                     : ((data?.total_hpp || 0) / (data?.base_quantity || 1)) * (item.quantity || 0);
 
                   return (
-                    <div key={idx} className="bg-white border border-gray-100 rounded-2xl p-4 shadow-sm hover:border-blue-200 transition-colors">
-                      <div className="flex items-start justify-between mb-3">
-                        <div className="flex items-center gap-2">
-                          <div className={cn("px-2 py-0.5 rounded text-[8px] font-black uppercase", item.item_type === 'INGREDIENT' ? "bg-orange-100 text-orange-600" : "bg-purple-100 text-purple-600")}>
+                    <div key={idx} className="bg-white border border-slate-100 rounded-[1.5rem] p-6 shadow-sm hover:shadow-xl hover:shadow-slate-100 transition-all group/item">
+                      <div className="flex items-start justify-between mb-6">
+                        <div className="flex items-center gap-4">
+                          <div className={cn(
+                            "px-3 py-1 rounded-full text-[8px] font-black uppercase tracking-[0.2em] border", 
+                            item.item_type === 'INGREDIENT' ? "bg-emerald-50 text-emerald-600 border-emerald-100" : "bg-purple-50 text-purple-600 border-purple-100"
+                          )}>
                             {item.item_type}
                           </div>
-                          <span className="font-bold text-gray-900">{data?.item_name || data?.name}</span>
+                          <span className="font-black text-slate-900 uppercase tracking-tight text-base group-hover/item:text-emerald-600 transition-colors">{data?.item_name || data?.name}</span>
                         </div>
-                        <button onClick={() => removeItem(idx)} className="p-1.5 text-gray-400 hover:text-red-500 transition-colors">
+                        <button onClick={() => removeItem(idx)} className="w-10 h-10 rounded-xl bg-rose-50 text-rose-500 flex items-center justify-center opacity-0 group-hover/item:opacity-100 transition-all hover:bg-rose-500 hover:text-white">
                           <Trash2 className="w-4 h-4" />
                         </button>
                       </div>
 
-                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 items-end">
-                        <div className="space-y-1">
-                           <label className="text-[9px] font-bold text-gray-400 uppercase">Quantity</label>
-                           <Input 
+                      <div className="grid grid-cols-2 lg:grid-cols-4 gap-8 items-end">
+                        <div className="space-y-2">
+                           <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">Quantity</label>
+                           <input 
                              type="number" 
                              value={item.quantity} 
                              onChange={(e) => updateItem(idx, { quantity: parseFloat(e.target.value) || 0 })}
-                             className="h-9 font-bold bg-gray-50 border-none"
+                             className="w-full h-12 bg-slate-50 border-none rounded-xl px-4 font-black text-slate-900 focus:ring-4 focus:ring-emerald-500/5 outline-none transition-all"
                            />
                         </div>
-                        <div className="space-y-1">
-                           <label className="text-[9px] font-bold text-gray-400 uppercase">Unit</label>
-                           <Input 
+                        <div className="space-y-2">
+                           <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">Metric</label>
+                           <input 
                              value={item.unit} 
                              onChange={(e) => updateItem(idx, { unit: e.target.value })}
-                             className="h-9 text-xs bg-gray-50 border-none"
-                             placeholder="gr, ml, etc"
+                             className="w-full h-12 bg-slate-50 border-none rounded-xl px-4 font-black text-[10px] uppercase tracking-widest text-slate-900 focus:ring-4 focus:ring-emerald-500/5 outline-none transition-all"
+                             placeholder="UNIT"
                            />
                         </div>
                         <div className="col-span-2 text-right">
-                           <div className="text-[9px] font-bold text-gray-400 uppercase mb-1">Cost Preview</div>
-                           <div className="text-lg font-black text-gray-900">{formatIDR(itemCost)}</div>
+                           <div className="text-[9px] font-black text-slate-300 uppercase tracking-widest mb-1">Cost Projection</div>
+                           <div className="text-2xl font-black text-slate-900 tracking-tighter tabular-nums">{formatIDR(itemCost)}</div>
                         </div>
                       </div>
                     </div>
@@ -678,121 +724,121 @@ function RecipeForm({ id, onClose }) {
                 })}
 
                 {(recipe.items || []).length === 0 && (
-                  <div className="text-center py-20 bg-gray-50/50 rounded-3xl border-2 border-dashed border-gray-200">
-                    <ClipboardList className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-                    <h3 className="text-sm font-bold text-gray-500">No items added yet</h3>
-                    <p className="text-[10px] text-gray-400 mt-1 max-w-[200px] mx-auto uppercase tracking-wider">Search above to add ingredients or sub-recipes</p>
+                  <div className="text-center py-24 bg-slate-50/50 rounded-[2rem] border-2 border-dashed border-slate-200">
+                    <RefreshCw className="w-16 h-16 text-slate-200 mx-auto mb-6" />
+                    <h3 className="text-lg font-black text-slate-400 uppercase tracking-tight">Material Registry Empty</h3>
+                    <p className="text-[10px] text-slate-300 mt-4 max-w-[240px] mx-auto uppercase tracking-[0.2em] font-black leading-relaxed">Search and select materials from the master vault above to begin assembly</p>
                   </div>
                 )}
-              </div>
-            </CardContent>
-          </Card>
+             </div>
+          </div>
 
-          {/* Overhead allocation */}
-          <Card className="border-none shadow-sm bg-orange-50/30">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-bold uppercase tracking-tight text-orange-600 flex items-center gap-2">
-                <Calculator className="w-4 h-4" /> Fixed Cost Allocation
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-4 pb-6">
-              <div className="space-y-1">
-                <label className="text-xs font-bold text-gray-500 uppercase">Monthly Fixed Costs (Total)</label>
-                <Input 
-                  type="number" 
-                  value={recipe.monthly_fixed_cost} 
-                  onChange={(e) => setRecipe({...recipe, monthly_fixed_cost: parseInt(e.target.value) || 0})}
-                  className="bg-white"
-                />
-              </div>
-              <div className="space-y-1">
-                <label className="text-xs font-bold text-gray-500 uppercase">Monthly Production (Units)</label>
-                <Input 
-                  type="number" 
-                  value={recipe.monthly_production_volume} 
-                  onChange={(e) => setRecipe({...recipe, monthly_production_volume: parseInt(e.target.value) || 0})}
-                  className="bg-white"
-                />
-              </div>
-            </CardContent>
-          </Card>
+          {/* Overhead Block */}
+          <div className="glass-card rounded-[2.5rem] p-10 bg-emerald-50/20 border-emerald-100/50">
+             <div className="flex items-center gap-4 mb-8">
+                <div className="w-10 h-10 rounded-xl bg-emerald-600 flex items-center justify-center shadow-lg shadow-emerald-200">
+                  <Calculator className="w-5 h-5 text-white" />
+                </div>
+                <h3 className="text-[10px] font-black uppercase tracking-[0.4em] text-emerald-600/60">Overhead Allocation</h3>
+             </div>
+             
+             <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
+                <div className="space-y-3">
+                  <label className="text-[10px] font-black text-emerald-700/50 uppercase tracking-widest ml-1">Monthly OpEx (Fixed)</label>
+                  <input 
+                    type="number" 
+                    value={recipe.monthly_fixed_cost} 
+                    onChange={(e) => setRecipe({...recipe, monthly_fixed_cost: parseInt(e.target.value) || 0})}
+                    className="w-full h-16 bg-white border border-emerald-100 rounded-[1.25rem] px-8 font-black text-emerald-600 focus:ring-4 focus:ring-emerald-500/10 outline-none transition-all shadow-sm"
+                  />
+                </div>
+                <div className="space-y-3">
+                  <label className="text-[10px] font-black text-emerald-700/50 uppercase tracking-widest ml-1">Target Production (Units)</label>
+                  <input 
+                    type="number" 
+                    value={recipe.monthly_production_volume} 
+                    onChange={(e) => setRecipe({...recipe, monthly_production_volume: parseInt(e.target.value) || 0})}
+                    className="w-full h-16 bg-white border border-emerald-100 rounded-[1.25rem] px-8 font-black text-emerald-600 focus:ring-4 focus:ring-emerald-500/10 outline-none transition-all shadow-sm"
+                  />
+                </div>
+             </div>
+          </div>
         </div>
 
-        {/* Sidebar Summary */}
-        <div className="space-y-6">
-          <Card className="bg-blue-600 text-white shadow-xl shadow-blue-200 border-none overflow-hidden relative rounded-3xl">
-             <div className="absolute top-0 right-0 p-6 opacity-10">
-                <Calculator className="w-24 h-24" />
-             </div>
-             <CardHeader className="pb-2">
-                <CardTitle className="text-white/60 uppercase text-[10px] tracking-widest font-black">HPP Summary</CardTitle>
-             </CardHeader>
-             <CardContent className="space-y-6 relative">
-                <div>
-                   <div className="text-[10px] uppercase font-bold text-white/50 mb-1">Total HPP per {recipe.type === 'COMPONENT' ? 'Yield' : 'Portion'}</div>
-                   <div className="text-5xl font-black">{formatIDR(hpp.total)}</div>
+        {/* Sidebar Intelligence */}
+        <div className="lg:col-span-4">
+          <div className="sticky top-32 space-y-10 overflow-y-auto max-h-[85vh] pr-4 scrollbar-hide pb-20">
+            <div className="bg-slate-900 rounded-[3rem] p-10 text-white shadow-[0_40px_80px_-20px_rgba(0,0,0,0.2)] relative overflow-hidden mx-auto w-full max-w-md lg:max-w-none">
+             <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-600/30 rounded-full blur-[100px] -translate-y-1/2 translate-x-1/2" />
+             <div className="relative z-10 space-y-10">
+                <div className="flex items-center justify-between">
+                   <div className="text-[10px] uppercase font-black tracking-[0.4em] text-emerald-400">Ledger Summary</div>
+                   <Calculator className="w-5 h-5 text-white/30" />
                 </div>
                 
-                <div className="grid grid-cols-2 gap-4 pt-4 border-t border-white/10">
-                   <div>
-                     <div className="text-[8px] uppercase font-bold text-white/50">Ingredients</div>
-                     <div className="text-sm font-bold">{formatIDR(hpp.variable)}</div>
+                <div className="space-y-2">
+                   <p className="text-[10px] uppercase font-black text-white/40 tracking-widest">Calculated HPP / Portion</p>
+                   <div className="text-6xl font-black tracking-tighter tabular-nums">{formatIDR(hpp.total)}</div>
+                </div>
+                
+                <div className="space-y-6 pt-10 border-t border-white/5">
+                   <div className="flex justify-between items-center">
+                      <span className="text-[9px] font-black text-white/30 uppercase tracking-[0.2em]">Material Cost</span>
+                      <span className="font-black text-lg">{formatIDR(hpp.variable)}</span>
                    </div>
-                   <div className="text-right">
-                     <div className="text-[8px] uppercase font-bold text-white/50">Fixed Cost</div>
-                     <div className="text-sm font-bold">{formatIDR(hpp.fixed)}</div>
+                   <div className="flex justify-between items-center">
+                      <span className="text-[9px] font-black text-white/30 uppercase tracking-[0.2em]">Overhead Cost</span>
+                      <span className="font-black text-lg">{formatIDR(hpp.fixed)}</span>
                    </div>
                 </div>
-             </CardContent>
-             <CardFooter className="bg-blue-700/50 flex flex-col items-center pt-4 pb-4">
-                <div className="flex items-center gap-2 text-[10px] font-bold text-blue-100 bg-blue-800/50 px-3 py-1 rounded-full">
-                  <Scale className="w-3 h-3" /> Base qty: {recipe.base_quantity}
-                </div>
-             </CardFooter>
-          </Card>
 
-          {/* Simulation */}
-          <Card className="border-none shadow-sm rounded-3xl overflow-hidden">
-             <button 
-               onClick={() => setShowSimulation(!showSimulation)}
-               className="w-full flex items-center justify-between p-6 text-left"
-             >
-                <div className="flex items-center gap-2">
-                  <TrendingUp className="w-5 h-5 text-green-600" />
-                  <span className="font-bold text-gray-900">Profit Simulation</span>
+                <div className="pt-8">
+                   <div className="inline-flex items-center gap-3 px-5 py-2.5 rounded-2xl bg-white/5 border border-white/10">
+                      <Scale className="w-4 h-4 text-emerald-400" />
+                      <span className="text-[10px] font-black uppercase tracking-widest">Base qty: {recipe.base_quantity}</span>
+                   </div>
                 </div>
-                <ChevronRight className={cn("w-4 h-4 transition-transform text-gray-400", showSimulation && "rotate-90")} />
-             </button>
-             {showSimulation && (
-                <CardContent className="pt-0 pb-6 space-y-4 px-6 animate-in slide-in-from-top-2">
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-black text-gray-500 uppercase">Simulated Price</label>
-                    <Input 
-                      type="number" 
-                      value={sellingPriceSim} 
-                      onChange={(e) => setSellingPriceSim(parseInt(e.target.value) || 0)}
-                      className="h-11 font-black text-lg bg-green-50/50 border-none text-green-700"
-                    />
-                  </div>
-                  {sellingPriceSim > 0 && (
-                    <div className="grid grid-cols-2 gap-3">
-                      <div className="p-3 bg-gray-50 rounded-2xl">
-                        <div className="text-[8px] font-bold text-gray-400 uppercase">Profit</div>
-                        <div className="text-lg font-black text-green-600">{formatIDR(sellingPriceSim - hpp.total)}</div>
+             </div>
+          </div>
+
+          {/* Simulations */}
+          <div className="glass-card rounded-[2.5rem] p-8 border-none shadow-2xl space-y-8">
+             <div className="flex items-center gap-4">
+                <div className="w-10 h-10 rounded-xl bg-emerald-100 flex items-center justify-center">
+                  <TrendingUp className="w-5 h-5 text-emerald-600" />
+                </div>
+                <h3 className="text-[10px] font-semibold text-slate-400 tracking-tight">Profit Matrix Simulation</h3>
+             </div>
+
+             <div className="space-y-4">
+                <div className="space-y-3">
+                  <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest ml-1">Hypothetical Unit Price</label>
+                  <input 
+                    type="number" 
+                    value={sellingPriceSim} 
+                    onChange={(e) => setSellingPriceSim(parseInt(e.target.value) || 0)}
+                    className="w-full h-14 bg-slate-50 border-none rounded-2xl px-6 font-black text-xl text-emerald-600 focus:ring-4 focus:ring-emerald-500/5 outline-none transition-all"
+                  />
+                </div>
+                {sellingPriceSim > 0 && (
+                  <div className="grid grid-cols-2 gap-4 animate-in slide-in-from-top-4">
+                     <div className="p-5 bg-emerald-50/50 border border-emerald-100 rounded-3xl">
+                        <div className="text-[8px] font-semibold text-emerald-600/40 mb-1">Unit Profit</div>
+                        <div className="text-xl font-bold text-emerald-600">{formatIDR(sellingPriceSim - hpp.total)}</div>
                       </div>
-                      <div className="p-3 bg-gray-50 rounded-2xl text-right">
-                        <div className="text-[8px] font-bold text-gray-400 uppercase">Margin</div>
-                        <div className="text-lg font-black text-green-600">
-                          {Math.round(((sellingPriceSim - hpp.total) / sellingPriceSim) * 100)}%
-                        </div>
+                    <div className="p-5 bg-emerald-50/50 border border-emerald-100 rounded-3xl text-right">
+                      <div className="text-[8px] font-semibold text-emerald-600/40 mb-1">Margin %</div>
+                      <div className="text-2xl font-bold text-emerald-600">
+                        {Math.round(((sellingPriceSim - hpp.total) / sellingPriceSim) * 100)}%
                       </div>
                     </div>
-                  )}
-                </CardContent>
-             )}
-          </Card>
+                  </div>
+                )}
+             </div>
+          </div>
 
           <PricingRecommendations hpp={hpp.total} />
+          </div>
         </div>
       </div>
     </div>
@@ -812,7 +858,7 @@ function PricingRecommendations({ hpp }) {
     { 
       label: "Standard", 
       margin: 0.40, 
-      color: "bg-blue-50 text-blue-700 border-blue-100",
+      color: "bg-emerald-50 text-emerald-700 border-emerald-100",
       desc: "Balanced profit and sustainability"
     },
     { 

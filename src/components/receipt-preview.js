@@ -78,9 +78,14 @@ export function ReceiptPreview({ isOpen, onClose, order }) {
         
         data += ESC_POS.separator();
         
-        // Total
+        // Totals
+        data += ESC_POS.formatTwoColumns("Subtotal", formatIDR(order.total));
+        if (order.discount > 0) {
+          data += ESC_POS.formatTwoColumns("Discount", `-${formatIDR(order.discount)}`);
+        }
+        
         data += ESC_POS.BOLD_ON;
-        data += ESC_POS.formatTwoColumns("TOTAL", formatIDR(order.total));
+        data += ESC_POS.formatTwoColumns("TOTAL", formatIDR(Math.max(0, order.total - (order.discount || 0))));
         data += ESC_POS.BOLD_Off;
         
         // Footer
@@ -275,7 +280,7 @@ export function ReceiptPreview({ isOpen, onClose, order }) {
           <div className="space-y-1 font-bold">
             <div className="flex justify-between">
               <span>Subtotal</span>
-              <span>{formatIDR(order.total + (order.discount || 0))}</span>
+              <span>{formatIDR(order.total)}</span>
             </div>
             {order.discount > 0 && (
               <div className="flex justify-between text-red-600">
@@ -285,7 +290,7 @@ export function ReceiptPreview({ isOpen, onClose, order }) {
             )}
             <div className="flex justify-between text-lg">
               <span>TOTAL</span>
-              <span>{formatIDR(order.total)}</span>
+              <span>{formatIDR(Math.max(0, order.total - (order.discount || 0)))}</span>
             </div>
           </div>
 

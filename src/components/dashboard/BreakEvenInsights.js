@@ -1,46 +1,46 @@
 "use client";
 import React from "react";
+import { Activity } from "lucide-react";
 import { formatIDR } from "../../lib/format";
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
 
 export default function BreakEvenInsights({ data, loading = false }) {
-  if (loading) {
+  if (loading || !data) {
     return (
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="h-24 bg-gray-100 rounded-lg animate-pulse"></div>
-        <div className="h-24 bg-gray-100 rounded-lg animate-pulse"></div>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="h-28 glass-card animate-pulse bg-slate-50/10 border-slate-100"></div>
+        <div className="h-28 glass-card animate-pulse bg-slate-50/10 border-slate-100"></div>
       </div>
     );
   }
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-      <Card className="bg-orange-50/50 border-orange-100 shadow-sm border-l-4 border-l-orange-400">
-        <CardHeader className="pb-1">
-          <CardTitle className="text-[10px] font-bold text-orange-800 uppercase tracking-widest">Break-even Point (Daily)</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="text-2xl font-black text-orange-900">
-            {formatIDR(data.expenses + data.cogs)}
-          </div>
-          <p className="text-[10px] text-orange-700/80 mt-1 font-medium italic">
-            Target to cover today's COGS & Expenses.
-          </p>
-        </CardContent>
-      </Card>
-      <Card className="bg-blue-50/50 border-blue-100 shadow-sm border-l-4 border-l-blue-400">
-        <CardHeader className="pb-1">
-          <CardTitle className="text-[10px] font-bold text-blue-800 uppercase tracking-widest">Fixed Overhead Share</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="text-2xl font-black text-blue-900">
-            {formatIDR(data.dailyOverhead || 0)}
-          </div>
-          <p className="text-[10px] text-blue-700/80 mt-1 font-medium italic">
-            Allocated fixed costs (Rent, Salaries, Utilities).
-          </p>
-        </CardContent>
-      </Card>
+    <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+      <div className="glass-card p-6 border-l-4 border-l-emerald-600 group hover:shadow-2xl transition-all duration-500 hover:-translate-y-1">
+        <div className="flex justify-between items-start mb-3">
+          <p className="text-[10px] font-black text-emerald-800 uppercase tracking-widest">Safe Haven Matrix</p>
+          <Activity className="w-4 h-4 text-emerald-200 group-hover:text-emerald-600 transition-colors" />
+        </div>
+        <div className="text-2xl font-black text-slate-900 group-hover:text-emerald-800 transition-colors">
+          {formatIDR((data.expenses || 0) + (data.cogs || 0))}
+        </div>
+        <p className="text-[10px] font-bold text-slate-400 mt-2 uppercase tracking-tight">
+          BREAK-EVEN TARGET FOR CURRENT CYCLE
+        </p>
+      </div>
+
+      <div className="glass-card p-6 border-l-4 border-l-green-400 group hover:shadow-2xl transition-all duration-500 hover:-translate-y-1">
+        <div className="flex justify-between items-start mb-3">
+          <p className="text-[10px] font-black text-green-700 uppercase tracking-widest">Fixed Operational Drain</p>
+          <Activity className="w-4 h-4 text-green-200 group-hover:text-green-600 transition-colors" />
+        </div>
+        <div className="text-2xl font-black text-slate-900 group-hover:text-green-700 transition-colors">
+          {formatIDR(data.dailyOverhead || 0)}
+        </div>
+        <p className="text-[10px] font-bold text-slate-400 mt-2 uppercase tracking-tight">
+          ALLOCATED FIXED OVERHEAD (RENT/SALARY)
+        </p>
+      </div>
     </div>
   );
 }

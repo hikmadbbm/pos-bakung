@@ -246,7 +246,7 @@ export default function PaymentMethodsSettings() {
                             setEditingId(m.id);
                             setIsDialogOpen(true);
                           }}>
-                            <Edit2 className="w-4 h-4 text-blue-500" />
+                            <Edit2 className="w-4 h-4 text-emerald-500" />
                           </Button>
                           <Button variant="ghost" size="icon" onClick={() => setConfirmDeleteId(m.id)}>
                             <Trash2 className="w-4 h-4 text-red-500" />
@@ -333,7 +333,7 @@ export default function PaymentMethodsSettings() {
                     onChange={handleFileUpload}
                     disabled={uploading}
                   />
-                  {uploading && <p className="text-xs text-blue-500 mt-1">Uploading...</p>}
+                  {uploading && <p className="text-xs text-emerald-500 mt-1">Uploading...</p>}
                 </div>
                 {formData.imageUrl && (
                   <div className="w-20 h-20 border rounded relative bg-gray-50 flex items-center justify-center">
@@ -377,7 +377,7 @@ export default function PaymentMethodsSettings() {
                   id="is_active"
                   checked={formData.is_active}
                   onChange={e => setFormData({...formData, is_active: e.target.checked})}
-                  className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                  className="rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
                 />
                 <Label htmlFor="is_active" className="cursor-pointer">Active</Label>
               </div>

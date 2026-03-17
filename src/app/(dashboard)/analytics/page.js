@@ -6,7 +6,8 @@ import { Button } from "../../../components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "../../../components/ui/card";
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "../../../components/ui/table";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, Legend } from "recharts";
-import { TrendingUp, PieChart as PieChartIcon, Lightbulb, Calendar, AlertTriangle } from "lucide-react";
+import { TrendingUp, PieChart as PieChartIcon, Lightbulb, Calendar, AlertTriangle, ClipboardList, RefreshCw } from "lucide-react";
+import { cn } from "../../../lib/utils";
 
 export default function AnalyticsPage() {
   const [activeTab, setActiveTab] = useState("intelligence");
@@ -64,23 +65,31 @@ export default function AnalyticsPage() {
     loadAnalytics();
   }, [range, from, to]);
 
-  if (loading) return <div className="flex items-center justify-center h-full">Loading AI Insights...</div>;
+  if (loading) return (
+    <div className="flex flex-col items-center justify-center min-h-[400px] gap-4">
+      <RefreshCw className="w-8 h-8 text-emerald-600 animate-spin" />
+      <p className="text-slate-500 font-medium uppercase tracking-widest text-[10px]">Processing Neural Data...</p>
+    </div>
+  );
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="space-y-10 animate-fade-in pb-20">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 print:hidden">
         <div>
-          <h2 className="text-3xl font-bold tracking-tight text-gray-900">AI Business Intelligence</h2>
-          <p className="text-sm text-gray-500">Data-driven insights for your business.</p>
+          <h2 className="text-2xl font-black tracking-tight text-slate-900 uppercase">AI Analytics</h2>
+          <p className="text-sm font-medium text-slate-500 mt-1 flex items-center gap-2">
+            Data-driven intelligence and predictive insights
+            <span className="inline-block w-1 h-1 bg-emerald-600 rounded-full" />
+          </p>
         </div>
         
-        <div className="flex items-center gap-4">
+        <div className="flex flex-wrap items-center gap-6">
           {activeTab === "intelligence" && (
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-3 bg-white/50 backdrop-blur-md p-1.5 rounded-2xl border border-slate-200/50 shadow-sm">
               <select 
                 value={range} 
                 onChange={(e) => setRange(e.target.value)}
-                className="text-sm border rounded-md px-2 py-1.5 bg-white shadow-sm"
+                className="text-[10px] font-black uppercase tracking-widest border-none rounded-xl px-4 py-2 bg-slate-900 text-white shadow-lg focus:ring-0 cursor-pointer"
               >
                 <option value="today">Today</option>
                 <option value="last7">Last 7 Days</option>
@@ -90,41 +99,43 @@ export default function AnalyticsPage() {
               </select>
 
               {range === "custom" && (
-                <div className="flex items-center gap-2 animate-in fade-in slide-in-from-right-2">
+                <div className="flex items-center gap-3 px-4 animate-in slide-in-from-right-4 duration-300">
                   <input 
                     type="date" 
                     value={from} 
                     onChange={(e) => setFrom(e.target.value)}
-                    className="text-sm border rounded-md px-2 py-1"
+                    className="text-xs font-bold border-none bg-transparent p-0 focus:ring-0"
                   />
-                  <span className="text-gray-400">-</span>
+                  <div className="w-1 h-1 bg-slate-300 rounded-full" />
                   <input 
                     type="date" 
                     value={to} 
                     onChange={(e) => setTo(e.target.value)}
-                    className="text-sm border rounded-md px-2 py-1"
+                    className="text-xs font-bold border-none bg-transparent p-0 focus:ring-0"
                   />
                 </div>
               )}
             </div>
           )}
 
-          <div className="flex bg-white rounded-lg p-1 border shadow-sm">
+          <div className="flex bg-slate-100/50 backdrop-blur-sm rounded-[1.25rem] p-1.5 border border-slate-200/50 shadow-inner">
             <button
               onClick={() => setActiveTab("intelligence")}
-              className={`px-4 py-2 text-sm font-medium rounded-md transition-all ${
-                activeTab === "intelligence" ? "bg-blue-600 text-white shadow" : "text-gray-500 hover:text-gray-900"
-              }`}
+              className={cn(
+                "px-6 py-2.5 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all flex items-center gap-2",
+                activeTab === "intelligence" ? "bg-white text-slate-900 shadow-xl shadow-slate-200/50" : "text-slate-400 hover:text-slate-600"
+              )}
             >
-              <PieChartIcon className="w-4 h-4 inline-block mr-2" /> Menu Intelligence
+              <PieChartIcon className="w-3.5 h-3.5" /> Intelligence
             </button>
             <button
               onClick={() => setActiveTab("forecast")}
-              className={`px-4 py-2 text-sm font-medium rounded-md transition-all ${
-                activeTab === "forecast" ? "bg-blue-600 text-white shadow" : "text-gray-500 hover:text-gray-900"
-              }`}
+              className={cn(
+                "px-6 py-2.5 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all flex items-center gap-2",
+                activeTab === "forecast" ? "bg-white text-slate-900 shadow-xl shadow-slate-200/50" : "text-slate-400 hover:text-slate-600"
+              )}
             >
-              <TrendingUp className="w-4 h-4 inline-block mr-2" /> Demand Forecast
+              <TrendingUp className="w-3.5 h-3.5" /> Forecast
             </button>
           </div>
         </div>
@@ -144,11 +155,11 @@ function MenuIntelligence({ data }) {
 
   const getStatusColor = (status) => {
     switch (status) {
-      case "STAR MENU": return "bg-green-100 text-green-800 border-green-200";
-      case "PROFITABLE MENU": return "bg-blue-100 text-blue-800 border-blue-200";
+      case "STAR MENU": return "bg-emerald-100 text-emerald-800 border-emerald-200";
+      case "PROFITABLE MENU": return "bg-emerald-100 text-emerald-800 border-emerald-200";
       case "LOW MARGIN MENU": return "bg-orange-100 text-orange-800 border-orange-200";
-      case "UNDERPERFORMING MENU": return "bg-red-100 text-red-800 border-red-200";
-      default: return "bg-gray-100 text-gray-800 border-gray-200";
+      case "UNDERPERFORMING MENU": return "bg-rose-100 text-rose-800 border-rose-200";
+      default: return "bg-slate-100 text-slate-800 border-slate-200";
     }
   };
 
@@ -159,167 +170,192 @@ function MenuIntelligence({ data }) {
   })).sort((a, b) => b.profit - a.profit);
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-500">
+    <div className="space-y-10 animate-fade-in">
       {/* Top Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Top Profit Generator</CardTitle>
-            <TrendingUp className="h-4 w-4 text-green-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{data.insights.topProfitable[0]?.name}</div>
-            <p className="text-xs text-muted-foreground mt-1">
-              Net Profit: {formatIDR(data.insights.topProfitable[0]?.net_profit)}
-            </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Average Qty / Menu</CardTitle>
-            <PieChartIcon className="h-4 w-4 text-blue-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{data.thresholds.avgQty.toFixed(1)} portions</div>
-            <p className="text-xs text-muted-foreground mt-1">Benchmark for Star Menus</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Profit Alerts</CardTitle>
-            <AlertTriangle className="h-4 w-4 text-orange-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{data.insights.lowMargin.length + data.insights.lowSelling.length} items</div>
-            <p className="text-xs text-muted-foreground mt-1">Requiring operational review</p>
-          </CardContent>
-        </Card>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+        <div className="glass-card rounded-[2.5rem] p-8 shadow-2xl border-none relative overflow-hidden group">
+          <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-600/5 rounded-full -translate-y-1/2 translate-x-1/2 group-hover:scale-110 transition-transform duration-700" />
+          <div className="flex items-center justify-between mb-4">
+             <div className="w-12 h-12 rounded-2xl bg-emerald-50 flex items-center justify-center">
+                <TrendingUp className="w-6 h-6 text-emerald-600" />
+             </div>
+             <span className="text-[10px] font-black text-emerald-600/60 uppercase tracking-widest">Highest Profit</span>
+          </div>
+          <div className="text-2xl font-black text-slate-900 tracking-tight uppercase truncate">{data.insights.topProfitable[0]?.name}</div>
+          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-2">
+            Net Monthly: <span className="text-emerald-600 font-black">{formatIDR(data.insights.topProfitable[0]?.net_profit)}</span>
+          </p>
+        </div>
+
+        <div className="glass-card rounded-[2.5rem] p-8 shadow-2xl border-none relative overflow-hidden group">
+          <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-600/5 rounded-full -translate-y-1/2 translate-x-1/2 group-hover:scale-110 transition-transform duration-700" />
+          <div className="flex items-center justify-between mb-4">
+             <div className="w-12 h-12 rounded-2xl bg-emerald-50 flex items-center justify-center">
+                <PieChartIcon className="w-6 h-6 text-emerald-600" />
+             </div>
+             <span className="text-[10px] font-black text-emerald-600/60 uppercase tracking-widest">Benchmarking</span>
+          </div>
+          <div className="text-2xl font-black text-slate-900 tracking-tight uppercase">{data.thresholds.avgQty.toFixed(1)} Portions</div>
+          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-2">Average Sales Per Item</p>
+        </div>
+
+        <div className="glass-card rounded-[2.5rem] p-8 shadow-2xl border-none relative overflow-hidden group">
+          <div className="absolute top-0 right-0 w-32 h-32 bg-rose-600/5 rounded-full -translate-y-1/2 translate-x-1/2 group-hover:scale-110 transition-transform duration-700" />
+          <div className="flex items-center justify-between mb-4">
+             <div className="w-12 h-12 rounded-2xl bg-rose-50 flex items-center justify-center">
+                <AlertTriangle className="w-6 h-6 text-rose-600" />
+             </div>
+             <span className="text-[10px] font-black text-rose-600/60 uppercase tracking-widest">Risk Alerts</span>
+          </div>
+          <div className="text-2xl font-black text-slate-900 tracking-tight uppercase">{data.insights.lowMargin.length + data.insights.lowSelling.length} items</div>
+          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-2">Operational Review Required</p>
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         {/* Profitability Chart */}
-        <Card className="lg:col-span-1">
-          <CardHeader>
-            <CardTitle>Menu Profitability Analysis</CardTitle>
-          </CardHeader>
-          <CardContent className="h-[300px]">
+        <div className="glass-card rounded-[2.5rem] p-8 shadow-2xl border-none">
+          <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-8 flex items-center gap-2">
+             <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full" />
+             Profitability Sensitivity Analysis
+          </h3>
+          <div className="h-[350px]">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={chartData}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                <CartesianGrid strokeDasharray="3 3" vertical={false} strokeOpacity={0.1} />
                 <XAxis dataKey="name" hide />
-                <YAxis tickFormatter={(val) => `Rp${val / 1000}k`} />
+                <YAxis tickFormatter={(val) => `Rp${val / 1000}k`} axisLine={false} tickLine={false} className="text-[10px] font-black text-slate-400" />
                 <Tooltip 
+                  contentStyle={{ 
+                    backgroundColor: 'rgba(255, 255, 255, 0.9)', 
+                    backdropFilter: 'blur(8px)',
+                    border: 'none',
+                    borderRadius: '16px',
+                    boxShadow: '0 10px 30px rgba(0,0,0,0.1)'
+                  }}
+                  itemStyle={{ fontWeight: '900', color: '#0f172a', fontSize: '12px' }}
                   formatter={(val) => formatIDR(val)}
-                  labelStyle={{ fontWeight: 'bold' }}
                 />
-                <Legend />
-                <Bar dataKey="profit" name="Net Profit" radius={[4, 4, 0, 0]}>
+                <Bar dataKey="profit" name="Net Profit" radius={[10, 10, 0, 0]}>
                   {chartData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.profit > data.thresholds.avgProfit ? '#2563eb' : '#94a3b8'} />
+                    <Cell key={`cell-${index}`} fill={entry.profit > data.thresholds.avgProfit ? '#0f172a' : '#cbd5e1'} />
                   ))}
                 </Bar>
               </BarChart>
             </ResponsiveContainer>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
 
         {/* AI Insights Panel */}
-        <Card className="lg:col-span-1 bg-blue-50 border-blue-100 shadow-none">
-          <CardHeader>
-            <CardTitle className="flex items-center text-blue-800">
-              <Lightbulb className="w-5 h-5 mr-2" /> AI Smart Recommendations
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <h4 className="font-semibold text-sm text-blue-900 uppercase tracking-wider">Top 5 Star Performers</h4>
-              <div className="grid grid-cols-1 gap-2">
+        <div className="glass-card rounded-[2.5rem] p-10 shadow-2xl border-none bg-slate-900 text-white relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-600/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
+          <h3 className="text-[10px] font-black text-emerald-400 uppercase tracking-[0.3em] mb-8 flex items-center gap-3">
+             <Lightbulb className="w-4 h-4" /> Smart Recommendations
+          </h3>
+          
+          <div className="space-y-10 relative z-10">
+            <div className="space-y-4">
+              <h4 className="text-xs font-black uppercase tracking-widest text-slate-500">Star Performers</h4>
+              <div className="grid grid-cols-1 gap-3">
                 {data.insights.topProfitable.map(m => (
-                  <div key={m.id} className="flex justify-between items-center bg-white p-2 rounded border border-blue-100">
-                    <span className="text-sm font-medium">{m.name}</span>
-                    <span className="text-xs font-bold text-green-600">{formatIDR(m.net_profit)}</span>
+                  <div key={m.id} className="flex justify-between items-center bg-white/5 backdrop-blur-md p-4 rounded-2xl border border-white/10 group hover:bg-white/10 transition-all cursor-default">
+                    <span className="text-sm font-black uppercase tracking-tight">{m.name}</span>
+                    <span className="text-xs font-black text-emerald-400">{formatIDR(m.net_profit)}</span>
                   </div>
                 ))}
               </div>
             </div>
 
-            {data.insights.lowMargin.length > 0 && (
-              <div className="space-y-2">
-                <h4 className="font-semibold text-sm text-orange-900 uppercase tracking-wider">Low Margin Alerts</h4>
-                <p className="text-xs text-orange-800">High volume but low profit. Consider adjusting prices or costs.</p>
-                <div className="flex flex-wrap gap-2">
-                  {data.insights.lowMargin.map(m => (
-                    <span key={m.id} className="px-2 py-1 bg-orange-100 text-orange-700 rounded text-[10px] font-bold uppercase">
-                      {m.name}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            )}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+               {data.insights.lowMargin.length > 0 && (
+                 <div className="space-y-3">
+                    <h4 className="text-[10px] font-black uppercase tracking-widest text-amber-400 flex items-center gap-2">
+                       <div className="w-1.5 h-1.5 bg-amber-400 rounded-full" />
+                       Margin Optimization
+                    </h4>
+                    <p className="text-[10px] text-slate-400 font-bold leading-relaxed uppercase tracking-widest">High volume but compressed margins. Review COGS immediately.</p>
+                    <div className="flex flex-wrap gap-2">
+                      {data.insights.lowMargin.map(m => (
+                        <span key={m.id} className="px-3 py-1 bg-amber-400/10 text-amber-400 rounded-lg text-[9px] font-black uppercase tracking-widest border border-amber-400/20">
+                          {m.name}
+                        </span>
+                      ))}
+                    </div>
+                 </div>
+               )}
 
-            {data.insights.lowSelling.length > 0 && (
-              <div className="space-y-2">
-                <h4 className="font-semibold text-sm text-red-900 uppercase tracking-wider">Underperforming Menus</h4>
-                <p className="text-xs text-red-800">Rarely sold. Candidates for removal to simplify inventory.</p>
-                <div className="flex flex-wrap gap-2">
-                  {data.insights.lowSelling.map(m => (
-                    <span key={m.id} className="px-2 py-1 bg-red-100 text-red-700 rounded text-[10px] font-bold uppercase">
-                      {m.name}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            )}
-          </CardContent>
-        </Card>
+               {data.insights.lowSelling.length > 0 && (
+                 <div className="space-y-3">
+                    <h4 className="text-[10px] font-black uppercase tracking-widest text-rose-400 flex items-center gap-2">
+                       <div className="w-1.5 h-1.5 bg-rose-400 rounded-full" />
+                       Efficiency Risk
+                    </h4>
+                    <p className="text-[10px] text-slate-400 font-bold leading-relaxed uppercase tracking-widest">Dead inventory candidates. Consider menu consolidation.</p>
+                    <div className="flex flex-wrap gap-2">
+                      {data.insights.lowSelling.map(m => (
+                        <span key={m.id} className="px-3 py-1 bg-rose-400/10 text-rose-400 rounded-lg text-[9px] font-black uppercase tracking-widest border border-rose-400/20">
+                          {m.name}
+                        </span>
+                      ))}
+                    </div>
+                 </div>
+               )}
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* Main Table */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Menu Performance Detail</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Menu Item</TableHead>
-                <TableHead>Category</TableHead>
-                <TableHead className="text-right">Qty Sold</TableHead>
-                <TableHead className="text-right">Revenue</TableHead>
-                <TableHead className="text-right">Net Profit</TableHead>
-                <TableHead className="text-right text-orange-600">Alloc. Overhead</TableHead>
-                <TableHead className="text-right font-bold">True Profit</TableHead>
-                <TableHead className="text-center">Classification</TableHead>
+      <div className="glass-card rounded-[2.5rem] overflow-hidden shadow-2xl border-none p-0">
+        <div className="p-10 border-b border-slate-100 bg-white shadow-sm flex items-center justify-between">
+            <h3 className="text-xl font-black text-slate-900 uppercase tracking-tight flex items-center gap-5">
+               <div className="w-14 h-14 rounded-2xl bg-slate-900 flex items-center justify-center shadow-xl shadow-slate-200">
+                 <ClipboardList className="w-7 h-7 text-white" />
+               </div>
+               Intelligence Deep-Dive
+            </h3>
+        </div>
+        <Table>
+          <TableHeader className="bg-slate-50/50">
+            <TableRow>
+              <TableHead className="text-[10px] font-black uppercase text-slate-500 py-8 px-10">Menu Item</TableHead>
+              <TableHead className="text-[10px] font-black uppercase text-slate-500 py-8 text-right">Qty</TableHead>
+              <TableHead className="text-[10px] font-black uppercase text-slate-500 py-8 text-right">Net Profit</TableHead>
+              <TableHead className="text-right text-rose-400 text-[10px] font-black uppercase py-8">Overhead</TableHead>
+              <TableHead className="text-right font-black text-slate-900 text-[10px] uppercase py-8">True Profit</TableHead>
+              <TableHead className="text-center text-[10px] font-black uppercase py-8 px-10">Classification</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {data.data.map((m) => (
+              <TableRow key={m.id} className="hover:bg-slate-50/50 border-slate-100 transition-colors group">
+                <TableCell className="px-10 py-8">
+                   <p className="font-black text-slate-900 uppercase tracking-tight leading-none text-base group-hover:text-emerald-600 transition-colors">{m.name}</p>
+                   <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mt-2">{m.category}</p>
+                </TableCell>
+                <TableCell className="text-right font-black text-slate-400">{m.total_qty}</TableCell>
+                <TableCell className="text-right font-black text-emerald-600">{formatIDR(m.net_profit)}</TableCell>
+                <TableCell className="text-right text-rose-400 text-sm font-black italic">{formatIDR(m.allocatedOverhead)}</TableCell>
+                <TableCell className="text-right font-black text-slate-900 text-lg">{formatIDR(m.profitAfterOverhead)}</TableCell>
+                <TableCell className="text-center px-10">
+                  <span className={cn(
+                    "px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest border shadow-sm",
+                    getStatusColor(m.status)
+                  )}>
+                    {m.status}
+                  </span>
+                </TableCell>
               </TableRow>
-            </TableHeader>
-            <TableBody>
-              {data.data.map((m) => (
-                <TableRow key={m.id}>
-                  <TableCell className="font-medium">{m.name}</TableCell>
-                  <TableCell className="text-xs text-gray-500">{m.category}</TableCell>
-                  <TableCell className="text-right">{m.total_qty}</TableCell>
-                  <TableCell className="text-right">{formatIDR(m.total_revenue)}</TableCell>
-                  <TableCell className="text-right font-semibold text-blue-600">{formatIDR(m.net_profit)}</TableCell>
-                  <TableCell className="text-right text-orange-600 text-xs italic">{formatIDR(m.allocatedOverhead)}</TableCell>
-                  <TableCell className="text-right font-black">{formatIDR(m.profitAfterOverhead)}</TableCell>
-                  <TableCell className="text-center">
-                    <span className={`px-2 py-1 rounded-full text-[10px] font-bold border ${getStatusColor(m.status)}`}>
-                      {m.status}
-                    </span>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
     </div>
   );
 }
 
 function DemandForecast({ data }) {
-  if (!data || data.length === 0) return <div className="p-10 text-center text-gray-500">No historical data for forecasting yet.</div>;
+  if (!data || data.length === 0) return <div className="p-20 text-center glass-card rounded-[2.5rem] shadow-2xl uppercase font-black text-slate-300 tracking-widest">No historical data for neural forecasting yet.</div>;
 
   const chartData = data.map(m => ({
     name: m.name,
@@ -328,94 +364,103 @@ function DemandForecast({ data }) {
   })).sort((a, b) => b.tomorrow - a.tomorrow).slice(0, 10);
 
   return (
-    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-500">
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <Card className="lg:col-span-2">
-          <CardHeader>
-            <CardTitle>Top 10 Predicted Demand (Tomorrow)</CardTitle>
-          </CardHeader>
-          <CardContent className="h-[400px]">
+    <div className="space-y-10 animate-fade-in">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div className="lg:col-span-2 glass-card rounded-[2.5rem] p-10 shadow-2xl border-none">
+          <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em] mb-10 flex items-center gap-4">
+             <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse" />
+             Dynamic Demand Trajectory (Next 24 Hours)
+          </h3>
+          <div className="h-[450px]">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={chartData} layout="vertical">
-                <CartesianGrid strokeDasharray="3 3" horizontal={false} />
-                <XAxis type="number" />
-                <YAxis dataKey="name" type="category" width={120} />
-                <Tooltip />
-                <Legend />
-                <Bar dataKey="tomorrow" name="Predicted Tomorrow" fill="#2563eb" radius={[0, 4, 4, 0]} />
-                <Bar dataKey="avg" name="7-Day Average" fill="#94a3b8" radius={[0, 4, 4, 0]} />
+                <CartesianGrid strokeDasharray="3 3" horizontal={false} strokeOpacity={0.1} />
+                <XAxis type="number" hide />
+                <YAxis dataKey="name" type="category" width={140} axisLine={false} tickLine={false} className="text-[10px] font-black text-slate-900 uppercase tracking-tight" />
+                <Tooltip 
+                   contentStyle={{ 
+                    backgroundColor: 'rgba(255, 255, 255, 0.9)', 
+                    backdropFilter: 'blur(8px)',
+                    border: 'none',
+                    borderRadius: '24px',
+                    boxShadow: '0 20px 40px rgba(0,0,0,0.1)'
+                  }}
+                  itemStyle={{ fontWeight: '900', color: '#0f172a', fontSize: '12px' }}
+                />
+                <Bar dataKey="tomorrow" name="Predicted Demand" fill="#0f172a" radius={[0, 12, 12, 0]} barSize={20} />
+                <Bar dataKey="avg" name="7D Historical Avg" fill="#cbd5e1" radius={[0, 12, 12, 0]} barSize={12} />
               </BarChart>
             </ResponsiveContainer>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
 
-        <Card className="lg:col-span-1 bg-green-50 border-green-100">
-          <CardHeader>
-            <CardTitle className="flex items-center text-green-800">
-              <Calendar className="w-5 h-5 mr-2" /> Prep Recommendation
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              <p className="text-xs text-green-700">Recommended preparation based on predicted demand + 10% safety buffer.</p>
-              <div className="space-y-3">
-                {data.sort((a, b) => b.predictedTomorrow - a.predictedTomorrow).slice(0, 8).map(m => (
-                  <div key={m.id} className="flex justify-between items-center border-b border-green-200 pb-2 last:border-0">
-                    <div>
-                      <div className="text-sm font-bold text-gray-900">{m.name}</div>
-                      <div className="text-[10px] text-gray-500">7d Avg: {m.avgDailySales}</div>
-                    </div>
-                    <div className="text-right">
-                      <div className="text-lg font-black text-green-700">{m.recommendedPrep}</div>
-                      <div className="text-[10px] text-green-600">Portions</div>
-                    </div>
+        <div className="lg:col-span-1 glass-card rounded-[2.5rem] p-12 shadow-2xl border-none bg-emerald-900 text-white relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-96 h-96 bg-white/5 rounded-full blur-[100px] -translate-y-1/2 translate-x-1/2" />
+          <h3 className="text-[10px] font-black text-emerald-400 uppercase tracking-[0.4em] mb-10 flex items-center gap-4">
+             <Calendar className="w-5 h-5" /> Production Strategy Advice
+          </h3>
+          
+          <div className="space-y-10 relative z-10">
+            <p className="text-[10px] text-emerald-100/40 font-black leading-relaxed uppercase tracking-[0.2em]">Calculated with 10% operational safety buffer based on neural trajectory.</p>
+            <div className="space-y-5">
+              {data.sort((a, b) => b.predictedTomorrow - a.predictedTomorrow).slice(0, 8).map(m => (
+                <div key={m.id} className="flex justify-between items-center bg-white/5 backdrop-blur-md p-5 rounded-3xl border border-white/10 group hover:bg-white/10 transition-all">
+                  <div className="flex flex-col gap-1.5">
+                    <span className="text-sm font-black uppercase tracking-tight leading-none group-hover:text-emerald-400 transition-colors">{m.name}</span>
+                    <span className="text-[10px] font-black text-white/20 uppercase tracking-widest">7D Avg: {m.avgDailySales}</span>
                   </div>
-                ))}
-              </div>
-              <div className="mt-4 p-3 bg-white rounded border border-green-200">
-                <h5 className="text-xs font-bold text-gray-700 flex items-center mb-1">
-                  <Lightbulb className="w-3 h-3 mr-1 text-yellow-500" /> AI Logic
-                </h5>
-                <p className="text-[10px] text-gray-600 leading-tight">
-                  Calculated using 7-day Moving Average: <br/>
-                  <code>predicted = sum(last_7_days) / 7</code> <br/>
-                  <code>prep = ceil(predicted * 1.1)</code>
-                </p>
-              </div>
+                  <div className="bg-emerald-400 text-emerald-950 px-6 py-3 rounded-2xl font-black text-2xl shadow-xl shadow-emerald-400/20">
+                    {m.recommendedPrep}
+                  </div>
+                </div>
+              ))}
             </div>
-          </CardContent>
-        </Card>
+            
+            <div className="mt-10 p-6 bg-black/20 rounded-3xl border border-white/5 backdrop-blur-sm">
+                <h5 className="text-[10px] font-black text-emerald-300 uppercase tracking-[0.3em] mb-3 flex items-center gap-3">
+                  <Lightbulb className="w-4 h-4" /> Predictive Logic
+                </h5>
+                <p className="text-[10px] text-emerald-100/40 leading-relaxed font-black uppercase tracking-widest">
+                  Neural Moving Average + Volatility Buffer (1.1x Sigma)
+                </p>
+            </div>
+          </div>
+        </div>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Forecast Details (Next 7 Days)</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Menu Item</TableHead>
-                <TableHead className="text-right">7-Day Avg</TableHead>
-                <TableHead className="text-right text-blue-600">Tomorrow Pred.</TableHead>
-                <TableHead className="text-right text-green-600">Recommend Prep</TableHead>
-                <TableHead className="text-right">Next 7 Days Pred.</TableHead>
+      <div className="glass-card rounded-[2.5rem] overflow-hidden shadow-2xl border-none p-0">
+        <div className="p-10 border-b border-slate-100 bg-white shadow-sm flex items-center justify-between">
+            <h3 className="text-xl font-black text-slate-900 uppercase tracking-tight flex items-center gap-5">
+               <div className="w-14 h-14 rounded-2xl bg-emerald-50 flex items-center justify-center shadow-xl shadow-emerald-100/50">
+                 <Calendar className="w-7 h-7 text-emerald-600" />
+               </div>
+               Forecast Matrix (Next 7 Cycles)
+            </h3>
+        </div>
+        <Table>
+          <TableHeader className="bg-slate-50/50">
+            <TableRow>
+              <TableHead className="text-[10px] font-black uppercase text-slate-500 py-8 px-10">Menu Item</TableHead>
+              <TableHead className="text-[10px] font-black uppercase text-slate-500 py-8 text-right">7D Avg Index</TableHead>
+              <TableHead className="text-[10px] font-black uppercase text-emerald-600 py-8 text-right">Tomorrow Pred.</TableHead>
+              <TableHead className="text-right text-emerald-600 text-[10px] font-black uppercase py-8">Target Prep Vol.</TableHead>
+              <TableHead className="text-right font-black text-slate-900 text-[10px] uppercase py-8 px-10">Weekly Cumulative</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {data.map((m) => (
+              <TableRow key={m.id} className="hover:bg-slate-50/50 border-slate-100 transition-colors group">
+                <TableCell className="px-10 py-8 font-black text-slate-900 uppercase tracking-tight leading-none text-base group-hover:text-emerald-600 transition-colors">{m.name}</TableCell>
+                <TableCell className="text-right font-black text-slate-400">{m.avgDailySales}</TableCell>
+                <TableCell className="text-right font-black text-emerald-600 text-lg">{m.predictedTomorrow}</TableCell>
+                <TableCell className="text-right font-black text-emerald-600 text-lg">{m.recommendedPrep}</TableCell>
+                <TableCell className="text-right font-black text-slate-900 px-10 text-lg">{m.predictedNext7Days}</TableCell>
               </TableRow>
-            </TableHeader>
-            <TableBody>
-              {data.map((m) => (
-                <TableRow key={m.id}>
-                  <TableCell className="font-medium">{m.name}</TableCell>
-                  <TableCell className="text-right">{m.avgDailySales}</TableCell>
-                  <TableCell className="text-right font-bold text-blue-600">{m.predictedTomorrow}</TableCell>
-                  <TableCell className="text-right font-bold text-green-600">{m.recommendedPrep}</TableCell>
-                  <TableCell className="text-right">{m.predictedNext7Days}</TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
     </div>
   );
 }
+

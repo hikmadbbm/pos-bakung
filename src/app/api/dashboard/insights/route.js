@@ -81,10 +81,28 @@ export async function GET(req) {
     });
     const topMenus = Array.from(menuMap.values()).sort((a,b) => b.profit - a.profit).slice(0, 10);
 
-    // 5. Fetch FixedCosts for real-time overhead calculation
-    const fixedCosts = await prisma.fixedCost.findMany({
-      where: { is_active: true }
-    });
+    // 5. Fetch FixedCosts and Low Stock Alerts
+    const [fixedCosts, lowStockItems] = await Promise.all([
+      prisma.fixedCost.findMany({ where: { is_active: true } }),
+      prisma.ingredient.findMany({
+        where: {
+          minimum_stock: { gt: 0 },
+          stock: { lte: prisma.ingredient.fields.minimum_stock }
+        },
+        select: { item_name: true, stock: true, unit: true, minimum_stock: true },
+        take: 5
+      }).catch(() => []) // Fallback for prisma version issues with field comparison
+    ]);
+
+    // Fallback if field comparison fails (some prisma versions don't support it in 'where')
+    let finalLowStock = lowStockItems;
+    if (lowStockItems.length === 0) {
+       const allWithMin = await prisma.ingredient.findMany({
+         where: { minimum_stock: { gt: 0 } },
+         select: { item_name: true, stock: true, unit: true, minimum_stock: true }
+       });
+       finalLowStock = allWithMin.filter(i => i.stock <= i.minimum_stock).slice(0, 5);
+    }
 
     const dailyOverhead = getDailyOverhead(fixedCosts);
     const days = daysBetweenInclusive(start, end);
@@ -114,6 +132,14 @@ export async function GET(req) {
       });
     }
     
+    if (finalLowStock.length > 0) {
+      insights.push({
+        type: 'negative',
+        title: 'Low Stock Alert',
+        message: `${finalLowStock.length} items are below minimum levels. Check inventory.`,
+      });
+    }
+
     if (totalOverhead > 0) {
       insights.push({
         type: 'neutral',
@@ -140,6 +166,7 @@ export async function GET(req) {
         netProfit,
         dailyOverhead: Math.round(totalOverhead),
         topMenus,
+        lowStockItems: finalLowStock
       },
       insights,
     };

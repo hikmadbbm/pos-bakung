@@ -4,7 +4,7 @@ import { api } from "../../../lib/api";
 import { formatIDR } from "../../../lib/format";
 import { Button } from "../../../components/ui/button";
 import { Card } from "../../../components/ui/card";
-import { Plus, Minus, Trash2, ShoppingCart, CreditCard, Banknote, Smartphone, Receipt, Clock, Save, AlertCircle } from "lucide-react";
+import { Plus, Minus, Trash2, ShoppingCart, CreditCard, Banknote, Smartphone, Receipt, Clock, Save, AlertCircle, RefreshCcw, ShoppingBag, ChevronRight } from "lucide-react";
 import { cn } from "../../../lib/utils";
 import { Select } from "../../../components/ui/select";
 import { Input } from "../../../components/ui/input";
@@ -20,9 +20,9 @@ import { usePrinter } from "../../../lib/printer-context";
 import QRCode from "qrcode";
 import { generateDynamicQRIS } from "../../../lib/qris";
 
-// Dynamically loaded from /api/payment-methods
 const defaultPaymentMethods = [
-  { id: 'cash', value: "CASH", name: "Cash", type: "CASH", icon: Banknote },
+  { id: 1, name: 'CASH', type: 'CASH' },
+  { id: 2, name: 'QRIS', type: 'QRIS' }
 ];
 
 const quickMoneyButtons = [20000, 50000, 100000, 200000];
@@ -111,7 +111,7 @@ function QRISImage({ baseQRIS, amount, staticImage }) {
   if (!qrSrc && !error) {
     return (
         <div className="w-full h-full flex flex-col items-center justify-center bg-gray-50 text-gray-400 text-xs text-center p-4">
-            <Smartphone className="w-12 h-12 mb-2 opacity-20 text-blue-600 animate-pulse" />
+            <Smartphone className="w-12 h-12 mb-2 opacity-20 text-emerald-600 animate-pulse" />
             <p>Generating QR Code...</p>
         </div>
     );
@@ -144,10 +144,11 @@ export default function OrdersPage() {
   const [menus, setMenus] = useState([]);
   const [categories, setCategories] = useState([]);
   const [platforms, setPlatforms] = useState([]);
+  const [mounted, setMounted] = useState(false);
   const [cart, setCart] = useState([]);
   const [loading, setLoading] = useState(true);
   const [processing, setProcessing] = useState(false);
-  const [user, setUser] = useState(null);
+  const [currentUser, setCurrentUser] = useState(null);
   const [currentShift, setCurrentShift] = useState(null);
   const [selectedCategory, setSelectedCategory] = useState("ALL");
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
@@ -155,6 +156,17 @@ export default function OrdersPage() {
   const [isPaymentConfirmOpen, setIsPaymentConfirmOpen] = useState(false);
   const [paymentConfirmData, setPaymentConfirmData] = useState(null);
   
+  // Mounted check to prevent SSR auth issues
+  useEffect(() => {
+    setMounted(true);
+    // Assuming getAuth is defined elsewhere or removed if not needed
+    // const u = getAuth(); 
+    // if (u) setCurrentUser(u);
+  }, []);
+
+  const [isStartShiftOpen, setIsStartShiftOpen] = useState(false);
+  const [startingCash, setStartingCash] = useState("");
+
   // Checkout State
   const [allActivePMs, setAllActivePMs] = useState(defaultPaymentMethods);
   const [selectedPlatform, setSelectedPlatform] = useState("");
@@ -181,15 +193,7 @@ export default function OrdersPage() {
   const [isDeletingPending, setIsDeletingPending] = useState(false);
   const [isPinDialogOpen, setIsPinDialogOpen] = useState(false);
 
-  useEffect(() => {
-    loadData();
-    loadPendingOrders();
-    // Poll pending orders every 15 seconds
-    const interval = setInterval(loadPendingOrders, 15000);
-    return () => clearInterval(interval);
-  }, []);
-
-  const loadPendingOrders = async () => {
+  const loadPendingOrders = useCallback(async () => {
     try {
       const res = await api.get("/orders/pending");
       setPendingOrders(res);
@@ -197,31 +201,55 @@ export default function OrdersPage() {
       console.error("Failed to load pending orders", e);
       error("Failed to load pending orders");
     }
-  };
+  }, [error]);
 
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     setLoading(true);
     try {
       const res = await api.get("/pos/init");
-      setMenus(res.menus);
-      setCategories(res.categories);
-      setPlatforms(res.platforms);
-      setAllActivePMs(res.paymentMethods.length > 0 ? res.paymentMethods : defaultPaymentMethods);
-      setUser(res.user);
-      setCurrentShift(res.currentShift);
+      if (res) {
+        setMenus(res.menus || []);
+        setCategories(res.categories || []);
+        setPlatforms(res.platforms || []);
+        setAllActivePMs((res?.paymentMethods?.length || 0) > 0 ? res.paymentMethods : defaultPaymentMethods);
+        setCurrentUser(res?.user || null); 
+        setCurrentShift(res?.currentShift || null);
+        
+        // Show Start Shift dialog if no active shift found
+        if (!res.currentShift) {
+          setIsStartShiftOpen(true);
+        } else {
+          setIsStartShiftOpen(false);
+        }
+      }
 
-      if (res.platforms.length > 0) {
+      if (res?.platforms?.length > 0) {
         const p = res.platforms;
-        const defaultPlatform = p.find(plat => plat.name.toLowerCase() === "take away") || p[0];
-        setSelectedPlatform(defaultPlatform.id.toString());
+        const defaultPlatform = p.find(plat => plat.name?.toLowerCase() === "take away") || p[0];
+        setSelectedPlatform(defaultPlatform?.id?.toString() || "");
       }
     } catch (e) {
       console.error("Failed to load POS data", e);
-      error("Failed to load POS data");
+      if (e.response?.status === 401) {
+        // setAuth(null, null); // Removed as per instruction to replace user/setUser
+        window.location.href = "/login";
+        return;
+      }
+      error("Failed to load POS data: " + (e.response?.data?.error || e.message));
     } finally {
       setLoading(false);
     }
-  };
+  }, [error]);
+
+  useEffect(() => {
+    if (mounted) {
+      loadData();
+    }
+    loadPendingOrders();
+    // Poll pending orders every 15 seconds
+    const interval = setInterval(loadPendingOrders, 15000);
+    return () => clearInterval(interval);
+  }, [mounted, loadData, loadPendingOrders]); // Added mounted to dependency array
 
   const [qrisPM, setQrisPM] = useState(null);
 
@@ -545,6 +573,31 @@ export default function OrdersPage() {
     }
   };
 
+  const handleStartShift = async () => {
+    if (!currentUser) return;
+    const amount = parseAmountToInt(startingCash);
+    if (isNaN(amount) || amount < 0) {
+      error("Please enter a valid starting cash amount.");
+      return;
+    }
+    
+    setProcessing(true);
+    try {
+      const res = await api.post("/shifts/start", {
+        user_id: currentUser.id,
+        starting_cash: amount
+      });
+      setCurrentShift(res);
+      setIsStartShiftOpen(false);
+      success("Shift started successfully! Ready to take orders.");
+    } catch (e) {
+      console.error(e);
+      error(e.response?.data?.error || "Failed to start shift");
+    } finally {
+      setProcessing(false);
+    }
+  };
+
   const filteredMenus = (selectedCategory === "ALL"
     ? menus 
     : menus.filter(m => m.categoryId === selectedCategory)).sort((a, b) => {
@@ -560,38 +613,52 @@ export default function OrdersPage() {
 
   return (
     <div className={cn(
-      "flex flex-col lg:flex-row gap-4 pb-2 lg:pb-0 relative transition-all duration-300",
+      "flex flex-col lg:flex-row gap-2 lg:gap-4 pb-2 lg:pb-0 relative transition-all duration-300",
       isFocusMode ? "h-[100dvh] p-2" : "h-[calc(100dvh-140px)] lg:h-[calc(100dvh-100px)]"
     )}>
 
       {/* LEFT: Menu Grid */}
-      <div className="flex-[2] flex flex-col min-h-0 bg-gray-50/50 rounded-lg border p-3 lg:p-4 order-2 lg:order-1 h-full overflow-hidden shadow-sm">
+      <div className="flex-[2.5] flex flex-col min-h-0 glass-card p-4 lg:p-6 order-2 lg:order-1 h-full overflow-hidden">
         {/* Category Tabs */}
-        <div className="flex space-x-2 overflow-x-auto pb-4 mb-2 scrollbar-hide shrink-0">
-          <Button 
-            variant={selectedCategory === "ALL" ? "default" : "outline"}
+        <div className="flex space-x-2 sm:space-x-3 overflow-x-auto pb-4 lg:pb-6 mb-2 scrollbar-hide shrink-0 px-2">
+          <button 
             onClick={() => setSelectedCategory("ALL")}
-            className="whitespace-nowrap rounded-full h-8 text-xs shrink-0"
+            className={cn(
+              "px-6 py-2 text-[10px] font-black tracking-widest rounded-xl transition-all duration-300 whitespace-nowrap uppercase border",
+              selectedCategory === "ALL" 
+                ? "bg-slate-900 text-white border-slate-900 shadow-xl scale-105" 
+                : "bg-white text-slate-500 border-slate-200 hover:border-slate-400 hover:text-slate-900"
+            )}
           >
-            All Items
-          </Button>
+            All Collections
+          </button>
           {categories.map(cat => (
-            <Button
+            <button
               key={cat.id}
-              variant={selectedCategory === cat.id ? "default" : "outline"}
               onClick={() => setSelectedCategory(cat.id)}
-              className="whitespace-nowrap rounded-full h-8 text-xs shrink-0"
-              style={selectedCategory === cat.id ? { backgroundColor: cat.color, borderColor: cat.color, color: '#fff' } : { borderColor: cat.color, color: 'inherit' }}
+              className={cn(
+                "px-6 py-2 text-[10px] font-black tracking-widest rounded-xl transition-all duration-300 whitespace-nowrap uppercase border",
+                selectedCategory === cat.id 
+                  ? "shadow-xl scale-105" 
+                  : "bg-white text-slate-500 border-slate-200 hover:border-slate-400"
+              )}
+              style={selectedCategory === cat.id 
+                ? { backgroundColor: cat.color, borderColor: cat.color, color: '#fff' } 
+                : { borderColor: `${cat.color}40`, color: cat.color }
+              }
             >
               {cat.name}
-            </Button>
+            </button>
           ))}
         </div>
 
         {/* Menu Grid */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 gap-3 overflow-y-auto pr-1 pb-2">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 gap-4 overflow-y-auto pr-2 pb-6 custom-scrollbar">
           {loading ? (
-            <div className="col-span-2 md:col-span-4 text-center text-gray-400 py-10">Loading menus...</div>
+            <div className="col-span-full flex flex-col items-center justify-center py-32 space-y-4">
+               <RefreshCcw className="w-12 h-12 text-emerald-600 animate-spin" />
+               <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Inventory Sync in progress...</p>
+            </div>
           ) : filteredMenus.map((menu) => {
             const currentPrice = getPrice(menu);
             const inCart = cart.find(i => i.menu_id === menu.id);
@@ -599,27 +666,43 @@ export default function OrdersPage() {
               <button
                 key={menu.id}
                 className={cn(
-                  "relative w-full text-left bg-white border rounded-lg shadow-sm transition-all active:scale-95 focus:outline-none focus:ring-2 focus:ring-blue-500",
-                  "p-2 sm:p-4 lg:p-6 min-h-[80px] sm:min-h-[100px] lg:min-h-[120px] flex flex-col justify-between group overflow-hidden",
-                  inCart ? "ring-2 ring-blue-500 bg-blue-50/50" : "hover:bg-gray-50 hover:shadow-md hover:-translate-y-0.5"
+                  "relative w-full text-left bg-white border border-slate-100 rounded-2xl transition-all duration-300 active:scale-95 focus:outline-none group overflow-hidden",
+                  "p-3 sm:p-4 h-32 sm:h-40 flex flex-col justify-between items-start",
+                  inCart 
+                    ? "ring-2 ring-emerald-500 bg-emerald-50/30 shadow-xl shadow-emerald-500/10" 
+                    : "hover:shadow-2xl hover:shadow-slate-200 hover:-translate-y-1 hover:border-emerald-200"
                 )}
                 onClick={() => addToCart(menu)}
                 aria-label={`Add ${menu.name} to cart, price ${formatIDR(currentPrice)}`}
-                style={{ borderLeft: `6px solid ${menu.category ? menu.category.color : '#ccc'}` }}
               >
-                <div className="flex-1 w-full">
-                  <h3 className="text-xs sm:text-sm lg:text-xl font-bold text-gray-900 leading-snug mb-1 line-clamp-2">
+                {/* Visual Category Accent */}
+                <div 
+                  className="absolute top-0 left-0 w-1.5 h-full opacity-60 group-hover:opacity-100 transition-opacity"
+                  style={{ backgroundColor: menu.category?.color || '#cbd5e1' }}
+                />
+                
+                <div className="w-full">
+                  <div className="text-[8px] font-black uppercase tracking-widest mb-1 text-slate-400 group-hover:text-emerald-500 transition-colors">
+                    {menu.category?.name || 'Item'}
+                  </div>
+                  <h3 className="text-xs sm:text-sm lg:text-base font-black text-slate-900 leading-tight line-clamp-2 uppercase tracking-tight">
                     {menu.name}
                   </h3>
                 </div>
                 
-                <div className="w-full flex justify-end items-end mt-2">
+                <div className="w-full flex justify-between items-end mt-auto">
+                  <div className="text-xs font-black text-emerald-600">
+                    {formatIDR(currentPrice)}
+                  </div>
                   {inCart && (
-                    <div className="flex items-center justify-center bg-blue-600 text-white w-8 h-8 rounded-full shadow-sm animate-in zoom-in duration-200">
-                      <span className="text-sm font-bold">{inCart.qty}</span>
+                    <div className="flex items-center justify-center bg-emerald-600 text-white w-7 h-7 rounded-lg shadow-lg shadow-emerald-500/40 animate-in zoom-in duration-300">
+                      <span className="text-[10px] font-black">{inCart.qty}</span>
                     </div>
                   )}
                 </div>
+
+                {/* Hover Glow Effect */}
+                <div className="absolute inset-0 bg-gradient-to-tr from-emerald-500/0 via-emerald-500/0 to-emerald-500/[0.03] opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
               </button>
             );
           })}
@@ -633,114 +716,118 @@ export default function OrdersPage() {
           - Here, let's make it a fixed bottom bar that expands, or just a section that stacks on top/bottom.
           - Current layout: Flex Row on Desktop, Flex Col on Mobile.
       */}
-      <div className="lg:flex-1 flex flex-col min-h-0 gap-4 order-1 lg:order-2 shrink-0 lg:h-full">
+      <div className="lg:flex-1 flex flex-col min-h-0 gap-6 order-1 lg:order-2 shrink-0 lg:h-full">
         
         {/* Cart Section */}
-        <div className="flex-1 bg-white rounded-lg border flex flex-col overflow-hidden shadow-sm lg:h-full max-h-[45dvh] lg:max-h-none transition-all">
-          <div className="p-3 border-b bg-gray-50 flex justify-between items-center shrink-0">
-            <h3 className="font-semibold text-gray-800 flex items-center gap-2">
-              <ShoppingCart className="w-4 h-4" /> Current Order
+        <div className="flex-1 glass-card flex flex-col overflow-hidden lg:h-full max-h-[45dvh] lg:max-h-none transition-all duration-500 shadow-2xl">
+          <div className="p-4 border-b border-slate-100 bg-slate-50/50 flex justify-between items-center shrink-0">
+            <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-900 flex items-center gap-2">
+              <ShoppingCart className="w-4 h-4 text-emerald-600" /> ACTIVE ORDER
             </h3>
-            <div className="flex items-center gap-3">
-              <div className="flex items-center gap-1.5 px-2 py-1 bg-white border rounded text-[10px] font-bold uppercase transition-all shadow-sm">
+            <div className="flex items-center gap-4">
+              <div className="flex items-center gap-2 px-3 py-1.5 bg-white border border-slate-100 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all shadow-sm">
                 <div className={cn(
-                  "w-2 h-2 rounded-full animate-pulse",
-                  connectionStatus === "connected" ? "bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]" :
-                  connectionStatus === "connecting" ? "bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.5)]" :
-                  "bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.5)]"
+                  "w-1.5 h-1.5 rounded-full animate-pulse",
+                  connectionStatus === "connected" ? "bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.6)]" :
+                  connectionStatus === "connecting" ? "bg-amber-500 shadow-[0_0_10px_rgba(245,158,11,0.6)]" :
+                  "bg-rose-500 shadow-[0_0_10px_rgba(244,63,94,0.6)]"
                 )} />
                 <span className={cn(
                   connectionStatus === "connected" ? "text-emerald-700" :
                   connectionStatus === "connecting" ? "text-amber-700" :
                   "text-rose-700"
                 )}>
-                  Printer: {connectionStatus}
+                  {connectionStatus}
                 </span>
               </div>
 
-              <Button 
-                variant="outline" 
-                size="sm" 
+              <button 
                 onClick={() => setIsPendingListOpen(true)} 
-                className="h-7 text-xs relative"
+                className="relative p-2 hover:bg-white rounded-xl transition-all group"
               >
-                <Clock className="w-3 h-3 mr-1" />
-                Pending
+                <Clock className="w-5 h-5 text-slate-400 group-hover:text-emerald-600" />
                 {pendingOrders.length > 0 && (
-                  <span className="absolute -top-1.5 -right-1.5 bg-red-500 text-white text-[10px] w-4 h-4 rounded-full flex items-center justify-center shadow-sm">
+                  <span className="absolute -top-1 -right-1 bg-rose-600 text-white text-[8px] font-black w-4 h-4 rounded-full flex items-center justify-center shadow-lg border-2 border-white ring-1 ring-rose-600/20">
                     {pendingOrders.length}
                   </span>
                 )}
-              </Button>
-              <span className="text-xs font-medium bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">
-                {cart.reduce((a, b) => a + b.qty, 0)} items
-              </span>
+              </button>
             </div>
           </div>
           
-          <div className="flex-1 overflow-y-auto p-2 space-y-2 min-h-0">
+          <div className="flex-1 overflow-y-auto p-4 space-y-3 min-h-0 custom-scrollbar">
             {cart.length === 0 ? (
-              <div className="h-full flex flex-col items-center justify-center text-gray-400 space-y-2 py-8 lg:py-0">
-                <ShoppingCart className="w-8 h-8 opacity-20" />
-                <span className="text-sm">Cart is empty</span>
+              <div className="h-full flex flex-col items-center justify-center text-slate-300 space-y-4 py-12">
+                <div className="w-20 h-20 rounded-full bg-slate-50 flex items-center justify-center border border-dashed border-slate-200">
+                   <ShoppingBag className="w-8 h-8 opacity-20" />
+                </div>
+                <span className="text-[10px] font-black uppercase tracking-widest">Cart awaiting input...</span>
               </div>
             ) : (
               cart.map((item) => (
-                <div key={item.menu_id} className="flex justify-between items-start md:items-center p-2 rounded-lg border border-gray-100 hover:border-blue-100 bg-white shadow-sm transition-all min-h-0">
-                  <div className="flex-1 min-w-0 w-[70%] md:w-auto pr-2">
-                    <div className="font-bold text-sm text-gray-900 truncate leading-tight">{item.name}</div>
-                    <div className="text-sm md:text-xs text-gray-500 mt-1 md:mt-0">{formatIDR(item.price)}</div>
+                <div key={item.menu_id} className="flex justify-between items-center p-3 sm:p-4 rounded-2xl border border-slate-100 hover:border-emerald-200 bg-white group transition-all duration-300">
+                  <div className="flex-1 min-w-0 pr-4">
+                    <div className="font-black text-xs sm:text-sm text-slate-900 truncate leading-tight uppercase tracking-tight">{item.name}</div>
+                    <div className="text-[10px] font-bold text-slate-400 mt-1 uppercase tracking-widest">{formatIDR(item.price)}</div>
                   </div>
-                  <div className="flex flex-col md:flex-row items-end md:items-center gap-3 md:gap-0 md:space-x-2">
+                  <div className="flex items-center gap-4">
                     {/* Qty Controls */}
-                    <div className="flex items-center space-x-3 md:space-x-2 order-2 md:order-1">
-                      <Button variant="outline" size="icon" className="h-8 w-8 md:h-6 md:w-6 rounded-full border-gray-300" onClick={() => updateQty(item.menu_id, -1)}>
-                        <Minus className="w-4 h-4 md:w-3 md:h-3" />
-                      </Button>
-                      <span className="w-4 text-center text-sm font-medium">{item.qty}</span>
-                      <Button variant="outline" size="icon" className="h-8 w-8 md:h-6 md:w-6 rounded-full border-gray-300" onClick={() => updateQty(item.menu_id, 1)}>
-                        <Plus className="w-4 h-4 md:w-3 md:h-3" />
-                      </Button>
+                    <div className="flex items-center bg-slate-50 p-1 rounded-xl border border-slate-100">
+                      <button 
+                        className="h-8 w-8 flex items-center justify-center rounded-lg hover:bg-white hover:shadow-sm text-slate-400 hover:text-slate-900 transition-all border border-transparent hover:border-slate-100" 
+                        onClick={() => updateQty(item.menu_id, -1)}
+                      >
+                        <Minus className="w-3.5 h-3.5" />
+                      </button>
+                      <span className="w-8 text-center text-xs font-black text-slate-900 tracking-tighter">{item.qty}</span>
+                      <button 
+                        className="h-8 w-8 flex items-center justify-center rounded-lg hover:bg-white hover:shadow-sm text-slate-400 hover:text-slate-900 transition-all border border-transparent hover:border-slate-100" 
+                        onClick={() => updateQty(item.menu_id, 1)}
+                      >
+                        <Plus className="w-3.5 h-3.5" />
+                      </button>
                     </div>
 
-                    {/* Delete Button - Larger on mobile */}
-                    <Button 
-                      variant="ghost" 
-                      size="icon" 
-                      className="h-11 w-11 md:h-6 md:w-6 text-red-500 hover:text-red-700 bg-red-50 md:bg-transparent rounded-full order-1 md:order-2" 
+                    <button 
+                      className="h-10 w-10 flex items-center justify-center text-rose-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all" 
                       onClick={() => updateQty(item.menu_id, -item.qty)}
-                      aria-label="Remove item"
                     >
-                      <Trash2 className="w-5 h-5 md:w-3 md:h-3" />
-                    </Button>
+                      <Trash2 className="w-4 h-4" />
+                    </button>
                   </div>
                 </div>
               ))
             )}
           </div>
           
-          <div className="p-3 bg-gray-50 border-t space-y-2 shrink-0">
-            <div className="flex justify-between text-sm">
-              <span className="text-gray-500">Subtotal</span>
-              <span>{formatIDR(subtotal)}</span>
+          <div className="p-6 bg-slate-50/80 border-t border-slate-100 space-y-4 shrink-0 backdrop-blur-md">
+            <div className="space-y-2">
+              <div className="flex justify-between text-[10px] font-black uppercase tracking-widest text-slate-400">
+                <span>Gross Value</span>
+                <span>{formatIDR(subtotal)}</span>
+              </div>
+              <div className="flex justify-between text-2xl font-black text-slate-900 tracking-tighter">
+                <span>TOTAL</span>
+                <span className="text-emerald-600">{formatIDR(total)}</span>
+              </div>
             </div>
-            <div className="flex justify-between font-bold text-lg pt-2 border-t">
-              <span>Total</span>
-              <span className="text-blue-600">{formatIDR(total)}</span>
-            </div>
+            
             <Button 
               size="lg" 
-              className="w-full font-bold text-md shadow-md mt-2" 
+              className={cn(
+                "w-full h-14 font-black text-sm uppercase tracking-[0.2em] shadow-2xl transition-all duration-500 rounded-2xl",
+                !currentShift ? "bg-slate-200 text-slate-400 grayscale" : "bg-emerald-600 hover:bg-emerald-700 shadow-emerald-500/30"
+              )} 
               disabled={cart.length === 0 || !currentShift}
               onClick={handleProcessPaymentClick}
             >
               {!currentShift ? (
                 <>
                   <AlertCircle className="w-4 h-4 mr-2" />
-                  Shift Not Started
+                  SHIFTS OFFLINE
                 </>
               ) : (
-                `Process Payment (${formatIDR(total)})`
+                `CONFIRM & SETTLE`
               )}
             </Button>
           </div>
@@ -755,7 +842,7 @@ export default function OrdersPage() {
           <div className="space-y-4 max-h-[75dvh] overflow-y-auto pr-1">
           <div className="text-center border-b pb-4">
             <div className="text-sm text-gray-500">Total Amount</div>
-            <div className="text-3xl font-bold text-blue-600">{formatIDR(total)}</div>
+            <div className="text-3xl font-bold text-emerald-600">{formatIDR(total)}</div>
           </div>
 
           <div className="space-y-2">
@@ -767,7 +854,7 @@ export default function OrdersPage() {
             />
           </div>
 
-          <div className="space-y-2">
+          <div className="space-y-2 hidden md:block">
             <Label className="text-xs text-gray-500 uppercase font-bold">Customer</Label>
             <Input 
               placeholder="Customer Name (Optional)..." 
@@ -788,7 +875,7 @@ export default function OrdersPage() {
                      className={cn(
                        "flex flex-col items-center justify-center p-2 sm:p-3 rounded border text-xs transition-colors h-16 sm:h-20 break-words text-center",
                        isSelected 
-                         ? "bg-blue-600 text-white border-blue-600 shadow-md ring-2 ring-blue-200" 
+                         ? "bg-emerald-600 text-white border-emerald-600 shadow-md ring-2 ring-emerald-200" 
                          : "bg-white text-gray-600 hover:bg-gray-50"
                      )}
                      onClick={() => {
@@ -805,34 +892,34 @@ export default function OrdersPage() {
           </div>
 
           {currentPM && (currentPM.description || currentPM.imageUrl || currentPM.account_number) && (
-            <div className="bg-blue-50 p-4 rounded border border-blue-100 flex flex-col items-center gap-3">
+            <div className="bg-emerald-50 p-4 rounded border border-emerald-100 flex flex-col items-center gap-3">
               <div className="text-center">
-                <div className="text-[10px] text-blue-600 uppercase font-bold mb-1">Transfer Total</div>
-                <div className="text-xl font-bold text-blue-900 font-mono">{formatIDR(total)}</div>
+                <div className="text-[10px] text-emerald-600 font-bold mb-1">Transfer Total</div>
+                <div className="text-xl font-bold text-emerald-900 font-mono">{formatIDR(total)}</div>
               </div>
 
               {currentPM.imageUrl && (
-                 <div className="w-32 h-32 bg-white p-2 rounded shadow-sm border border-blue-100">
+                 <div className="w-32 h-32 bg-white p-2 rounded shadow-sm border border-emerald-100">
                    <img src={currentPM.imageUrl} alt="Payment Instruction" className="w-full h-full object-contain" />
                  </div>
               )}
               
               {currentPM.description && (
-                <p className="text-xs text-blue-800 text-center whitespace-pre-wrap italic">{currentPM.description}</p>
+                <p className="text-xs text-emerald-800 text-center whitespace-pre-wrap italic">{currentPM.description}</p>
               )}
               
               {currentPM.account_number && (
                 <div className="w-full space-y-2">
-                  <div className="text-[10px] text-blue-600 uppercase font-bold px-1">Payment Target</div>
-                  <div className="text-xs font-mono bg-white px-3 py-2.5 rounded border border-blue-100 flex justify-between items-center shadow-sm">
+                  <div className="text-[10px] text-emerald-600 font-bold px-1">Payment Target</div>
+                  <div className="text-xs font-mono bg-white px-3 py-2.5 rounded border border-emerald-100 flex justify-between items-center shadow-sm">
                     <div>
                       {currentPM.account_name && <div className="text-gray-400 text-[10px] mb-0.5">{currentPM.account_name}</div>}
-                      <div className="font-bold text-blue-900 tracking-wider">{currentPM.account_number}</div>
+                      <div className="font-bold text-emerald-900 tracking-wider">{currentPM.account_number}</div>
                     </div>
                     <Button 
                       variant="ghost" 
                       size="icon" 
-                      className="h-7 w-7 text-blue-600 hover:bg-blue-50" 
+                      className="h-7 w-7 text-emerald-600 hover:bg-emerald-50" 
                       onClick={() => {
                         navigator.clipboard.writeText(currentPM.account_number);
                         success("Account number copied!");
@@ -869,7 +956,7 @@ export default function OrdersPage() {
                         "px-1 py-2 border rounded text-xs font-medium transition-colors",
                         isDisabled 
                           ? "bg-gray-100 text-gray-400 cursor-not-allowed border-gray-200" 
-                          : "bg-white hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200"
+                          : "bg-white hover:bg-emerald-50 hover:text-emerald-600 hover:border-emerald-200"
                       )}
                       onClick={() => setMoneyReceived(amt.toString())}
                     >
@@ -896,7 +983,7 @@ export default function OrdersPage() {
                     type="button"
                     className={cn(
                       "px-3 text-xs font-bold transition-colors",
-                      discountType === "FIXED" ? "bg-blue-600 text-white" : "bg-white text-gray-400 hover:bg-gray-50"
+                      discountType === "FIXED" ? "bg-emerald-600 text-white" : "bg-white text-gray-400 hover:bg-gray-50"
                     )}
                     onClick={() => setDiscountType("FIXED")}
                   >
@@ -906,7 +993,7 @@ export default function OrdersPage() {
                     type="button"
                     className={cn(
                       "px-3 text-xs font-bold transition-colors",
-                      discountType === "PERCENT" ? "bg-blue-600 text-white" : "bg-white text-gray-400 hover:bg-gray-50"
+                      discountType === "PERCENT" ? "bg-emerald-600 text-white" : "bg-white text-gray-400 hover:bg-gray-50"
                     )}
                     onClick={() => setDiscountType("PERCENT")}
                   >
@@ -975,7 +1062,7 @@ export default function OrdersPage() {
                 <div key={order.id} className="border rounded-lg p-4 hover:bg-gray-50 transition-colors flex justify-between items-start gap-4">
                   <div className="space-y-1">
                     <div className="flex items-center gap-2">
-                      <span className="font-mono font-bold text-blue-600">{order.order_number}</span>
+                      <span className="font-mono font-bold text-emerald-600">{order.order_number}</span>
                       <span className="text-xs text-gray-500">{new Date(order.date).toLocaleString()}</span>
                     </div>
                     {order.customer_name && (
@@ -994,7 +1081,7 @@ export default function OrdersPage() {
                   </div>
                   
                   <div className="text-right space-y-2 shrink-0">
-                    <div className="font-bold text-lg">{formatIDR(order.total)}</div>
+                    <div className="font-bold text-lg">{formatIDR(Math.max(0, order.total - (order.discount || 0)))}</div>
                     <div className="flex flex-col sm:flex-row gap-2 justify-end">
                       {confirmCancelPendingId === order.id ? (
                         <span className="inline-flex items-center gap-1">
@@ -1133,11 +1220,11 @@ export default function OrdersPage() {
           </DialogHeader>
           <div className="flex flex-col items-center space-y-4 py-4">
             <div className="text-center">
-              <div className="text-sm text-gray-500 uppercase font-bold mb-1 tracking-tight">Total Payment</div>
-              <div className="text-3xl font-mono font-bold text-blue-600">{formatIDR(qrisOrderData?.total || 0)}</div>
+              <div className="text-sm text-gray-500 font-bold mb-1 tracking-tight">Total Payment</div>
+              <div className="text-3xl font-mono font-bold text-emerald-600">{formatIDR(qrisOrderData?.total || 0)}</div>
             </div>
 
-            <div className="w-64 h-64 bg-white p-3 rounded-xl border-4 border-blue-50 shadow-xl relative overflow-hidden group flex items-center justify-center">
+            <div className="w-64 h-64 bg-white p-3 rounded-xl border-4 border-emerald-50 shadow-xl relative overflow-hidden group flex items-center justify-center">
               <QRISImage 
                 baseQRIS={qrisPM?.qris_data} 
                 amount={qrisOrderData?.total || 0} 
@@ -1155,7 +1242,7 @@ export default function OrdersPage() {
             </div>
 
             <Button 
-              className="w-full h-12 text-lg font-bold shadow-lg shadow-blue-100 mt-2"
+              className="w-full h-12 text-lg font-bold shadow-lg shadow-emerald-100 mt-2"
               disabled={processing}
               onClick={async () => {
                 setProcessing(true);
@@ -1216,6 +1303,81 @@ export default function OrdersPage() {
               Yes, Close
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Start Shift Dialog */}
+      <Dialog open={isStartShiftOpen} onOpenChange={(open) => {
+        if (!open && !currentShift) return;
+        setIsStartShiftOpen(open);
+      }}>
+        <DialogContent className="max-w-md p-0 overflow-hidden rounded-3xl border-none shadow-2xl">
+          <div className="bg-emerald-600 p-8 text-white relative overflow-hidden">
+            <div className="absolute top-0 right-0 p-8 opacity-10">
+              <Clock className="w-32 h-32 -rotate-12" />
+            </div>
+            <div className="relative z-10 text-center py-4">
+              <p className="text-emerald-100 text-[10px] font-black uppercase tracking-[0.2em] mb-2">POS SECURITY PROTOCOL</p>
+              <h2 className="text-4xl font-black tracking-tighter">START SHIFT</h2>
+              <div className="mt-4 flex items-center justify-center gap-2">
+                <div className="px-3 py-1 bg-white/20 backdrop-blur-md rounded-full text-[10px] font-bold">
+                  {currentUser?.name || 'Personnel'}
+                </div>
+                <div className="px-3 py-1 bg-white/20 backdrop-blur-md rounded-full text-[10px] font-bold">
+                  {new Date().toLocaleDateString()}
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <div className="p-8 space-y-8 bg-white">
+            <div className="space-y-4">
+              <div className="flex justify-between items-end px-1">
+                <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Initial Drawer Fund (IDR)</Label>
+                <p className="text-[10px] font-bold text-emerald-600">REQUIRED</p>
+              </div>
+              <div className="relative group">
+                <div className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-300 font-black group-focus-within:text-emerald-500 transition-colors">Rp</div>
+                <Input 
+                  type="text"
+                  placeholder="0"
+                  className="h-20 pl-14 pr-6 text-3xl font-black tracking-tight bg-slate-50 border-slate-100 focus:border-emerald-500 focus:ring-emerald-500/10 rounded-[2rem] transition-all"
+                  value={startingCash}
+                  onChange={(e) => setStartingCash(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleStartShift()}
+                />
+              </div>
+              <div className="flex gap-3 bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                 <AlertCircle className="w-5 h-5 text-slate-400 shrink-0" />
+                 <p className="text-[10px] text-slate-500 font-medium leading-relaxed italic">
+                   Input the verified opening cash amount. This will be used to calculate daily discrepancy at checkout.
+                 </p>
+              </div>
+            </div>
+
+            <Button 
+              className="w-full h-16 rounded-[1.5rem] bg-emerald-600 hover:bg-emerald-700 font-black uppercase tracking-[0.1em] text-sm shadow-xl shadow-emerald-500/20 transition-all active:scale-95 group"
+              onClick={handleStartShift}
+              disabled={processing || !startingCash}
+            >
+              {processing ? (
+                <RefreshCcw className="w-5 h-5 animate-spin" />
+              ) : (
+                <>
+                  INITIALIZE SYSTEM <ChevronRight className="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform" />
+                </>
+              )}
+            </Button>
+            
+            <div className="flex flex-col items-center gap-2">
+               <button 
+                onClick={() => window.location.href = '/'} // Fallback if they want to exit
+                className="text-[10px] font-black text-slate-400 hover:text-slate-600 uppercase tracking-widest transition-colors"
+               >
+                 Cancel Session & Exit
+               </button>
+            </div>
+          </div>
         </DialogContent>
       </Dialog>
     </div>

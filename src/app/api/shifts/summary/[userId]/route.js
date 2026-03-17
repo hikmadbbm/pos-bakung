@@ -9,8 +9,7 @@ function sumOrderDue(orders) {
   return orders.reduce((acc, o) => {
     const total = Number(o.total || 0);
     const discount = Number(o.discount || 0);
-    const due = Math.max(0, total - discount);
-    return acc + due;
+    return acc + Math.max(0, total - discount);
   }, 0);
 }
 
@@ -43,8 +42,14 @@ export async function GET(req, { params }) {
         total: true, 
         discount: true, 
         payment_method_id: true,
+        platform_id: true,
+        commission: true,
+        payment_method: true,
         paymentMethod: {
           select: { name: true, type: true }
+        },
+        platform: {
+          select: { name: true, commission_rate: true }
         }
       },
     });
@@ -62,18 +67,50 @@ export async function GET(req, { params }) {
       count: 0
     }));
 
-    // Add virtual Platform payment if used
+    // Grouping logic
     orders.forEach(o => {
-      const pmId = o.payment_method_id;
-      let target = methodTotals.find(m => m.id === pmId);
+      let target;
       
-      if (!target && !pmId) {
-        // Fallback for legacy or null PM
+      if (o.payment_method_id) {
+        target = methodTotals.find(m => m.id === o.payment_method_id);
+      }
+      
+      // Fallback: If not found by ID, try matching by name (from the order's payment_method string)
+      if (!target && o.payment_method) {
+        target = methodTotals.find(m => m.name.toLowerCase() === o.payment_method.toLowerCase());
+      }
+
+      if (!target && o.platform_id && o.platform_id !== 1) { // 1 is usually "Offline"
+        // Try to find a virtual PM for this platform or create one in methodTotals
+        const platformName = o.platform?.name || 'Platform';
+        target = methodTotals.find(m => m.name === platformName);
+        
+        if (!target) {
+          target = {
+            id: `plat-${o.platform_id}`,
+            name: platformName,
+            type: 'E_WALLET', // Platforms are usually digital
+            systemAmount: 0,
+            count: 0
+          };
+          methodTotals.push(target);
+        }
+      } 
+      
+      if (!target) {
+        // Fallback for Cash
         target = methodTotals.find(m => m.type === 'CASH');
       }
 
       if (target) {
-        const amount = Math.max(0, Number(o.total || 0) - Number(o.discount || 0));
+        let amount = Math.max(0, Number(o.total || 0) - Number(o.discount || 0));
+        
+        // If it's a platform and NOT Offline, subtract the commission to show real revenue
+        if (o.platform_id && o.platform_id !== 1) {
+          const commission = Number(o.commission || 0);
+          amount = Math.max(0, amount - commission);
+        }
+
         target.systemAmount += amount;
         target.count += 1;
       }
@@ -84,6 +121,7 @@ export async function GET(req, { params }) {
       .reduce((acc, m) => acc + m.systemAmount, 0);
 
     const totalSales = methodTotals.reduce((acc, m) => acc + m.systemAmount, 0);
+    // User clarified: Expected Cash = Start + Cash Sales (e.g., 60k + 178k = 238k)
     const expectedCash = Number(shift.starting_cash || 0) + totalCashSales;
 
     return NextResponse.json({

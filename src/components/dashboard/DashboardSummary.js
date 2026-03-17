@@ -1,67 +1,77 @@
 "use client";
 import React from "react";
 import { formatIDR } from "../../lib/format";
-import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
 import { DollarSign, Activity, CreditCard, TrendingUp } from "lucide-react";
+import { cn } from "../../lib/utils";
 
 export default function DashboardSummary({ data, loading = false }) {
-  if (loading) {
+  if (loading || !data) {
     return (
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
         {[1,2,3,4].map(i => (
-          <Card key={i} className="animate-pulse h-28 bg-gray-50"></Card>
+          <div key={i} className="glass-card h-32 animate-pulse bg-slate-100/50 border-slate-100"></div>
         ))}
       </div>
     );
   }
 
+  const cards = [
+    {
+      title: "Gross Revenue",
+      value: data.grossRevenue || data.revenue || 0,
+      desc: "TOTAL SALES REVENUE",
+      icon: DollarSign,
+      color: "text-emerald-800",
+      bgColor: "bg-emerald-50",
+      borderColor: "border-emerald-100"
+    },
+    {
+      title: "Net Revenue",
+      value: data.netRevenue || data.revenue || 0,
+      desc: "AFTER PLATFORM FEES",
+      icon: CreditCard,
+      color: "text-green-600",
+      bgColor: "bg-green-50",
+      borderColor: "border-green-100"
+    },
+    {
+      title: "Operating Costs",
+      value: (data.cogs || 0) + (data.expenses || 0),
+      desc: "COGS + DAILY OPEX",
+      icon: Activity,
+      color: "text-slate-600",
+      bgColor: "bg-slate-50",
+      borderColor: "border-slate-100"
+    },
+    {
+      title: "Pure Income",
+      value: data.netProfit || 0,
+      desc: "ACTUAL TAKE-HOME PROFIT",
+      icon: TrendingUp,
+      color: data.netProfit >= 0 ? "text-emerald-900" : "text-rose-600",
+      bgColor: data.netProfit >= 0 ? "bg-emerald-100/50" : "bg-rose-50",
+      borderColor: data.netProfit >= 0 ? "border-emerald-200" : "border-rose-100"
+    }
+  ];
+
   return (
-    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-      <Card className="shadow-sm hover:shadow-md transition-shadow border-blue-50">
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-xs font-bold text-gray-500 uppercase tracking-tight">Gross Revenue</CardTitle>
-          <DollarSign className="h-4 w-4 text-gray-400" />
-        </CardHeader>
-        <CardContent>
-          <div className="text-2xl font-bold text-gray-900 truncate">{formatIDR(data.grossRevenue || data.revenue)}</div>
-          <p className="text-[10px] text-gray-500 mt-1">Sales after discounts</p>
-        </CardContent>
-      </Card>
-      
-      <Card className="shadow-sm hover:shadow-md transition-shadow border-green-50">
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-xs font-bold text-gray-500 uppercase tracking-tight">Net Revenue</CardTitle>
-          <DollarSign className="h-4 w-4 text-green-500" />
-        </CardHeader>
-        <CardContent>
-          <div className="text-2xl font-bold text-gray-900 truncate">{formatIDR(data.netRevenue || data.revenue)}</div>
-          <p className="text-[10px] text-green-600 font-semibold mt-1 bg-green-50 px-2 py-0.5 rounded-full inline-block">After platform comm.</p>
-        </CardContent>
-      </Card>
-
-      <Card className="shadow-sm hover:shadow-md transition-shadow border-blue-50">
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-xs font-bold text-gray-500 uppercase tracking-tight">COGS + OpEx</CardTitle>
-          <Activity className="h-4 w-4 text-orange-500" />
-        </CardHeader>
-        <CardContent>
-          <div className="text-2xl font-bold text-gray-900 truncate">{formatIDR(data.cogs + data.expenses)}</div>
-          <p className="text-[10px] text-gray-500 mt-1">Total business costs</p>
-        </CardContent>
-      </Card>
-
-      <Card className="shadow-sm hover:shadow-md transition-shadow border-purple-50">
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-xs font-bold text-gray-500 uppercase tracking-tight">Pure Income</CardTitle>
-          <TrendingUp className="h-4 w-4 text-purple-500" />
-        </CardHeader>
-        <CardContent>
-          <div className={`text-2xl font-bold truncate ${data.netProfit >= 0 ? "text-green-600" : "text-red-600"}`}>
-            {formatIDR(data.netProfit)}
+    <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+      {cards.map((card, idx) => (
+        <div key={idx} className={cn("glass-card p-6 group hover:-translate-y-2 transition-all duration-500 shadow-xl hover:shadow-2xl relative overflow-hidden border", card.borderColor)}>
+          <div className="flex justify-between items-start mb-4 relative z-10">
+            <div className={cn("p-2.5 rounded-xl transition-all duration-500 group-hover:scale-110 group-hover:rotate-6 shadow-sm", card.bgColor)}>
+              <card.icon className={cn("w-5 h-5", card.color)} />
+            </div>
+            <div className="text-right">
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">{card.title}</p>
+              <div className="text-[8px] font-black text-slate-300 uppercase tracking-tighter">{card.desc}</div>
+            </div>
           </div>
-          <p className="text-[10px] text-gray-500 mt-1 font-bold">The actual profit</p>
-        </CardContent>
-      </Card>
+          <div className={cn("text-2xl font-black tracking-tight truncate group-hover:scale-105 origin-left transition-transform relative z-10", card.color.includes('rose') ? "text-rose-600" : "text-slate-900")}>
+            {formatIDR(card.value)}
+          </div>
+        </div>
+      ))}
     </div>
   );
 }

@@ -1,27 +1,29 @@
-
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 
-async function checkData() {
-  try {
-    const paymentMethods = await prisma.paymentMethod.findMany();
-    console.log("Payment Methods:", JSON.stringify(paymentMethods, null, 2));
+async function main() {
+  const orderNumber = 'TRX-0315-001';
+  const order = await prisma.order.findUnique({
+    where: { order_number: orderNumber },
+    include: {
+      paymentMethod: true,
+      platform: true
+    }
+  });
 
-    const platforms = await prisma.platform.findMany();
-    console.log("Platforms:", JSON.stringify(platforms, null, 2));
+  console.log('--- Order Details ---');
+  console.log(JSON.stringify(order, null, 2));
 
-    const recentOrders = await prisma.order.findMany({
-      take: 5,
-      orderBy: { id: 'desc' },
-      include: { platform: true, paymentMethod: true }
-    });
-    console.log("Recent Orders:", JSON.stringify(recentOrders, null, 2));
-
-  } catch (error) {
-    console.error(error);
-  } finally {
-    await prisma.$disconnect();
-  }
+  const paymentMethods = await prisma.paymentMethod.findMany();
+  console.log('\n--- Payment Methods ---');
+  console.log(JSON.stringify(paymentMethods, null, 2));
 }
 
-checkData();
+main()
+  .catch(e => {
+    console.error(e);
+    process.exit(1);
+  })
+  .finally(async () => {
+    await prisma.$disconnect();
+  });

@@ -1,29 +1,11 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { verifyAuth } from '@/lib/auth';
+import { calculateItemsVariableCost } from '@/lib/hpp';
 
 export const dynamic = 'force-dynamic';
 
-// Helper for recursive HPP calculation
-async function calculateDeepHpp(items) {
-  let totalVariable = 0;
-  
-  for (const item of items) {
-    if (item.item_type === 'INGREDIENT' && item.ingredient_id) {
-      const ing = await prisma.ingredient.findUnique({ where: { id: Number(item.ingredient_id) } });
-      if (ing) {
-        totalVariable += (ing.cost_per_unit || 0) * (Number(item.quantity) || 0);
-      }
-    } else if (item.item_type === 'COMPONENT' && item.component_recipe_id) {
-      const comp = await prisma.recipe.findUnique({ where: { id: Number(item.component_recipe_id) } });
-      if (comp) {
-        const costPerPortion = (comp.total_hpp || 0) / (comp.base_quantity || 1);
-        totalVariable += costPerPortion * (Number(item.quantity) || 0);
-      }
-    }
-  }
-  return Math.round(totalVariable);
-}
+
 
 export async function GET(req) {
   try {
@@ -70,7 +52,7 @@ export async function POST(req) {
     }
 
     // 1. Calculate Total Variable Cost
-    const totalVariableCost = await calculateDeepHpp(items);
+    const totalVariableCost = await calculateItemsVariableCost(items, prisma);
 
     // 2. Calculate Fixed Cost Allocation
     let fixedCostPerUnit = 0;

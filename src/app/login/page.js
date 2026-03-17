@@ -6,12 +6,14 @@ import { Input } from "../../components/ui/input";
 import { Label } from "../../components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "../../components/ui/card";
 import { useRouter } from "next/navigation";
+import { useToast } from "../../components/ui/use-toast";
 import Image from "next/image";
 import Logo from "../../media/Logo.png";
 import PostLoginModal from "../../components/PostLoginModal";
 
 export default function LoginPage() {
   const router = useRouter();
+  const { success, error: toastError } = useToast();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -63,9 +65,9 @@ export default function LoginPage() {
         email: "owner@example.com",
         password: "password"
       });
-      alert("Owner seeded! Username: owner, Pass: password");
+      success("Owner seeded! Username: owner, Pass: password");
     } catch (e) {
-      alert(e.response?.data?.error || "Failed to seed");
+      toastError(e.response?.data?.error || "Failed to seed");
     }
   };
 
@@ -76,7 +78,7 @@ export default function LoginPage() {
           <div className="relative w-24 h-24 mb-4">
             <Image src={Logo} alt="Bakmie You-Tje" fill className="object-contain" sizes="96px" priority />
           </div>
-          <CardTitle className="text-2xl font-bold text-center text-blue-600">Bakmie You-Tje</CardTitle>
+          <CardTitle className="text-2xl font-bold text-center text-emerald-700">Bakmie You-Tje</CardTitle>
           <CardDescription className="text-center">
             Powered by Bakung Studio
           </CardDescription>
@@ -113,7 +115,7 @@ export default function LoginPage() {
           <div className="mt-4 text-center">
             <p className="text-xs text-gray-500">
               First time?{" "}
-              <button onClick={seedOwner} className="text-blue-600 hover:underline">
+              <button onClick={seedOwner} className="text-emerald-600 hover:underline">
                 Click here to seed default owner
               </button>
             </p>

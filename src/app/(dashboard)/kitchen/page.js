@@ -60,7 +60,7 @@ export default function KitchenViewPage() {
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center h-[60vh] gap-4">
-        <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+        <Loader2 className="w-8 h-8 animate-spin text-emerald-600" />
         <p className="text-gray-500 animate-pulse">Loading Kitchen Queue...</p>
       </div>
     );
@@ -96,12 +96,12 @@ export default function KitchenViewPage() {
           {orders.map((order) => (
             <Card key={order.id} className={cn(
                "border-l-4 shadow-md transition-all hover:shadow-lg",
-               order.status === 'PROCESSING' ? "border-l-blue-500" : "border-l-orange-500"
+               order.status === 'PROCESSING' ? "border-l-emerald-500" : "border-l-orange-500"
             )}>
               <CardHeader className="pb-3 border-b bg-gray-50/50">
                 <div className="flex justify-between items-start">
                   <div>
-                    <CardTitle className="text-lg font-mono text-blue-700">{order.order_number}</CardTitle>
+                    <CardTitle className="text-lg font-mono text-emerald-700">{order.order_number}</CardTitle>
                     <p className="text-xs text-gray-500 mt-1 flex items-center gap-1">
                       <Clock className="w-3 h-3" /> {new Date(order.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                       <span className="mx-1">•</span>
@@ -110,7 +110,7 @@ export default function KitchenViewPage() {
                   </div>
                   <Badge className={cn(
                     "capitalize",
-                    order.status === 'PROCESSING' ? "bg-blue-100 text-blue-700 border-blue-200" : "bg-orange-100 text-orange-700 border-orange-200"
+                    order.status === 'PROCESSING' ? "bg-emerald-100 text-emerald-700 border-emerald-200" : "bg-orange-100 text-orange-700 border-orange-200"
                   )}>
                     {order.status.toLowerCase()}
                   </Badge>
@@ -126,7 +126,7 @@ export default function KitchenViewPage() {
                   {order.orderItems.map((item) => (
                     <div key={item.id} className="flex justify-between items-center py-2 border-b border-dashed last:border-0">
                       <div className="flex gap-2 items-center">
-                        <span className="bg-blue-600 text-white w-6 h-6 flex items-center justify-center rounded-md text-xs font-bold">
+                        <span className="bg-emerald-600 text-white w-6 h-6 flex items-center justify-center rounded-md text-xs font-bold">
                           {item.qty}
                         </span>
                         <span className="text-sm font-medium text-gray-800">{item.menu?.name || "Deleted Item"}</span>
@@ -145,7 +145,7 @@ export default function KitchenViewPage() {
                 <div className="flex gap-2 pt-2">
                   {order.status === 'PENDING' && (
                     <Button 
-                      className="flex-1 bg-blue-600 hover:bg-blue-700"
+                      className="flex-1 bg-emerald-600 hover:bg-emerald-700"
                       onClick={() => handleStatusChange(order.id, 'PROCESSING')}
                     >
                       Start Cooking

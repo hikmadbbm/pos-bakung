@@ -18,30 +18,37 @@ export default function AiInsights({ insights = [], loading = false, data }) {
 
   if (loading) {
     return (
-      <Card className="bg-indigo-50/50 border-indigo-100 animate-pulse h-48 shadow-none"></Card>
+      <div className="glass-card h-48 animate-pulse border-emerald-100 bg-emerald-50/10"></div>
     );
   }
 
   return (
-    <Card className="bg-gradient-to-br from-indigo-50 via-white to-purple-50 border-indigo-100 shadow-sm overflow-hidden">
-      <CardHeader className="pb-3 border-b border-indigo-50/50 bg-white/50">
-        <div className="flex items-center gap-2">
-          <Sparkles className="w-5 h-5 text-indigo-600 animate-pulse" />
-          <CardTitle className="text-xl font-bold text-indigo-900 tracking-tight">AI Business Analyst</CardTitle>
+    <div className="glass-card p-6 md:p-8 relative overflow-hidden group shadow-2xl border-emerald-100/50">
+      {/* Decorative Blur Backgrounds */}
+      <div className="absolute top-0 right-0 -mr-16 -mt-16 w-64 h-64 bg-emerald-500/5 rounded-full blur-3xl pointer-events-none group-hover:bg-emerald-500/10 transition-colors duration-700" />
+      <div className="absolute bottom-0 left-0 -ml-16 -mb-16 w-64 h-64 bg-green-500/5 rounded-full blur-3xl pointer-events-none group-hover:bg-green-500/10 transition-colors duration-700" />
+
+      <div className="relative z-10">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
+          <div className="flex items-center gap-3">
+            <div className="p-3 bg-emerald-800 rounded-2xl shadow-lg shadow-emerald-200/50">
+               <Sparkles className="w-5 h-5 text-white animate-pulse" />
+            </div>
+            <div>
+              <h3 className="text-xl font-black text-slate-900 tracking-tight uppercase">Intelligence Deep-Dive</h3>
+              <p className="text-[10px] font-black text-emerald-600 uppercase tracking-widest mt-1">AI-DRIVEN BUSINESS ANALYSIS</p>
+            </div>
+          </div>
         </div>
-        <CardDescription className="text-indigo-700/80 font-medium">
-          Smart insights generated based on your real-time performance.
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="p-4 md:p-6 bg-transparent">
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
           {displayInsights.map((insight, idx) => (
-            <div key={idx} className="bg-white/95 p-4 rounded-xl border border-indigo-100/50 flex gap-4 items-start shadow-sm hover:shadow-md hover:border-indigo-300 transition-all duration-300 group">
-              <div className={`mt-0.5 p-2.5 rounded-xl shrink-0 ${
-                insight.type === 'positive' ? 'bg-green-100 text-green-600' :
-                insight.type === 'negative' ? 'bg-red-100 text-red-600' :
-                insight.type === 'warning' ? 'bg-yellow-100 text-yellow-600' :
-                'bg-blue-100 text-blue-600'
+            <div key={idx} className="bg-white/40 backdrop-blur-xl p-5 rounded-2xl border border-slate-100 hover:border-emerald-300 transition-all duration-500 group/item flex gap-4 items-start hover:shadow-2xl hover:shadow-emerald-500/10 hover:-translate-y-1">
+              <div className={`mt-0.5 p-3 rounded-xl shrink-0 shadow-sm ${
+                insight.type === 'positive' ? 'bg-emerald-50 text-emerald-600' :
+                insight.type === 'negative' ? 'bg-rose-50 text-rose-600' :
+                insight.type === 'warning' ? 'bg-amber-50 text-amber-600' :
+                'bg-slate-50 text-slate-600'
               }`}>
                 {insight.type === 'positive' && <CheckCircle className="w-5 h-5" />}
                 {insight.type === 'negative' && <ArrowDownRight className="w-5 h-5" />}
@@ -51,18 +58,23 @@ export default function AiInsights({ insights = [], loading = false, data }) {
                 {insight.type === 'action' && <Sparkles className="w-5 h-5" />}
               </div>
               <div className="min-w-0">
-                <h4 className="font-bold text-sm text-gray-900 group-hover:text-indigo-900 transition-colors">{insight.title}</h4>
-                <p className="text-xs text-gray-600 mt-1 leading-relaxed line-clamp-2 md:line-clamp-none italic md:not-italic">{insight.message}</p>
+                <h4 className="font-black text-[10px] uppercase tracking-widest text-slate-400 mb-1 group-hover/item:text-emerald-700 transition-colors">
+                  {insight.title || "Observation"}
+                </h4>
+                <p className="text-xs font-bold text-slate-700 leading-relaxed italic">
+                  {insight.message}
+                </p>
               </div>
             </div>
           ))}
           {displayInsights.length === 0 && (
-            <div className="col-span-full py-8 text-center bg-white/50 rounded-xl border border-dashed border-indigo-200">
-              <p className="text-sm text-gray-500 italic">No specific insights available at the moment. Keep selling!</p>
+            <div className="col-span-full py-12 text-center bg-white/30 rounded-3xl border border-dashed border-slate-200 flex flex-col items-center justify-center gap-3">
+               <Activity className="w-8 h-8 text-slate-300 opacity-20" />
+               <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Awaiting more transaction data for analysis...</p>
             </div>
           )}
         </div>
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 }

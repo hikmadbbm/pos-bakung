@@ -258,8 +258,10 @@ model Ingredient {
   brand             String
   volume            Float                    // Packaging size/volume
   unit              String                   // e.g., "kg", "gr", "ml", "pcs"
-  price             Int                      // Purchase price
+  price             Int                      // Latest purchase price
   cost_per_unit     Float                    @default(0) // price / volume
+  stock             Float                    @default(0)
+  minimum_stock     Float                    @default(0)
   purchase_location String?
   purchase_link     String?
   notes             String?
@@ -267,18 +269,65 @@ model Ingredient {
   updated_at        DateTime                 @updatedAt
   price_history     IngredientPriceHistory[]
   recipe_items      RecipeItem[]
+  purchases         Purchase[]
+  stock_movements   StockMovement[]
 
   @@map("ingredient")
 }
 
 model IngredientPriceHistory {
-  id            Int        @id @default(autoincrement())
-  ingredient_id Int
-  price         Int
-  date          DateTime   @default(now())
-  ingredient    Ingredient @relation(fields: [ingredient_id], references: [id], onDelete: Cascade)
+  id                    Int        @id @default(autoincrement())
+  ingredient_id         Int
+  price                 Int
+  date                  DateTime   @default(now())
+  reference_purchase_id Int?
+  ingredient            Ingredient @relation(fields: [ingredient_id], references: [id], onDelete: Cascade)
+  purchase              Purchase?  @relation(fields: [reference_purchase_id], references: [id])
 
   @@map("ingredient_price_history")
+}
+
+model Purchase {
+  id              Int                      @id @default(autoincrement())
+  purchase_date   DateTime                 @default(now())
+  ingredient_id   Int
+  quantity        Float
+  unit            String
+  volume          Float                    @default(1.0) // Units per quantity (e.g., 25kg per sack)
+  unit_price      Int
+  total_price     Int
+  supplier        String?
+  notes           String?
+  created_at      DateTime                 @default(now())
+  ingredient      Ingredient               @relation(fields: [ingredient_id], references: [id], onDelete: Cascade)
+  price_histories IngredientPriceHistory[]
+  stock_movements StockMovement[]
+
+  @@index([ingredient_id])
+  @@map("purchase")
+}
+
+model StockMovement {
+  id              Int          @id @default(autoincrement())
+  ingredient_id   Int
+  movement_type   MovementType
+  quantity        Float
+  unit            String
+  reference_id    Int?         // Purchase ID or other ref
+  reference_type  String?      // e.g., "PURCHASE", "RECIPE_USAGE", "ADJUSTMENT"
+  created_at      DateTime     @default(now())
+  ingredient      Ingredient   @relation(fields: [ingredient_id], references: [id], onDelete: Cascade)
+  purchase        Purchase?    @relation(fields: [reference_id], references: [id])
+
+  @@index([ingredient_id])
+  @@index([created_at])
+  @@map("stock_movement")
+}
+
+enum MovementType {
+  IN
+  OUT
+  ADJUSTMENT
 }
 
 enum RecipeType {
@@ -340,7 +389,6 @@ model HppSnapshot {
 
   @@map("hpp_snapshot")
 }
-
 model DailySummary {
   id              Int      @id @default(autoincrement())
   date            DateTime @unique

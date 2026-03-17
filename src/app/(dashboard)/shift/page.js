@@ -9,7 +9,8 @@ import { Input } from "../../../components/ui/input";
 import { Label } from "../../../components/ui/label";
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "../../../components/ui/table";
 import { useToast } from "../../../components/ui/use-toast";
-import { Clock, DollarSign, LogOut, CheckCircle2 } from "lucide-react";
+import { Clock, DollarSign, LogOut, CheckCircle2, Users, Settings, Calendar, ClipboardList, Activity } from "lucide-react";
+import { cn } from "../../../lib/utils";
 import StopShiftModal from "../../../components/StopShiftModal";
 
 export default function ShiftPage() {
@@ -25,20 +26,30 @@ export default function ShiftPage() {
   const [isStopModalOpen, setIsStopModalOpen] = useState(false);
 
   // Ideally get this from Auth Context
+  const [mounted, setMounted] = useState(false);
   const [currentUser, setCurrentUser] = useState(null); 
 
   useEffect(() => {
-    // Mock user fetch - in real app, useAuth()
+    setMounted(true);
+  }, []);
+
+  useEffect(() => {
+    if (!mounted) return;
+
     const userStr = localStorage.getItem("user");
     if (userStr) {
-      const u = JSON.parse(userStr);
-      setCurrentUser(u);
-      loadCurrentShift(u.id);
-      loadHistory(u.id);
+      try {
+        const u = JSON.parse(userStr);
+        setCurrentUser(u);
+        loadCurrentShift(u.id);
+        loadHistory(u.id);
+      } catch (e) {
+        console.error("Failed to parse user", e);
+      }
     } else {
       setLoading(false);
     }
-  }, []);
+  }, [mounted]);
 
   const loadCurrentShift = async (userId) => {
     try {
@@ -46,6 +57,11 @@ export default function ShiftPage() {
       setCurrentShift(res);
     } catch (e) {
       console.error(e);
+      if (e.response?.status === 401) {
+        localStorage.removeItem("token");
+        localStorage.removeItem("user");
+        window.location.href = "/login";
+      }
     } finally {
       setLoading(false);
     }
@@ -57,6 +73,11 @@ export default function ShiftPage() {
       setShiftHistory(res);
     } catch (e) {
       console.error(e);
+      if (e.response?.status === 401) {
+        localStorage.removeItem("token");
+        localStorage.removeItem("user");
+        window.location.href = "/login";
+      }
     }
   };
 
@@ -86,6 +107,8 @@ export default function ShiftPage() {
     if (currentUser) {
       loadHistory(currentUser.id);
     }
+    // Refresh current shift to ensure we catch any global changes
+    loadCurrentShift(currentUser.id);
   };
 
   if (!currentUser) {
@@ -96,36 +119,45 @@ export default function ShiftPage() {
     );
   }
 
+  const isOwnShift = currentShift?.user_id === currentUser.id;
+
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
+    <div className="space-y-8 animate-fade-in pb-20">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 print:hidden">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Shift Management</h1>
-          <p className="text-sm text-gray-500">Track your work hours and cash handling.</p>
+          <h2 className="text-2xl font-black tracking-tight text-slate-900 uppercase">Shift Management</h2>
+          <p className="text-sm font-medium text-slate-500 mt-1 flex items-center gap-2">
+            Track your work hours and cash handling
+            <span className="inline-block w-1 h-1 bg-emerald-600 rounded-full" />
+          </p>
         </div>
         {currentShift && (
-          <div className="bg-green-100 text-green-800 px-4 py-2 rounded-full text-sm font-medium flex items-center gap-2">
-            <Clock className="w-4 h-4" />
-            Shift Open since {new Date(currentShift.start_time).toLocaleTimeString()}
+          <div className="bg-emerald-50 text-emerald-700 px-6 py-2.5 rounded-2xl text-[10px] font-black uppercase tracking-widest flex items-center gap-3 border border-emerald-100 shadow-sm shadow-emerald-100 animate-pulse">
+            <div className="w-2 h-2 rounded-full bg-emerald-500" />
+            {isOwnShift ? 'Your Shift ' : `Shift by ${currentShift.user?.name || 'Someone'} `}
+            Active Since {new Date(currentShift.start_time).toLocaleTimeString()}
           </div>
         )}
       </div>
 
-      <div className="grid gap-6 md:grid-cols-2">
+      <div className="grid gap-8 md:grid-cols-2">
         {/* Active Shift Control */}
-        <Card>
-          <CardHeader>
-            <CardTitle>{currentShift ? "End Current Shift" : "Start New Shift"}</CardTitle>
-          </CardHeader>
-          <CardContent>
+        <div className="glass-card rounded-[2.5rem] p-8 space-y-6 shadow-2xl relative overflow-hidden border-none">
+          <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-600/5 rounded-full -translate-y-1/2 translate-x-1/2" />
+          <h3 className="text-lg font-black text-slate-900 uppercase tracking-tight flex items-center gap-3">
+             <div className="w-10 h-10 rounded-2xl bg-slate-900 flex items-center justify-center shadow-lg">
+               <Clock className="w-5 h-5 text-white" />
+             </div>
+             {currentShift ? "Active Session" : "Punch In"}
+          </h3>
             {!currentShift ? (
-              <form onSubmit={handleStartShift} className="space-y-4">
+              <form onSubmit={handleStartShift} className="space-y-6">
                 <div className="space-y-2">
-                  <Label>Starting Cash (Modal Awal)</Label>
-                  <div className="relative">
-                    <span className="absolute left-3 top-2.5 text-gray-500">Rp</span>
+                  <Label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Starting Cash (Modal Awal)</Label>
+                  <div className="relative group">
+                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-black text-xs">IDR</span>
                     <Input 
-                      className="pl-10" 
+                      className="h-14 pl-12 rounded-2xl border-slate-200 bg-slate-50 focus:ring-emerald-600/10 transition-all font-black text-slate-900" 
                       type="number" 
                       required
                       placeholder="0"
@@ -134,28 +166,33 @@ export default function ShiftPage() {
                     />
                   </div>
                 </div>
-                <Button type="submit" className="w-full">Start Shift</Button>
+                <Button type="submit" className="w-full h-14 rounded-2xl font-black uppercase tracking-wider bg-emerald-600 hover:bg-emerald-700 shadow-xl shadow-emerald-200 active:scale-95 transition-all">START SHIFT</Button>
               </form>
             ) : (
-              <div className="space-y-6">
-                <div className="p-4 bg-blue-50 border border-blue-100 rounded-xl space-y-3">
-                  <div className="flex items-center gap-3 text-blue-800">
-                    <div className="p-2 bg-blue-100 rounded-lg">
-                      <Clock className="w-5 h-5" />
+              <div className="space-y-8">
+                <div className="p-6 bg-emerald-50/50 backdrop-blur-sm border border-emerald-100 rounded-[2rem] space-y-6 shadow-sm shadow-emerald-50">
+                  <div className="flex items-center gap-4 text-emerald-800">
+                    <div className="p-3 bg-white rounded-2xl shadow-sm">
+                      <Clock className="w-6 h-6 text-emerald-600" />
                     </div>
-                    <div>
-                      <p className="text-sm font-bold">Shift In Progress</p>
-                      <p className="text-[10px] opacity-70 uppercase tracking-wider font-bold">Opened at {new Date(currentShift.start_time).toLocaleTimeString()}</p>
+                    <div className="flex-1">
+                      <p className="text-sm font-black uppercase tracking-tight text-emerald-900">
+                        {isOwnShift ? 'Shift In Progress' : 'System Wide Shift Active'}
+                      </p>
+                      <p className="text-[10px] font-bold opacity-60 uppercase tracking-wider">
+                        {isOwnShift ? '' : `Personnel: ${currentShift.user?.name || 'Unknown'} | `}
+                        Opened at {currentShift?.start_time ? new Date(currentShift.start_time).toLocaleTimeString() : 'Unknown'}
+                      </p>
                     </div>
                   </div>
                   
-                  <div className="grid grid-cols-2 gap-3 pt-2 border-t border-blue-100">
+                  <div className="grid grid-cols-2 gap-3 pt-2 border-t border-emerald-100">
                     <div>
-                      <p className="text-[10px] text-blue-600 font-bold uppercase tracking-tight">Starting Cash</p>
-                      <p className="text-sm font-bold text-blue-900">{formatIDR(currentShift.starting_cash)}</p>
+                      <p className="text-[10px] text-emerald-600 font-bold uppercase tracking-tight">Starting Cash</p>
+                      <p className="text-sm font-bold text-emerald-900">{formatIDR(currentShift.starting_cash)}</p>
                     </div>
                     <div className="text-right">
-                      <p className="text-[10px] text-blue-600 font-bold uppercase tracking-tight">Status</p>
+                      <p className="text-[10px] text-emerald-600 font-bold uppercase tracking-tight">Status</p>
                       <div className="flex items-center justify-end gap-1">
                         <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
                         <p className="text-sm font-bold text-green-700">Active</p>
@@ -164,89 +201,108 @@ export default function ShiftPage() {
                   </div>
                 </div>
 
-                <div className="bg-orange-50 p-4 rounded-xl border border-orange-100">
-                  <p className="text-[10px] text-orange-800 font-black uppercase tracking-widest mb-1">Attention</p>
-                  <p className="text-xs text-orange-700 leading-relaxed font-medium">
-                    Ending a shift requires **Manager Authorization**. You will need to count the cash in the drawer and reconcile all payment methods.
-                  </p>
+                <div className="bg-amber-50/50 p-6 rounded-[1.5rem] border border-amber-100 flex gap-4 shadow-sm shadow-amber-50">
+                   <div className="p-2 bg-amber-100 rounded-xl h-fit">
+                      <LogOut className="w-4 h-4 text-amber-600" />
+                   </div>
+                   <div>
+                      <p className="text-[10px] text-amber-800 font-black uppercase tracking-widest mb-1">Authorization Required</p>
+                      <p className="text-xs text-amber-700 leading-relaxed font-bold">
+                        {isOwnShift 
+                          ? "Ending a shift requires **Manager Authorization**. You will need to count the cash in the drawer and reconcile all payment methods."
+                          : "This shift was started by another user. Ending this shift will require manager override and reconciliation."
+                        }
+                      </p>
+                   </div>
                 </div>
 
                 <Button 
                   onClick={() => setIsStopModalOpen(true)} 
-                  variant="destructive" 
-                  className="w-full py-6 font-bold shadow-sm shadow-red-200 hover:scale-[1.01] active:scale-[0.99] transition-all gap-2"
+                  className="w-full h-16 rounded-[1.5rem] font-black uppercase tracking-widest bg-slate-900 text-white shadow-xl shadow-slate-200 hover:scale-[1.02] active:scale-[0.98] transition-all gap-3"
                 >
-                  <LogOut className="w-5 h-5" /> End Shift & Reconcile
+                  <LogOut className="w-5 h-5" /> END SHIFT & RECONCILE
                 </Button>
               </div>
             )}
-          </CardContent>
-        </Card>
+        </div>
 
         {/* Quick Stats or Info */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Current Status</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
-              <span className="text-gray-500">User</span>
-              <span className="font-bold">{currentUser.name}</span>
-            </div>
-            <div className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
-              <span className="text-gray-500">Role</span>
-              <span className="font-bold">{currentUser.role}</span>
-            </div>
-            <div className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
-              <span className="text-gray-500">Today&apos;s Date</span>
-              <span className="font-bold">{new Date().toLocaleDateString()}</span>
-            </div>
-          </CardContent>
-        </Card>
+        <div className="glass-card rounded-[2.5rem] p-8 space-y-6 shadow-2xl border-none">
+          <h3 className="text-lg font-black text-slate-900 uppercase tracking-tight flex items-center gap-3">
+             <div className="w-10 h-10 rounded-2xl bg-emerald-50 flex items-center justify-center">
+               <Activity className="w-5 h-5 text-emerald-600" />
+             </div>
+             Current Status
+          </h3>
+          <div className="space-y-3">
+            {[
+              { label: "Identity", value: currentUser.name, icon: Users },
+              { label: "Privilege", value: currentUser.role, icon: Settings },
+              { label: "System Date", value: new Date().toLocaleDateString(), icon: Calendar }
+            ].map((stat, sIdx) => (
+              <div key={sIdx} className="flex justify-between items-center p-5 bg-slate-50/50 rounded-2xl border border-slate-100 group hover:bg-white hover:shadow-sm transition-all duration-300">
+                <div className="flex items-center gap-3">
+                   <stat.icon className="w-4 h-4 text-slate-400" />
+                   <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{stat.label}</span>
+                </div>
+                <span className="font-black text-slate-900 uppercase tracking-tight text-sm">{stat.value}</span>
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
 
       {/* History Table */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Shift History</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
+      <div className="glass-card rounded-[2.5rem] overflow-hidden shadow-2xl border-none p-0">
+        <div className="p-8 border-b border-slate-100 flex items-center justify-between">
+            <h3 className="text-lg font-black text-slate-900 uppercase tracking-tight flex items-center gap-3">
+               <div className="w-10 h-10 rounded-2xl bg-emerald-50 flex items-center justify-center">
+                 <ClipboardList className="w-5 h-5 text-emerald-600" />
+               </div>
+               Session History
+            </h3>
+        </div>
+        <Table>
+          <TableHeader className="bg-slate-50/50">
+            <TableRow>
+              <TableHead className="text-[10px] font-black uppercase text-slate-500 py-5 px-8">Start Time</TableHead>
+              <TableHead className="text-[10px] font-black uppercase text-slate-500 py-5">End Time</TableHead>
+              <TableHead className="text-[10px] font-black uppercase text-slate-500 py-5 text-right">Starting</TableHead>
+              <TableHead className="text-[10px] font-black uppercase text-slate-500 py-5 text-right">Ending</TableHead>
+              <TableHead className="text-center text-[10px] font-black uppercase text-slate-500 py-5 px-8">Status</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {shiftHistory.length === 0 ? (
               <TableRow>
-                <TableHead>Start Time</TableHead>
-                <TableHead>End Time</TableHead>
-                <TableHead className="text-right">Starting Cash</TableHead>
-                <TableHead className="text-right">Ending Cash</TableHead>
-                <TableHead className="text-center">Status</TableHead>
+                <TableCell colSpan={5} className="text-center py-20">
+                   <div className="flex flex-col items-center gap-3 opacity-20">
+                      <Clock className="w-12 h-12" />
+                      <p className="font-black uppercase tracking-widest text-xs">No records found</p>
+                   </div>
+                </TableCell>
               </TableRow>
-            </TableHeader>
-            <TableBody>
-              {shiftHistory.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={5} className="text-center py-8 text-gray-500">No shift history found.</TableCell>
+            ) : (
+              shiftHistory.map((shift) => (
+                <TableRow key={shift.id} className="hover:bg-slate-50/50 border-slate-100 transition-colors">
+                  <TableCell className="px-8 py-5 font-bold text-slate-700">{new Date(shift.start_time).toLocaleString()}</TableCell>
+                  <TableCell className="font-bold text-slate-400">{shift.end_time ? new Date(shift.end_time).toLocaleString() : "-"}</TableCell>
+                  <TableCell className="text-right font-black text-slate-400">{formatIDR(shift.starting_cash)}</TableCell>
+                  <TableCell className="text-right font-black text-emerald-600">{shift.ending_cash ? formatIDR(shift.ending_cash) : "-"}</TableCell>
+                  <TableCell className="text-center px-8">
+                    <span className={cn(
+                      "inline-flex items-center px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-tighter shadow-sm",
+                      shift.status === 'OPEN' ? 'bg-emerald-100 text-emerald-700 border border-emerald-200' : 'bg-slate-100 text-slate-500 border border-slate-200'
+                    )}>
+                      {shift.status}
+                    </span>
+                  </TableCell>
                 </TableRow>
-              ) : (
-                shiftHistory.map((shift) => (
-                  <TableRow key={shift.id}>
-                    <TableCell>{new Date(shift.start_time).toLocaleString()}</TableCell>
-                    <TableCell>{shift.end_time ? new Date(shift.end_time).toLocaleString() : "-"}</TableCell>
-                    <TableCell className="text-right">{formatIDR(shift.starting_cash)}</TableCell>
-                    <TableCell className="text-right">{shift.ending_cash ? formatIDR(shift.ending_cash) : "-"}</TableCell>
-                    <TableCell className="text-center">
-                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                        shift.status === 'OPEN' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
-                      }`}>
-                        {shift.status}
-                      </span>
-                    </TableCell>
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+              ))
+            )}
+          </TableBody>
+        </Table>
+      </div>
 
       <StopShiftModal 
         isOpen={isStopModalOpen} 
@@ -257,3 +313,4 @@ export default function ShiftPage() {
     </div>
   );
 }
+

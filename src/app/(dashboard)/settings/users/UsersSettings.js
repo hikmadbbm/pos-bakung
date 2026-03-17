@@ -173,7 +173,7 @@ export default function UsersSettings() {
                     <TableCell>
                       <span className={`px-2 py-1 rounded-full text-xs font-medium border ${
                         user.role === 'OWNER' ? 'bg-purple-50 text-purple-700 border-purple-200' :
-                        user.role === 'MANAGER' ? 'bg-blue-50 text-blue-700 border-blue-200' :
+                        user.role === 'MANAGER' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
                         'bg-gray-50 text-gray-700 border-gray-200'
                       }`}>
                         {user.role}
@@ -198,7 +198,7 @@ export default function UsersSettings() {
                           <Key className="w-4 h-4 text-orange-500" />
                         </Button>
                         <Button variant="ghost" size="icon" onClick={() => handleOpenDialog(user)}>
-                          <Edit2 className="w-4 h-4 text-blue-500" />
+                          <Edit2 className="w-4 h-4 text-emerald-500" />
                         </Button>
                         {confirmDeleteId === user.id ? (
                           <span className="inline-flex items-center gap-1">

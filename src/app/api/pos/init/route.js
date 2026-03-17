@@ -36,7 +36,7 @@ export async function GET(req) {
       }),
       // 5. Current User Shift
       prisma.userShift.findFirst({
-        where: { user_id: user.id, status: 'OPEN' },
+        where: { status: 'OPEN' }, 
         orderBy: { start_time: 'desc' }
       })
     ]);

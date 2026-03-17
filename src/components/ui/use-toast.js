@@ -1,12 +1,13 @@
 "use client";
 import React, { createContext, useContext, useState, useEffect } from "react";
-import { CheckCircle, AlertCircle, X, Info } from "lucide-react";
+import { CheckCircle, AlertCircle, X, Info, HelpCircle } from "lucide-react";
 import { cn } from "../../lib/utils";
 
 const ToastContext = createContext(null);
 
 export const ToastProvider = ({ children }) => {
   const [toasts, setToasts] = useState([]);
+  const [confirmDialog, setConfirmDialog] = useState(null); // { title, message, onConfirm, onCancel, resolve }
 
   const addToast = (message, type = "info", duration = 3000) => {
     const id = Date.now() + Math.random();
@@ -21,10 +22,33 @@ export const ToastProvider = ({ children }) => {
   const error = (msg, duration) => addToast(msg, "error", duration);
   const info = (msg, duration) => addToast(msg, "info", duration);
 
+  const confirm = ({ title, message, confirmText = "OK", cancelText = "Cancel", variant = "default" }) => {
+    return new Promise((resolve) => {
+      setConfirmDialog({
+        title,
+        message,
+        confirmText,
+        cancelText,
+        variant,
+        resolve: (val) => {
+          setConfirmDialog(null);
+          resolve(val);
+        }
+      });
+    });
+  };
+
   return (
-    <ToastContext.Provider value={{ addToast, removeToast, success, error, info }}>
+    <ToastContext.Provider value={{ addToast, removeToast, success, error, info, confirm }}>
       {children}
       <Toaster toasts={toasts} removeToast={removeToast} />
+      {confirmDialog && (
+        <ConfirmDialog 
+          {...confirmDialog} 
+          onConfirm={() => confirmDialog.resolve(true)}
+          onCancel={() => confirmDialog.resolve(false)}
+        />
+      )}
     </ToastContext.Provider>
   );
 };
@@ -39,7 +63,7 @@ export const useToast = () => {
 
 const Toaster = ({ toasts, removeToast }) => {
   return (
-    <div className="fixed top-4 right-4 z-50 flex flex-col gap-2 max-w-sm w-full pointer-events-none">
+    <div className="fixed top-4 right-4 z-[9999] flex flex-col gap-3 max-w-sm w-full pointer-events-none">
       {toasts.map((toast) => (
         <ToastItem key={toast.id} toast={toast} removeToast={removeToast} />
       ))}
@@ -51,53 +75,89 @@ const ToastItem = ({ toast, removeToast }) => {
   const [isVisible, setIsVisible] = useState(false);
 
   useEffect(() => {
-    // Slight delay for enter animation
     requestAnimationFrame(() => setIsVisible(true));
-
     const timer = setTimeout(() => {
       setIsVisible(false);
-      setTimeout(() => removeToast(toast.id), 300); // Wait for exit animation
+      setTimeout(() => removeToast(toast.id), 400);
     }, toast.duration);
-
     return () => clearTimeout(timer);
   }, [toast, removeToast]);
 
   const icons = {
-    success: <CheckCircle className="w-5 h-5 text-emerald-500" />,
-    error: <AlertCircle className="w-5 h-5 text-rose-500" />,
-    info: <Info className="w-5 h-5 text-blue-500" />,
+    success: <CheckCircle className="w-6 h-6 text-emerald-500" />,
+    error: <AlertCircle className="w-6 h-6 text-rose-500" />,
+    info: <Info className="w-6 h-6 text-emerald-500" />,
   };
 
-  const borderColors = {
-    success: "border-emerald-100 bg-white shadow-emerald-100/50",
-    error: "border-rose-100 bg-white shadow-rose-100/50",
-    info: "border-blue-100 bg-white shadow-blue-100/50",
+  const themes = {
+    success: "border-emerald-500/20 bg-emerald-50/90 text-emerald-900 shadow-emerald-500/10",
+    error: "border-rose-500/20 bg-rose-50/90 text-rose-900 shadow-rose-500/10",
+    info: "border-emerald-500/20 bg-emerald-50/90 text-emerald-900 shadow-emerald-500/10",
   };
 
   return (
     <div
       className={cn(
-        "pointer-events-auto flex items-start gap-3 p-4 rounded-xl border-2 shadow-xl transition-all duration-500 transform",
-        isVisible ? "translate-x-0 opacity-100" : "translate-x-full opacity-0",
-        borderColors[toast.type]
+        "pointer-events-auto flex items-start gap-4 p-4 rounded-2xl border-2 backdrop-blur-md shadow-2xl transition-all duration-500 transform",
+        isVisible ? "translate-x-0 opacity-100 scale-100" : "translate-x-12 opacity-0 scale-95",
+        themes[toast.type]
       )}
     >
-      <div className="mt-0.5 shrink-0 bg-gray-50 p-1.5 rounded-full">{icons[toast.type]}</div>
-      <div className="flex-1 pt-1.5">
-        <div className="text-sm font-bold text-gray-900 leading-none mb-1">
-          {toast.type.charAt(0).toUpperCase() + toast.type.slice(1)}
+      <div className="shrink-0 bg-white/80 p-1.5 rounded-xl shadow-inner">{icons[toast.type]}</div>
+      <div className="flex-1 min-w-0">
+        <div className="text-sm font-semibold tracking-tight mb-0.5 opacity-90">
+          {toast.type}
         </div>
-        <div className="text-xs text-gray-600 font-medium">{toast.message}</div>
+        <div className="text-sm font-medium leading-tight">{toast.message}</div>
       </div>
       <button
         onClick={() => {
           setIsVisible(false);
-          setTimeout(() => removeToast(toast.id), 300);
+          setTimeout(() => removeToast(toast.id), 400);
         }}
-        className="shrink-0 mt-1 p-1 hover:bg-gray-100 rounded-full text-gray-400 hover:text-gray-900 transition-all"
+        className="shrink-0 p-1 hover:bg-black/5 rounded-lg text-current/40 hover:text-current transition-colors"
       >
-        <X className="w-3.5 h-3.5" />
+        <X className="w-4 h-4" />
       </button>
+    </div>
+  );
+};
+
+const ConfirmDialog = ({ title, message, confirmText, cancelText, variant, onConfirm, onCancel }) => {
+  return (
+    <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-300">
+      <div 
+        className="absolute inset-0" 
+        onClick={onCancel}
+      />
+      <div className="relative w-full max-w-sm bg-white rounded-3xl shadow-2xl border border-gray-100 overflow-hidden animate-in zoom-in-95 duration-300">
+        <div className="p-8 text-center">
+          <div className="mx-auto w-16 h-16 bg-emerald-50 rounded-2xl flex items-center justify-center mb-6 shadow-inner">
+            <HelpCircle className="w-8 h-8 text-emerald-600" />
+          </div>
+          <h2 className="text-xl font-bold text-gray-900 mb-3">{title}</h2>
+          <p className="text-sm text-gray-500 font-medium leading-relaxed">{message}</p>
+        </div>
+        <div className="flex p-4 gap-3 bg-gray-50/50 border-t border-gray-100">
+          <button
+            onClick={onCancel}
+            className="flex-1 px-4 py-3 text-sm font-bold text-gray-500 hover:bg-white hover:text-gray-900 rounded-2xl transition-all border border-transparent hover:border-gray-200"
+          >
+            {cancelText}
+          </button>
+          <button
+            onClick={onConfirm}
+            className={cn(
+              "flex-1 px-4 py-3 text-sm font-semibold text-white rounded-2xl transition-all shadow-lg active:scale-95",
+              variant === "destructive" 
+                ? "bg-rose-500 hover:bg-rose-600 shadow-rose-200" 
+                : "bg-emerald-600 hover:bg-emerald-700 shadow-emerald-200"
+            )}
+          >
+            {confirmText}
+          </button>
+        </div>
+      </div>
     </div>
   );
 };

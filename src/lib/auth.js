@@ -14,7 +14,8 @@ export async function verifyAuth(req, allowedRoles = []) {
   try {
     const authHeader = req.headers.get('authorization');
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return { user: null, response: NextResponse.json({ error: 'Unauthorized' }, { status: 401 }) };
+      console.warn('Auth: Missing or invalid Authorization header');
+      return { user: null, response: NextResponse.json({ error: 'Unauthorized: Missing or invalid Authorization header' }, { status: 401 }) };
     }
 
     const token = authHeader.split(' ')[1];
@@ -22,7 +23,8 @@ export async function verifyAuth(req, allowedRoles = []) {
     try {
       decoded = jwt.verify(token, JWT_SECRET);
     } catch (e) {
-      return { user: null, response: NextResponse.json({ error: 'Invalid token' }, { status: 401 }) };
+      console.error('Auth: Token verification failed', e.message);
+      return { user: null, response: NextResponse.json({ error: `Invalid token: ${e.message}` }, { status: 401 }) };
     }
 
     const user = await prisma.user.findUnique({

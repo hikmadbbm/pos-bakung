@@ -10,7 +10,11 @@ export default function UserMenu() {
   const router = useRouter();
   const { error } = useToast();
   const [isOpen, setIsOpen] = useState(false);
-  const [user] = useState(() => getAuth());
+  const [user, setUser] = useState(null);
+  
+  useEffect(() => {
+    setUser(getAuth());
+  }, []);
   const menuRef = useRef(null);
 
   // Handle click outside
@@ -78,13 +82,13 @@ export default function UserMenu() {
     <div className="relative" ref={menuRef}>
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center gap-2 p-1 rounded-full hover:bg-gray-100 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+        className="flex items-center gap-2 p-1 rounded-full hover:bg-gray-100 transition-colors focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2"
         aria-haspopup="true"
         aria-expanded={isOpen}
         aria-label="User menu"
         data-testid="user-menu-button"
       >
-        <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-bold text-xs shrink-0 border border-blue-200">
+        <div className="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-600 font-bold text-xs shrink-0 border border-emerald-200">
           {user?.avatar ? (
              // eslint-disable-next-line @next/next/no-img-element
              <img src={user.avatar} alt="Avatar" className="w-full h-full rounded-full object-cover" />

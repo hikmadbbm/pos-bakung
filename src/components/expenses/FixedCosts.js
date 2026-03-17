@@ -119,13 +119,13 @@ export default function FixedCosts() {
 
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <Card className="bg-blue-50 border-blue-100">
+        <Card className="bg-emerald-50 border-emerald-100">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-blue-800 uppercase tracking-wider">Estimated Daily Overhead</CardTitle>
+            <CardTitle className="text-sm font-medium text-emerald-800 uppercase tracking-wider">Estimated Daily Overhead</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-blue-900">{formatIDR(calculateDailyTotal())}</div>
-            <p className="text-xs text-blue-700 mt-1 italic flex items-center">
+            <div className="text-2xl font-bold text-emerald-900">{formatIDR(calculateDailyTotal())}</div>
+            <p className="text-xs text-emerald-700 mt-1 italic flex items-center">
               <Info className="w-3 h-3 mr-1" /> This amount is automatically deducted from daily profit.
             </p>
           </CardContent>
@@ -150,7 +150,7 @@ export default function FixedCosts() {
               <TableHead>Cost Name</TableHead>
               <TableHead>Frequency</TableHead>
               <TableHead className="text-right">Amount</TableHead>
-              <TableHead className="text-right text-blue-600">Daily Impact</TableHead>
+              <TableHead className="text-right text-emerald-600">Daily Impact</TableHead>
               <TableHead className="text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
@@ -179,7 +179,7 @@ export default function FixedCosts() {
                       </span>
                     </TableCell>
                     <TableCell className="text-right font-medium">{formatIDR(fc.amount)}</TableCell>
-                    <TableCell className="text-right text-blue-600 font-bold">{formatIDR(daily)}</TableCell>
+                    <TableCell className="text-right text-emerald-600 font-bold">{formatIDR(daily)}</TableCell>
                     <TableCell className="text-right">
                       {confirmDeleteId === fc.id ? (
                         <span className="inline-flex items-center justify-end gap-1 w-full">
@@ -189,7 +189,7 @@ export default function FixedCosts() {
                         </span>
                       ) : (
                         <div className="flex items-center justify-end gap-1">
-                          <Button variant="ghost" size="icon" className="h-8 w-8 text-gray-400 hover:text-blue-600" onClick={() => openEdit(fc)}>
+                          <Button variant="ghost" size="icon" className="h-8 w-8 text-gray-400 hover:text-emerald-600" onClick={() => openEdit(fc)}>
                             <Edit2 className="w-4 h-4" />
                           </Button>
                           <Button variant="ghost" size="icon" className="h-8 w-8 text-gray-400 hover:text-red-600" onClick={() => setConfirmDeleteId(fc.id)}>

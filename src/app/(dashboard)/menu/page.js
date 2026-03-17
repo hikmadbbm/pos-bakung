@@ -224,33 +224,39 @@ export default function MenuPage() {
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h2 className="text-2xl font-bold tracking-tight">Master Menu</h2>
+    <div className="space-y-8 animate-fade-in pb-20">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 print:hidden">
+        <div>
+          <h2 className="text-2xl font-black tracking-tight text-slate-900 uppercase">Master Menu</h2>
+          <p className="text-sm font-medium text-slate-500 mt-1 flex items-center gap-2">
+            Central catalog and availability control
+            <span className="inline-block w-1 h-1 bg-emerald-600 rounded-full" />
+          </p>
+        </div>
         {user?.role !== 'KITCHEN' && (
-          <div className="space-x-2">
-            <Button variant="outline" onClick={() => setIsCategoryDialogOpen(true)}>
-              <Settings className="w-4 h-4 mr-2" /> Manage Categories
+          <div className="flex gap-3 w-full md:w-auto">
+            <Button variant="ghost" size="sm" onClick={() => setIsCategoryDialogOpen(true)} className="h-10 px-4 rounded-2xl font-black text-[10px] uppercase tracking-wider bg-white/80 backdrop-blur-md border border-slate-200/60 shadow-sm hover:bg-slate-50 active:scale-95 transition-all">
+              <Settings className="w-4 h-4 mr-2 text-slate-400" /> CATEGORIES
             </Button>
-            <Button onClick={openCreateMenu}>
-              <Plus className="w-4 h-4 mr-2" /> Add Menu
+            <Button onClick={openCreateMenu} className="h-10 px-6 rounded-2xl font-black text-[10px] uppercase tracking-wider bg-slate-900 text-white hover:bg-slate-800 shadow-xl active:scale-95 transition-all">
+              <Plus className="w-4 h-4 mr-2" /> ADD NEW MENU
             </Button>
           </div>
         )}
       </div>
 
-      <div className="bg-white rounded-md border">
+      <div className="glass-card rounded-[2rem] overflow-hidden shadow-2xl border-none">
         <Table>
-          <TableHeader>
+          <TableHeader className="bg-slate-50/50">
             <TableRow>
-              <TableHead>Name</TableHead>
-              <TableHead>Category</TableHead>
-              <TableHead>Base Price</TableHead>
-              <TableHead>Platform Prices</TableHead>
-              <TableHead>Cost (HPP)</TableHead>
-              <TableHead>Profit/Portion</TableHead>
-              <TableHead className="text-center">Availability</TableHead>
-              <TableHead className="text-right">Actions</TableHead>
+              <TableHead className="text-[10px] font-black uppercase text-slate-500 py-5 px-6">Name</TableHead>
+              <TableHead className="text-[10px] font-black uppercase text-slate-500 py-5">Category</TableHead>
+              <TableHead className="text-[10px] font-black uppercase text-slate-500 py-5">Base Price</TableHead>
+              <TableHead className="text-[10px] font-black uppercase text-slate-500 py-5">Platform Pricing</TableHead>
+              <TableHead className="text-[10px] font-black uppercase text-slate-500 py-5">Cost</TableHead>
+              <TableHead className="text-[10px] font-black uppercase text-slate-500 py-5">Profit</TableHead>
+              <TableHead className="text-center text-[10px] font-black uppercase text-slate-500 py-5">Status</TableHead>
+              <TableHead className="text-right text-[10px] font-black uppercase text-slate-500 py-5 px-6">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -264,74 +270,76 @@ export default function MenuPage() {
               </TableRow>
             ) : (
               menus.map((m) => (
-                <TableRow key={m.id}>
-                  <TableCell className="font-medium">{m.name}</TableCell>
+                <TableRow key={m.id} className="hover:bg-slate-50/50 border-slate-100 transition-colors group">
+                  <TableCell className="font-black text-slate-900 px-6 py-5 uppercase tracking-tight">{m.name}</TableCell>
                   <TableCell>
                     {m.category ? (
                       <span 
-                        className="px-2 py-1 rounded text-xs font-medium text-white"
+                        className="px-3 py-1 rounded-full text-[9px] font-black text-white uppercase tracking-tighter shadow-sm"
                         style={{ backgroundColor: m.category.color }}
                       >
                         {m.category.name}
                       </span>
                     ) : (
-                      <span className="text-gray-400 text-xs italic">Uncategorized</span>
+                      <span className="text-slate-300 text-[10px] font-bold uppercase italic">No Category</span>
                     )}
                   </TableCell>
-                  <TableCell>{formatIDR(m.price)}</TableCell>
+                  <TableCell className="font-bold text-slate-600">{formatIDR(m.price)}</TableCell>
                   <TableCell>
                     {platforms.length === 0 ? (
-                      <span className="text-gray-400 text-[10px] italic">No platforms</span>
+                      <span className="text-slate-300 text-[9px] font-bold uppercase italic">Not Set</span>
                     ) : (
-                      <div className="flex flex-wrap gap-1">
+                      <div className="flex flex-wrap gap-1.5">
                         {platforms.map(p => (
-                          <div key={p.id} className="px-1.5 py-0.5 rounded bg-gray-100 border text-[10px] flex items-center">
-                            <span className="font-semibold mr-1">{p.name}:</span>
-                            <span>{m.prices && m.prices[p.id] ? formatIDR(m.prices[p.id]) : "-"}</span>
+                          <div key={p.id} className="px-2 py-0.5 rounded-lg bg-slate-50 border border-slate-100 text-[9px] flex items-center shadow-sm">
+                            <span className="font-black text-slate-400 mr-1 uppercase tracking-tighter">{p.name}:</span>
+                            <span className="font-bold text-slate-700">{m.prices && m.prices[p.id] ? formatIDR(m.prices[p.id]) : "-"}</span>
                           </div>
                         ))}
                       </div>
                     )}
                   </TableCell>
-                  <TableCell>{formatIDR(m.cost)}</TableCell>
-                   <TableCell className="text-green-600 font-semibold">
+                  <TableCell className="font-medium text-slate-400 text-xs">{formatIDR(m.cost)}</TableCell>
+                   <TableCell className="text-emerald-600 font-black text-xs">
                     {formatIDR(m.profit)}
                   </TableCell>
                   <TableCell className="text-center">
-                    <button
-                      onClick={() => handleToggleActive(m)}
-                      className={cn(
-                        "relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none",
-                        m.is_active ? "bg-green-500" : "bg-gray-300"
-                      )}
-                    >
-                      <span
+                    <div className="flex flex-col items-center gap-1.5">
+                      <button
+                        onClick={() => handleToggleActive(m)}
                         className={cn(
-                          "inline-block h-4 w-4 transform rounded-full bg-white transition-transform",
-                          m.is_active ? "translate-x-6" : "translate-x-1"
+                          "relative inline-flex h-5 w-10 items-center rounded-full transition-all focus:outline-none shadow-inner",
+                          m.is_active ? "bg-emerald-500 shadow-emerald-200" : "bg-slate-200"
                         )}
-                      />
-                    </button>
-                    <p className={cn("text-[9px] mt-1 font-bold italic", m.is_active ? "text-green-600" : "text-red-500")}>
-                      {m.is_active ? "READY" : "SOLD OUT"}
-                    </p>
+                      >
+                        <span
+                          className={cn(
+                            "inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform shadow-sm",
+                            m.is_active ? "translate-x-6" : "translate-x-0.5"
+                          )}
+                        />
+                      </button>
+                      <p className={cn("text-[8px] font-black uppercase tracking-widest", m.is_active ? "text-emerald-600" : "text-rose-500")}>
+                        {m.is_active ? "READY" : "SOLD OUT"}
+                      </p>
+                    </div>
                   </TableCell>
-                  <TableCell className="text-right space-x-2">
+                  <TableCell className="text-right px-6 space-x-1">
                     {confirmDeleteId === m.id ? (
-                      <span className="inline-flex items-center gap-1">
-                        <span className="text-xs text-gray-500 mr-1">Delete?</span>
-                        <Button variant="destructive" size="sm" className="h-6 px-2 text-xs" onClick={() => handleDeleteMenu(m.id)}>Yes</Button>
-                        <Button variant="ghost" size="sm" className="h-6 px-2 text-xs" onClick={() => setConfirmDeleteId(null)}>Cancel</Button>
+                      <span className="inline-flex items-center gap-2 bg-rose-50 p-1 rounded-xl border border-rose-100">
+                        <span className="text-[9px] font-black text-rose-600 uppercase tracking-tighter ml-2">DELETE?</span>
+                        <Button variant="destructive" size="sm" className="h-7 px-3 rounded-lg font-black text-[9px] uppercase hover:bg-rose-700" onClick={() => handleDeleteMenu(m.id)}>YES</Button>
+                        <Button variant="ghost" size="sm" className="h-7 px-3 rounded-lg font-black text-[9px] uppercase hover:bg-rose-100 text-rose-400" onClick={() => setConfirmDeleteId(null)}>NO</Button>
                       </span>
                     ) : (
-                      <>
-                        <Button variant="ghost" size="icon" onClick={() => openEditMenu(m)} disabled={user?.role === 'KITCHEN'}>
-                          <Edit2 className="w-4 h-4 text-gray-500" />
+                      <div className="opacity-0 group-hover:opacity-100 transition-opacity">
+                        <Button variant="ghost" size="icon" className="h-9 w-9 rounded-xl hover:bg-slate-100" onClick={() => openEditMenu(m)} disabled={user?.role === 'KITCHEN'}>
+                          <Edit2 className="w-4 h-4 text-slate-400" />
                         </Button>
-                        <Button variant="ghost" size="icon" onClick={() => setConfirmDeleteId(m.id)} disabled={user?.role === 'KITCHEN'}>
-                          <Trash2 className="w-4 h-4 text-red-500" />
+                        <Button variant="ghost" size="icon" className="h-9 w-9 rounded-xl hover:bg-rose-50 group/del" onClick={() => setConfirmDeleteId(m.id)} disabled={user?.role === 'KITCHEN'}>
+                          <Trash2 className="w-4 h-4 text-slate-300 group-hover/del:text-rose-500" />
                         </Button>
-                      </>
+                      </div>
                     )}
                   </TableCell>
                 </TableRow>
@@ -346,11 +354,18 @@ export default function MenuPage() {
         open={isDialogOpen}
         onOpenChange={setIsDialogOpen}
       >
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>{isEditing ? "Edit Menu" : "Add New Menu"}</DialogTitle>
-          </DialogHeader>
-        <form onSubmit={handleMenuSubmit} className="space-y-4 max-h-[80vh] overflow-y-auto pr-2">
+        <DialogContent className="max-w-2xl rounded-[2.5rem] border-none shadow-2xl p-0 overflow-hidden">
+          <div className="bg-slate-900 p-8 text-center relative overflow-hidden">
+             <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-600 rounded-full -translate-y-1/2 translate-x-1/2 opacity-20" />
+             <div className="w-16 h-16 bg-white/10 backdrop-blur-md rounded-3xl flex items-center justify-center mx-auto mb-4 border border-white/20">
+                <Plus className="w-8 h-8 text-white" />
+             </div>
+             <DialogTitle className="text-2xl font-black text-white uppercase tracking-tight">
+               {isEditing ? "Modify Menu" : "Create New Menu"}
+             </DialogTitle>
+          </div>
+          
+          <form onSubmit={handleMenuSubmit} className="p-8 space-y-6 max-h-[70vh] overflow-y-auto scrollbar-hide">
           <div className="space-y-2">
             <Label>Menu Name</Label>
             <Input
@@ -413,7 +428,7 @@ export default function MenuPage() {
                   type="button" 
                   size="sm" 
                   variant="outline" 
-                  className="h-7 text-[10px] border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100"
+                  className="h-7 text-[10px] border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
                   onClick={generateAIPrice}
                 >
                   <Sparkles className="w-3 h-3 mr-1" /> Auto AI Price
@@ -441,11 +456,13 @@ export default function MenuPage() {
             )}
           </div>
 
-          <div className="flex justify-end space-x-2 mt-4 pt-2 border-t">
-            <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>
-              Cancel
+          <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
+            <Button type="button" variant="ghost" className="rounded-2xl h-12 px-8 font-black text-slate-400 uppercase tracking-widest text-[10px]" onClick={() => setIsDialogOpen(false)}>
+              Discard
             </Button>
-            <Button type="submit">Save</Button>
+            <Button type="submit" className="rounded-2xl h-12 px-10 font-black uppercase tracking-wider bg-emerald-600 hover:bg-emerald-700 shadow-xl shadow-emerald-200 active:scale-95 transition-all">
+              Save Changes
+            </Button>
           </div>
         </form>
         </DialogContent>
@@ -453,11 +470,20 @@ export default function MenuPage() {
 
       {/* Category Management Dialog */}
       <Dialog open={isCategoryDialogOpen} onOpenChange={setIsCategoryDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Manage Categories</DialogTitle>
-          </DialogHeader>
-        <div className="space-y-6">
+        <DialogContent className="max-w-2xl rounded-[2.5rem] border-none shadow-2xl p-0 overflow-hidden">
+          <div className="bg-slate-50 p-8 border-b border-slate-100">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 rounded-2xl bg-white shadow-sm flex items-center justify-center">
+                <Settings className="w-6 h-6 text-slate-400" />
+              </div>
+              <div>
+                <DialogTitle className="text-2xl font-black text-slate-900 uppercase tracking-tight">Group Categories</DialogTitle>
+                <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">Organize your menu structure</p>
+              </div>
+            </div>
+          </div>
+          
+          <div className="p-8 space-y-8">
           {/* Add/Edit Form */}
           <form onSubmit={handleCategorySubmit} className="p-4 bg-gray-50 rounded-md border space-y-4">
             <h3 className="font-medium text-sm">{isCategoryEditing ? "Edit Category" : "Add New Category"}</h3>
@@ -545,8 +571,8 @@ export default function MenuPage() {
           </div>
           
           <div className="flex justify-end">
-            <Button variant="outline" onClick={() => setIsCategoryDialogOpen(false)}>
-              Close
+            <Button variant="ghost" className="rounded-2xl h-12 px-8 font-black text-slate-400 uppercase tracking-widest text-[10px]" onClick={() => setIsCategoryDialogOpen(false)}>
+              DONE
             </Button>
           </div>
         </div>

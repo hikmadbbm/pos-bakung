@@ -2,18 +2,90 @@
 @tailwind components;
 @tailwind utilities;
 
+@layer base {
+  :root {
+    --background: 140 10% 97%; /* #F6F8F7 */
+    --foreground: 222.2 47.4% 11.2%; /* #1F2937 */
+    --card: 0 0% 100%;
+    --card-foreground: 222.2 47.4% 11.2%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222.2 47.4% 11.2%;
+    --primary: 142 76% 14%; /* #166534 - Emerald 800 */
+    --primary-foreground: 142 70% 95%;
+    --secondary: 142 72% 45%; /* #22C55E - Green 500 */
+    --secondary-foreground: 142 76% 14%;
+    --muted: 140 10% 90%;
+    --muted-foreground: 215.4 16.3% 46.9%;
+    --accent: 142 72% 95%;
+    --accent-foreground: 142 76% 14%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 140 10% 90%;
+    --input: 140 10% 90%;
+    --ring: 142 76% 14%;
+    --radius: 1.25rem;
+  }
+}
+
 html, body, :root {
   height: 100%;
+  font-family: 'Inter', 'Outfit', system-ui, -apple-system, sans-serif;
 }
 
 body {
-  @apply bg-gray-50 text-gray-900;
+  background-color: #F6F8F7;
+  @apply text-slate-900 antialiased;
+}
+
+/* Modern Design System Utilities */
+.glass-panel {
+  @apply bg-white/70 backdrop-blur-xl border border-white shadow-[0_8px_32px_0_rgba(22,101,52,0.05)] border-emerald-100/20;
+}
+
+.glass-card {
+  @apply bg-white border border-slate-100/80 shadow-[0_4px_20px_-4px_rgba(22,101,52,0.08)] transition-all duration-500 hover:shadow-[0_20px_40px_-12px_rgba(22,101,52,0.12)] hover:-translate-y-1 rounded-[1.25rem];
+}
+
+.glass-sidebar {
+  @apply bg-white border-r border-slate-100 shadow-[4px_0_24px_rgba(22,101,52,0.02)];
+}
+
+/* Typography & Elements */
+h1, h2, h3, h4 {
+  @apply tracking-tight font-bold;
+  color: #1F2937;
+}
+
+.premium-gradient {
+  @apply bg-gradient-to-br from-emerald-900 to-emerald-700;
+}
+
+.premium-gradient-light {
+  @apply bg-gradient-to-br from-[#F6F8F7] to-white;
+}
+
+/* Animation */
+.animate-fade-in {
+  animation: fadeIn 0.5s ease-out forwards;
+}
+
+.animate-slide-up {
+  animation: slideUp 0.4s ease-out forwards;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 /* Mobile-first dialog typography and layout safeguards */
 @media (max-width: 768px) {
   .traedialog {
-    /* Ensure content never causes horizontal scrolling */
     max-width: 92vw;
     overflow-x: hidden;
     -webkit-overflow-scrolling: touch;
@@ -27,4 +99,15 @@ body {
   .traedialog textarea {
     width: 100%;
   }
+}
+/* Custom Animations */
+.animate-shake {
+  animation: shake 0.4s cubic-bezier(.36,.07,.19,.97) both;
+}
+
+@keyframes shake {
+  10%, 90% { transform: translate3d(-1px, 0, 0); }
+  20%, 80% { transform: translate3d(2px, 0, 0); }
+  30%, 50%, 70% { transform: translate3d(-4px, 0, 0); }
+  40%, 60% { transform: translate3d(4px, 0, 0); }
 }

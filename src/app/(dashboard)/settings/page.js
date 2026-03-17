@@ -2,7 +2,7 @@
 import { useState, useEffect } from "react";
 import { Button } from "../../../components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "../../../components/ui/card";
-import { Printer, RefreshCw, Smartphone, Globe, Plus, Edit2, Trash2, Receipt, Lock, Users, Upload, FileText } from "lucide-react";
+import { Printer, RefreshCw, Smartphone, Globe, Plus, Edit2, Trash2, Receipt, Lock, Users, Upload, FileText, Sparkles } from "lucide-react";
 import UsersSettings from "./users/UsersSettings";
 import PaymentMethodsSettings from "./PaymentMethodsSettings";
 import { usePrinter } from "../../../lib/printer-context";
@@ -20,7 +20,7 @@ import { cn } from "../../../lib/utils";
 export default function SettingsPage() {
   const { device, isConnecting, connectionStatus, connect, disconnect, print } = usePrinter();
   const [activeTab, setActiveTab] = useState("printer");
-  const { success, error } = useToast();
+  const { success, error, confirm } = useToast();
   const currentUser = getAuth();
 
   // Platforms State
@@ -103,7 +103,13 @@ export default function SettingsPage() {
   };
 
   const seedDummyData = async () => {
-    if (!confirm("Seed dummy data? This will create/update users, menus, and sample orders.")) return;
+    if (!(await confirm({
+      title: "Seed Dummy Data?",
+      message: "This will create/update users, menus, and sample orders to populate your POS system with demonstration data. This action is not easily reversible.",
+      confirmText: "Seed Data",
+      variant: "warning"
+    }))) return;
+
     try {
       await api.post("/auth/seed-dummy");
       success("Dummy data seeded");
@@ -166,7 +172,7 @@ export default function SettingsPage() {
         <button
           className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
             activeTab === "printer" 
-              ? "border-blue-600 text-blue-600" 
+              ? "border-emerald-600 text-emerald-600" 
               : "border-transparent text-gray-500 hover:text-gray-700"
           }`}
           onClick={() => setActiveTab("printer")}
@@ -176,7 +182,7 @@ export default function SettingsPage() {
         <button
           className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
             activeTab === "platforms" 
-              ? "border-blue-600 text-blue-600" 
+              ? "border-emerald-600 text-emerald-600" 
               : "border-transparent text-gray-500 hover:text-gray-700"
           }`}
           onClick={() => setActiveTab("platforms")}
@@ -186,7 +192,7 @@ export default function SettingsPage() {
         <button
           className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
             activeTab === "receipt" 
-              ? "border-blue-600 text-blue-600" 
+              ? "border-emerald-600 text-emerald-600" 
               : "border-transparent text-gray-500 hover:text-gray-700"
           }`}
           onClick={() => setActiveTab("receipt")}
@@ -197,7 +203,7 @@ export default function SettingsPage() {
         <button
           className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
             activeTab === "users" 
-              ? "border-blue-600 text-blue-600" 
+              ? "border-emerald-600 text-emerald-600" 
               : "border-transparent text-gray-500 hover:text-gray-700"
           }`}
           onClick={() => setActiveTab("users")}
@@ -207,7 +213,7 @@ export default function SettingsPage() {
         <button
           className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
             activeTab === "payments" 
-              ? "border-blue-600 text-blue-600" 
+              ? "border-emerald-600 text-emerald-600" 
               : "border-transparent text-gray-500 hover:text-gray-700"
           }`}
           onClick={() => setActiveTab("payments")}
@@ -217,7 +223,7 @@ export default function SettingsPage() {
         <button
           className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
             activeTab === "import" 
-              ? "border-blue-600 text-blue-600" 
+              ? "border-emerald-600 text-emerald-600" 
               : "border-transparent text-gray-500 hover:text-gray-700"
           }`}
           onClick={() => setActiveTab("import")}
@@ -352,7 +358,7 @@ export default function SettingsPage() {
                           ) : (
                             <>
                               <Button variant="ghost" size="icon" onClick={() => openEditPlatform(p)}>
-                                <Edit2 className="w-4 h-4 text-blue-500" />
+                                <Edit2 className="w-4 h-4 text-emerald-500" />
                               </Button>
                               <Button variant="ghost" size="icon" onClick={() => setConfirmDeletePlatformId(p.id)}>
                                 <Trash2 className="w-4 h-4 text-red-500" />
@@ -474,11 +480,11 @@ export default function SettingsPage() {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-6">
-              <div className="bg-blue-50 p-4 rounded-lg border border-blue-100 flex items-start gap-4">
-                <FileText className="w-6 h-6 text-blue-600 mt-1" />
+              <div className="bg-emerald-50 p-4 rounded-lg border border-emerald-100 flex items-start gap-4">
+                <FileText className="w-6 h-6 text-emerald-600 mt-1" />
                 <div className="flex-1">
-                  <h4 className="font-semibold text-blue-800">CSV Template</h4>
-                  <p className="text-sm text-blue-600 mb-4">
+                  <h4 className="font-semibold text-emerald-800">CSV Template</h4>
+                  <p className="text-sm text-emerald-600 mb-4">
                     Download our template to ensure your data is formatted correctly before importing.
                   </p>
                   <Button variant="outline" size="sm" asChild>
@@ -537,6 +543,20 @@ export default function SettingsPage() {
         </div>
       )}
 
+      <div className="pt-10 border-t flex flex-col items-center gap-4 text-center">
+         <div className="space-y-1">
+            <h4 className="text-sm font-bold text-gray-900 uppercase tracking-tight">System Initialization</h4>
+            <p className="text-[10px] text-gray-500 uppercase tracking-widest font-black">Dangerous Actions Below</p>
+         </div>
+         <Button 
+           variant="outline" 
+           size="sm" 
+           onClick={seedDummyData}
+           className="border-yellow-200 bg-yellow-50 text-yellow-700 hover:bg-yellow-100 hover:border-yellow-300"
+         >
+           <Sparkles className="w-3 h-3 mr-2" /> Seed Demonstration Data
+         </Button>
+      </div>
 
     </div>
   );

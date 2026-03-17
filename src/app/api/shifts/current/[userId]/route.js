@@ -15,10 +15,22 @@ export async function GET(req, { params }) {
       return NextResponse.json({ error: 'Invalid userId' }, { status: 400 });
     }
 
-    const shift = await prisma.userShift.findFirst({
+    // First, check if the specific user has an open shift
+    let shift = await prisma.userShift.findFirst({
       where: { user_id: userId, status: 'OPEN' },
+      include: { user: { select: { name: true, username: true } } },
       orderBy: { id: 'desc' },
     });
+
+    // If not, check if ANY user has an open shift
+    if (!shift) {
+      shift = await prisma.userShift.findFirst({
+        where: { status: 'OPEN' },
+        include: { user: { select: { name: true, username: true } } },
+        orderBy: { id: 'desc' },
+      });
+    }
+
     return NextResponse.json(shift);
   } catch (error) {
     console.error('Failed to fetch current shift:', error);
