@@ -233,39 +233,40 @@ export default function UsersSettings() {
           <DialogHeader>
             <DialogTitle>{editingUser ? "Edit User" : "Create User"}</DialogTitle>
           </DialogHeader>
-          <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <form onSubmit={handleSubmit} className="space-y-5 px-8 py-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
             <div className="space-y-2">
-              <Label>Full Name</Label>
-              <Input required value={formData.name} onChange={(e) => setFormData({...formData, name: e.target.value})} />
+              <Label className="text-xs font-bold uppercase tracking-widest text-slate-500 ml-1">Full Name</Label>
+              <Input required className="h-11 rounded-xl" value={formData.name} onChange={(e) => setFormData({...formData, name: e.target.value})} />
             </div>
             <div className="space-y-2">
-              <Label>Employee ID (Optional)</Label>
-              <Input value={formData.employee_id} onChange={(e) => setFormData({...formData, employee_id: e.target.value})} />
+              <Label className="text-xs font-bold uppercase tracking-widest text-slate-500 ml-1">Employee ID (Optional)</Label>
+              <Input className="h-11 rounded-xl" value={formData.employee_id} onChange={(e) => setFormData({...formData, employee_id: e.target.value})} />
             </div>
           </div>
           
           <div className="space-y-2">
-            <Label>Username</Label>
-            <Input required value={formData.username} onChange={(e) => setFormData({...formData, username: e.target.value})} />
+            <Label className="text-xs font-bold uppercase tracking-widest text-slate-500 ml-1">Username</Label>
+            <Input required className="h-11 rounded-xl" value={formData.username} onChange={(e) => setFormData({...formData, username: e.target.value})} />
           </div>
 
           <div className="space-y-2">
-            <Label>Email</Label>
-            <Input required type="email" value={formData.email} onChange={(e) => setFormData({...formData, email: e.target.value})} />
+            <Label className="text-xs font-bold uppercase tracking-widest text-slate-500 ml-1">Email</Label>
+            <Input required type="email" className="h-11 rounded-xl" value={formData.email} onChange={(e) => setFormData({...formData, email: e.target.value})} />
           </div>
 
           {!editingUser && (
             <div className="space-y-2">
-              <Label>Password</Label>
-              <Input required type="password" value={formData.password} onChange={(e) => setFormData({...formData, password: e.target.value})} />
+              <Label className="text-xs font-bold uppercase tracking-widest text-slate-500 ml-1">Password</Label>
+              <Input required type="password" className="h-11 rounded-xl" value={formData.password} onChange={(e) => setFormData({...formData, password: e.target.value})} />
             </div>
           )}
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
             <div className="space-y-2">
-              <Label>Role</Label>
+              <Label className="text-xs font-bold uppercase tracking-widest text-slate-500 ml-1">Role</Label>
               <Select 
+                className="h-11 rounded-xl"
                 value={formData.role} 
                 onChange={(e) => setFormData({...formData, role: e.target.value})}
                 options={[
@@ -277,16 +278,17 @@ export default function UsersSettings() {
               />
             </div>
             <div className="space-y-2">
-              <Label>Phone Number</Label>
-              <Input value={formData.phone_number} onChange={(e) => setFormData({...formData, phone_number: e.target.value})} />
+              <Label className="text-xs font-bold uppercase tracking-widest text-slate-500 ml-1">Phone Number</Label>
+              <Input className="h-11 rounded-xl" value={formData.phone_number} onChange={(e) => setFormData({...formData, phone_number: e.target.value})} />
             </div>
           </div>
 
           <div className="space-y-2">
-            <Label>PIN (for Quick Login)</Label>
+            <Label className="text-xs font-bold uppercase tracking-widest text-slate-500 ml-1">PIN (for Quick Login)</Label>
             <Input 
               type="password" 
               maxLength={6} 
+              className="h-11 rounded-xl"
               placeholder={editingUser ? "Leave blank to keep current" : "Optional"} 
               value={formData.pin} 
               onChange={(e) => setFormData({...formData, pin: e.target.value})} 
@@ -294,13 +296,13 @@ export default function UsersSettings() {
           </div>
 
           <div className="space-y-2">
-            <Label>Notes</Label>
-            <Input value={formData.notes} onChange={(e) => setFormData({...formData, notes: e.target.value})} />
+            <Label className="text-xs font-bold uppercase tracking-widest text-slate-500 ml-1">Notes</Label>
+            <Input className="h-11 rounded-xl" value={formData.notes} onChange={(e) => setFormData({...formData, notes: e.target.value})} />
           </div>
 
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>Cancel</Button>
-            <Button type="submit">{editingUser ? "Update" : "Create"}</Button>
+          <DialogFooter className="px-0 mt-8">
+            <Button type="button" variant="outline" className="h-12 rounded-xl px-8" onClick={() => setIsDialogOpen(false)}>Cancel</Button>
+            <Button type="submit" className="h-12 rounded-xl px-8 bg-emerald-600 hover:bg-emerald-700 font-bold">{editingUser ? "Update User" : "Create User"}</Button>
           </DialogFooter>
         </form>
         </DialogContent>
@@ -311,14 +313,14 @@ export default function UsersSettings() {
           <DialogHeader>
             <DialogTitle>Reset Password</DialogTitle>
           </DialogHeader>
-          <form onSubmit={handleResetPassword} className="space-y-4">
+          <form onSubmit={handleResetPassword} className="space-y-6 px-8 py-4">
           <div className="space-y-2">
-            <Label>New Password</Label>
-            <Input required type="password" value={resetPassData.newPassword} onChange={(e) => setResetPassData({...resetPassData, newPassword: e.target.value})} />
+            <Label className="text-xs font-bold uppercase tracking-widest text-slate-500 ml-1">New Password</Label>
+            <Input required type="password" className="h-11 rounded-xl" value={resetPassData.newPassword} onChange={(e) => setResetPassData({...resetPassData, newPassword: e.target.value})} />
           </div>
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => setIsResetPassOpen(false)}>Cancel</Button>
-            <Button type="submit">Reset Password</Button>
+          <DialogFooter className="px-0 mt-6">
+            <Button type="button" variant="outline" className="h-12 rounded-xl" onClick={() => setIsResetPassOpen(false)}>Cancel</Button>
+            <Button type="submit" className="h-12 rounded-xl bg-orange-600 hover:bg-orange-700 font-bold">Reset Password</Button>
           </DialogFooter>
         </form>
         </DialogContent>

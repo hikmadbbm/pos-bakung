@@ -367,8 +367,9 @@ export default function MenuPage() {
           
           <form onSubmit={handleMenuSubmit} className="p-8 space-y-6 max-h-[70vh] overflow-y-auto scrollbar-hide">
           <div className="space-y-2">
-            <Label>Menu Name</Label>
+            <Label className="text-xs font-bold uppercase tracking-widest text-slate-500 ml-1">Menu Name</Label>
             <Input
+              className="h-11 rounded-xl"
               value={formData.name}
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
               required
@@ -377,8 +378,9 @@ export default function MenuPage() {
           </div>
           
           <div className="space-y-2">
-            <Label>Category <span className="text-red-500">*</span></Label>
+            <Label className="text-xs font-bold uppercase tracking-widest text-slate-500 ml-1">Category <span className="text-red-500">*</span></Label>
             <Select
+              className="h-11 rounded-xl"
               value={formData.categoryId}
               onChange={(e) => {
                 setFormData({ ...formData, categoryId: e.target.value });
@@ -390,16 +392,17 @@ export default function MenuPage() {
               ]}
             />
             {categoryError && (
-              <p className="text-xs text-red-500 flex items-center gap-1">
+              <p className="text-xs text-red-500 flex items-center gap-1 font-bold px-2 mt-1">
                 ⚠️ Please select a category before saving.
               </p>
             )}
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
             <div className="space-y-2">
-              <Label>Base Price (Default)</Label>
+              <Label className="text-xs font-bold uppercase tracking-widest text-slate-500 ml-1">Base Price (Default)</Label>
               <Input
+                className="h-11 rounded-xl text-lg font-black"
                 type="number"
                 value={formData.price}
                 onChange={(e) => setFormData({ ...formData, price: e.target.value })}
@@ -408,8 +411,9 @@ export default function MenuPage() {
               />
             </div>
             <div className="space-y-2">
-              <Label>Cost (HPP)</Label>
+              <Label className="text-xs font-bold uppercase tracking-widest text-slate-500 ml-1">Cost (HPP)</Label>
               <Input
+                className="h-11 rounded-xl text-lg font-black text-emerald-600"
                 type="number"
                 value={formData.cost}
                 onChange={(e) => setFormData({ ...formData, cost: e.target.value })}
@@ -420,31 +424,32 @@ export default function MenuPage() {
           </div>
 
           {/* Platform Pricing Section */}
-          <div className="space-y-2 border-t pt-4">
+          <div className="space-y-4 border-t border-slate-100 pt-6">
             <div className="flex items-center justify-between">
-              <Label className="text-base font-semibold">Platform Pricing</Label>
+              <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Platform Optimized Pricing</Label>
               {platforms.length > 0 && (
                 <Button 
                   type="button" 
                   size="sm" 
                   variant="outline" 
-                  className="h-7 text-[10px] border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
+                  className="h-8 rounded-xl text-[10px] font-black uppercase tracking-wider border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 shadow-sm"
                   onClick={generateAIPrice}
                 >
-                  <Sparkles className="w-3 h-3 mr-1" /> Auto AI Price
+                  <Sparkles className="w-3.5 h-3.5 mr-2" /> Use AI Recommendation
                 </Button>
               )}
             </div>
             {platforms.length === 0 ? (
-              <div className="p-3 bg-gray-50 border border-dashed rounded text-center text-xs text-gray-500">
-                No platforms configured. Please go to Platform Management to add one.
+              <div className="p-6 bg-slate-50 border-2 border-dashed border-slate-200 rounded-2xl text-center text-[10px] font-black uppercase tracking-widest text-slate-400">
+                No active delivery platforms detected
               </div>
             ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-5 gap-y-4 bg-slate-50/50 p-6 rounded-2xl border border-slate-100">
                 {platforms.map(p => (
-                  <div key={p.id} className="space-y-1">
-                    <Label className="text-xs text-gray-500">{p.name}</Label>
+                  <div key={p.id} className="space-y-2">
+                    <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">{p.name}</Label>
                     <Input
+                      className="h-10 rounded-xl bg-white focus:ring-emerald-500/10 font-bold"
                       type="number"
                       value={formData.prices[p.id] || ""}
                       onChange={(e) => handlePlatformPriceChange(p.id, e.target.value)}
@@ -456,14 +461,14 @@ export default function MenuPage() {
             )}
           </div>
 
-          <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
-            <Button type="button" variant="ghost" className="rounded-2xl h-12 px-8 font-black text-slate-400 uppercase tracking-widest text-[10px]" onClick={() => setIsDialogOpen(false)}>
+          <DialogFooter className="px-0 mt-10">
+            <Button type="button" variant="ghost" className="rounded-xl h-12 px-8 font-black text-slate-400 uppercase tracking-widest text-[10px]" onClick={() => setIsDialogOpen(false)}>
               Discard
             </Button>
-            <Button type="submit" className="rounded-2xl h-12 px-10 font-black uppercase tracking-wider bg-emerald-600 hover:bg-emerald-700 shadow-xl shadow-emerald-200 active:scale-95 transition-all">
-              Save Changes
+            <Button type="submit" className="rounded-xl h-12 px-10 font-black uppercase tracking-wider bg-emerald-600 hover:bg-emerald-700 shadow-xl shadow-emerald-200 active:scale-95 transition-all">
+              Commit Changes
             </Button>
-          </div>
+          </DialogFooter>
         </form>
         </DialogContent>
       </Dialog>
@@ -485,39 +490,39 @@ export default function MenuPage() {
           
           <div className="p-8 space-y-8">
           {/* Add/Edit Form */}
-          <form onSubmit={handleCategorySubmit} className="p-4 bg-gray-50 rounded-md border space-y-4">
-            <h3 className="font-medium text-sm">{isCategoryEditing ? "Edit Category" : "Add New Category"}</h3>
-            <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto_auto] gap-2 items-end">
-              <div className="space-y-1">
-                <Label>Name</Label>
+          <form onSubmit={handleCategorySubmit} className="p-6 bg-slate-50 rounded-2xl border border-slate-100 space-y-4">
+            <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 mb-2">{isCategoryEditing ? "Refine Category Identity" : "New Category Definition"}</h3>
+            <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto_auto] gap-4 items-end">
+              <div className="space-y-2">
+                <Label className="text-[10px] font-black uppercase text-slate-500 tracking-widest ml-1">Identity Name</Label>
                 <Input 
                   value={categoryFormData.name}
                   onChange={(e) => setCategoryFormData({ ...categoryFormData, name: e.target.value })}
                   required
                   placeholder="Category Name"
-                  className="h-9"
+                  className="h-11 rounded-xl bg-white"
                 />
               </div>
-              <div className="space-y-1">
-                <Label>Color</Label>
-                <div className="flex items-center h-9">
+              <div className="space-y-2">
+                <Label className="text-[10px] font-black uppercase text-slate-500 tracking-widest ml-1">Visual Marker</Label>
+                <div className="flex items-center h-11">
                   <input 
                     type="color" 
                     value={categoryFormData.color}
                     onChange={(e) => setCategoryFormData({ ...categoryFormData, color: e.target.value })}
-                    className="h-9 w-12 cursor-pointer border rounded"
+                    className="h-11 w-16 cursor-pointer border-none rounded-xl bg-transparent"
                     title="Pick a color"
                   />
                 </div>
               </div>
-              <Button type="submit" size="sm" className="h-9">
-                {isCategoryEditing ? "Update" : "Add"}
+              <Button type="submit" size="sm" className="h-11 px-8 rounded-xl font-black uppercase tracking-widest text-[10px] bg-slate-900 text-white shadow-lg">
+                {isCategoryEditing ? "Update" : "Create"}
               </Button>
             </div>
             {isCategoryEditing && (
               <div className="flex justify-end">
-                 <Button type="button" variant="ghost" size="sm" onClick={resetCategoryForm} className="text-xs h-6">
-                   Cancel Edit
+                 <Button type="button" variant="ghost" size="sm" onClick={resetCategoryForm} className="text-[9px] font-black uppercase text-rose-500 tracking-widest h-6">
+                   Discard Edit
                  </Button>
               </div>
             )}

@@ -181,6 +181,7 @@ export default function PlatformsPage() {
             <div className="space-y-2">
               <Label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Type</Label>
               <Select
+                className="h-12 rounded-2xl"
                 value={formData.type}
                 onChange={(e) => setFormData({ ...formData, type: e.target.value })}
                 options={[
@@ -201,14 +202,14 @@ export default function PlatformsPage() {
                 placeholder="20"
               />
             </div>
-            <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
+            <DialogFooter className="px-0 mt-8">
               <Button type="button" variant="ghost" className="rounded-2xl h-12 px-8 font-black text-slate-400 uppercase tracking-widest text-[10px]" onClick={() => setIsDialogOpen(false)}>
                 Discard
               </Button>
               <Button type="submit" className="rounded-2xl h-12 px-10 font-semibold tracking-tight bg-emerald-600 hover:bg-emerald-700 shadow-xl shadow-emerald-200 active:scale-95 transition-all">
                 Save Platform
               </Button>
-            </div>
+            </DialogFooter>
           </form>
         </DialogContent>
       </Dialog>

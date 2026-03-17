@@ -31,13 +31,13 @@ const DialogContent = ({ className, children }) => {
         onClick={() => onOpenChange(false)}
       />
       <div className={cn(
-        "relative z-[110] w-full sm:max-w-lg my-auto bg-white shadow-2xl rounded-[2rem] border border-slate-100 transition-all duration-300 animate-in zoom-in-95 slide-in-from-bottom-5",
+        "relative z-[110] w-full sm:max-w-lg my-auto bg-white shadow-2xl rounded-[2rem] border border-slate-100 transition-all duration-300 animate-in zoom-in-95 slide-in-from-bottom-5 overflow-hidden",
         className
       )}>
         {children}
         <button
           onClick={() => onOpenChange(false)}
-          className="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none p-2"
+          className="absolute right-6 top-6 rounded-full bg-slate-50 opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none p-2 z-[120]"
         >
           <X className="h-4 w-4" />
           <span className="sr-only">Close</span>
@@ -51,14 +51,14 @@ const DialogContent = ({ className, children }) => {
 
 const DialogHeader = ({ className, ...props }) => (
   <div
-    className={cn("flex flex-col space-y-1.5 text-center sm:text-left", className)}
+    className={cn("flex flex-col space-y-2 text-center sm:text-left p-8 pb-0", className)}
     {...props}
   />
 )
 
 const DialogFooter = ({ className, ...props }) => (
   <div
-    className={cn("flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2", className)}
+    className={cn("flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-3 p-8 pt-0 mt-4", className)}
     {...props}
   />
 )

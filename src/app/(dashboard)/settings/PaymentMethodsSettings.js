@@ -267,11 +267,12 @@ export default function PaymentMethodsSettings() {
           <DialogHeader>
             <DialogTitle>{editingId ? "Edit Payment Method" : "Add Payment Method"}</DialogTitle>
           </DialogHeader>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
+          <form onSubmit={handleSubmit} className="space-y-6 px-8 py-4">
+            <div className="grid grid-cols-2 gap-5">
               <div className="space-y-2">
-                <Label>Name</Label>
+                <Label className="text-xs font-bold uppercase tracking-widest text-slate-500 ml-1">Name</Label>
                 <Input 
+                  className="h-11 rounded-xl"
                   value={formData.name} 
                   onChange={e => setFormData({...formData, name: e.target.value})}
                   placeholder="e.g. Bank BCA, QRIS"
@@ -279,8 +280,9 @@ export default function PaymentMethodsSettings() {
                 />
               </div>
               <div className="space-y-2">
-                <Label>Type</Label>
+                <Label className="text-xs font-bold uppercase tracking-widest text-slate-500 ml-1">Type</Label>
                 <Select 
+                  className="h-11 rounded-xl"
                   value={formData.type}
                   onChange={e => setFormData({...formData, type: e.target.value})}
                   options={[
@@ -294,18 +296,20 @@ export default function PaymentMethodsSettings() {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-2 gap-5">
               <div className="space-y-2">
-                <Label>Account Number (optional)</Label>
+                <Label className="text-xs font-bold uppercase tracking-widest text-slate-500 ml-1">Account Number (optional)</Label>
                 <Input 
+                  className="h-11 rounded-xl"
                   value={formData.account_number}
                   onChange={e => setFormData({...formData, account_number: e.target.value})}
                   placeholder="e.g. 12345678"
                 />
               </div>
               <div className="space-y-2">
-                <Label>Account Name (optional)</Label>
+                <Label className="text-xs font-bold uppercase tracking-widest text-slate-500 ml-1">Account Name (optional)</Label>
                 <Input 
+                  className="h-11 rounded-xl"
                   value={formData.account_name}
                   onChange={e => setFormData({...formData, account_name: e.target.value})}
                   placeholder="e.g. John Doe"
@@ -314,8 +318,9 @@ export default function PaymentMethodsSettings() {
             </div>
 
             <div className="space-y-2">
-              <Label>Description / Instructions</Label>
+              <Label className="text-xs font-bold uppercase tracking-widest text-slate-500 ml-1">Description / Instructions</Label>
               <Textarea 
+                className="rounded-xl"
                 value={formData.description}
                 onChange={e => setFormData({...formData, description: e.target.value})}
                 placeholder="Payment instructions..."
@@ -324,23 +329,24 @@ export default function PaymentMethodsSettings() {
             </div>
 
             <div className="space-y-2">
-              <Label>Image / QR Code</Label>
+              <Label className="text-xs font-bold uppercase tracking-widest text-slate-500 ml-1">Image / QR Code</Label>
               <div className="flex items-start gap-4">
                 <div className="flex-1">
                   <Input 
                     type="file" 
                     accept="image/*" 
+                    className="h-11 rounded-xl px-3 py-2 text-xs"
                     onChange={handleFileUpload}
                     disabled={uploading}
                   />
                   {uploading && <p className="text-xs text-emerald-500 mt-1">Uploading...</p>}
                 </div>
                 {formData.imageUrl && (
-                  <div className="w-20 h-20 border rounded relative bg-gray-50 flex items-center justify-center">
+                  <div className="w-20 h-20 border-2 border-slate-100 rounded-xl relative bg-slate-50 flex items-center justify-center overflow-hidden">
                     <img src={formData.imageUrl} alt="preview" className="max-w-full max-h-full object-contain" />
                     <button 
                       type="button"
-                      className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-0.5"
+                      className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 shadow-lg"
                       onClick={() => setFormData({...formData, imageUrl: ""})}
                     >
                       <X className="w-3 h-3" />
@@ -351,8 +357,8 @@ export default function PaymentMethodsSettings() {
             </div>
 
             {formData.type === "QRIS" && (
-              <div className="space-y-2">
-                <Label className="flex items-center gap-2">
+              <div className="space-y-2 p-4 bg-slate-50 rounded-2xl border border-slate-100 italic">
+                <Label className="flex items-center gap-2 text-xs font-black uppercase tracking-widest text-slate-400">
                   <QrCode className="w-4 h-4" /> Base QRIS String
                 </Label>
                 <div className="flex gap-2">
@@ -361,40 +367,42 @@ export default function PaymentMethodsSettings() {
                     onChange={e => setFormData({...formData, qris_data: e.target.value})}
                     placeholder="000201010211..."
                     rows={3}
-                    className="font-mono text-xs"
+                    className="font-mono text-xs bg-transparent border-none shadow-none focus:ring-0"
                   />
                 </div>
-                <p className="text-[10px] text-gray-500">
+                <p className="text-[10px] text-gray-400 font-medium">
                   This string will be used to generate dynamic QR codes with transaction amounts.
                 </p>
               </div>
             )}
 
             <div className="flex items-center gap-6 pt-2">
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-3">
                 <input 
                   type="checkbox" 
                   id="is_active"
                   checked={formData.is_active}
                   onChange={e => setFormData({...formData, is_active: e.target.checked})}
-                  className="rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
+                  className="w-5 h-5 rounded-md border-slate-300 text-emerald-600 focus:ring-emerald-500"
                 />
-                <Label htmlFor="is_active" className="cursor-pointer">Active</Label>
+                <Label htmlFor="is_active" className="cursor-pointer font-bold text-slate-700">Active Status</Label>
               </div>
-              <div className="flex items-center gap-2 flex-1">
-                <Label className="whitespace-nowrap">Display Order</Label>
+              <div className="flex items-center gap-3 flex-1 justify-end">
+                <Label className="text-xs font-bold uppercase tracking-widest text-slate-400">Display Order</Label>
                 <Input 
                   type="number" 
                   value={formData.display_order}
                   onChange={e => setFormData({...formData, display_order: e.target.value})}
-                  className="w-20"
+                  className="w-20 h-10 rounded-xl"
                 />
               </div>
             </div>
 
-            <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>Cancel</Button>
-              <Button type="submit" disabled={uploading}>Save Changes</Button>
+            <DialogFooter className="px-0 mt-8">
+              <Button type="button" variant="outline" className="h-12 rounded-xl px-8" onClick={() => setIsDialogOpen(false)}>Cancel</Button>
+              <Button type="submit" disabled={uploading} className="h-12 rounded-xl px-8 bg-emerald-600 hover:bg-emerald-700 font-bold shadow-lg shadow-emerald-600/20">
+                {editingId ? "Update Method" : "Create Method"}
+              </Button>
             </DialogFooter>
           </form>
         </DialogContent>
