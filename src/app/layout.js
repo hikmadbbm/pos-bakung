@@ -25,6 +25,7 @@ export const viewport = {
 import "../styles/globals.css";
 import { ToastProvider } from "../components/ui/use-toast";
 import { PrinterProvider } from "../lib/printer-context";
+import { Analytics } from '@vercel/analytics/next';
 
 export default function RootLayout({ children }) {
   return (
@@ -35,6 +36,7 @@ export default function RootLayout({ children }) {
             {children}
           </PrinterProvider>
         </ToastProvider>
+        <Analytics />
       </body>
     </html>
   );
