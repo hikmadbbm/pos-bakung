@@ -16,28 +16,28 @@ export default function BreakEvenInsights({ data, loading = false }) {
 
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-      <div className="glass-card p-6 border-l-4 border-l-emerald-600 group hover:shadow-2xl transition-all duration-500 hover:-translate-y-1">
-        <div className="flex justify-between items-start mb-3">
+      <div className="glass-card p-4 border-l-4 border-l-emerald-600 group hover:shadow-2xl transition-all duration-500 hover:-translate-y-1">
+        <div className="flex justify-between items-start mb-2">
           <p className="text-[10px] font-black text-emerald-800 uppercase tracking-widest">Safe Haven Matrix</p>
           <Activity className="w-4 h-4 text-emerald-200 group-hover:text-emerald-600 transition-colors" />
         </div>
-        <div className="text-2xl font-black text-slate-900 group-hover:text-emerald-800 transition-colors">
+        <div className="text-xl font-black text-slate-900 group-hover:text-emerald-800 transition-colors">
           {formatIDR((data.expenses || 0) + (data.cogs || 0))}
         </div>
-        <p className="text-[10px] font-bold text-slate-400 mt-2 uppercase tracking-tight">
+        <p className="text-[10px] font-bold text-slate-400 mt-1 uppercase tracking-tight">
           BREAK-EVEN TARGET FOR CURRENT CYCLE
         </p>
       </div>
 
-      <div className="glass-card p-6 border-l-4 border-l-green-400 group hover:shadow-2xl transition-all duration-500 hover:-translate-y-1">
-        <div className="flex justify-between items-start mb-3">
+      <div className="glass-card p-4 border-l-4 border-l-green-400 group hover:shadow-2xl transition-all duration-500 hover:-translate-y-1">
+        <div className="flex justify-between items-start mb-2">
           <p className="text-[10px] font-black text-green-700 uppercase tracking-widest">Fixed Operational Drain</p>
           <Activity className="w-4 h-4 text-green-200 group-hover:text-green-600 transition-colors" />
         </div>
-        <div className="text-2xl font-black text-slate-900 group-hover:text-green-700 transition-colors">
+        <div className="text-xl font-black text-slate-900 group-hover:text-green-700 transition-colors">
           {formatIDR(data.dailyOverhead || 0)}
         </div>
-        <p className="text-[10px] font-bold text-slate-400 mt-2 uppercase tracking-tight">
+        <p className="text-[10px] font-bold text-slate-400 mt-1 uppercase tracking-tight">
           ALLOCATED FIXED OVERHEAD (RENT/SALARY)
         </p>
       </div>

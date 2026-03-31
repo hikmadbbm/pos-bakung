@@ -44,14 +44,19 @@ export async function PUT(req, { params }) {
         return null;
       }
 
-      for (const item of items) {
-        const menu = await tx.menu.findUnique({
-          where: { id: item.menu_id },
-          include: {
-            prices: platform_id ? { where: { platform_id: Number(platform_id) } } : false,
-          },
-        });
+      const platId = platform_id ? Number(platform_id) : null;
+      const menuIds = items.map(i => i.menu_id);
+      const dbMenus = await tx.menu.findMany({
+        where: { id: { in: menuIds } },
+        include: {
+          prices: platId ? { where: { platform_id: platId } } : false,
+        },
+      });
 
+      const menuMap = new Map(dbMenus.map(m => [m.id, m]));
+
+      for (const item of items) {
+        const menu = menuMap.get(item.menu_id);
         if (!menu) {
           throw new Error(`Menu item ${item.menu_id} not found`);
         }
@@ -61,12 +66,12 @@ export async function PUT(req, { params }) {
 
         if (explicitPrice !== undefined && explicitPrice !== null) {
           finalPrice = explicitPrice;
-        } else if (platform_id && menu.prices.length > 0) {
+        } else if (platId && menu.prices && menu.prices.length > 0) {
           finalPrice = menu.prices[0].price;
         }
 
         item.calculatedPrice = finalPrice;
-        item.calculatedCost = menu.cost;
+        item.calculatedCost = menu.cost || 0;
         subtotal += finalPrice * item.qty;
       }
 
@@ -84,7 +89,6 @@ export async function PUT(req, { params }) {
       if (netSubtotal < 0) netSubtotal = 0;
 
       let commission = 0;
-      const platId = platform_id ? Number(platform_id) : null;
       if (platId) {
         const platform = await tx.platform.findUnique({ where: { id: platId } });
         if (platform && platform.commission_rate > 0) {
@@ -111,14 +115,14 @@ export async function PUT(req, { params }) {
           net_revenue,
           platform_id: platId,
           payment_method,
-          payment_method_id: payment_method_id || null,
+          payment_method_id: payment_method_id ? Number(payment_method_id) : null,
           money_received: received,
           change_amount,
           status: status || 'PENDING',
           note: note || null,
           customer_name: customer_name || null,
-          created_by_user_id: creatorId,
-          processed_by_user_id: creatorId,
+          created_by_user_id: creatorId ? Number(creatorId) : null,
+          processed_by_user_id: creatorId ? Number(creatorId) : null,
           orderItems: {
             create: items.map((item) => ({
               menu_id: item.menu_id,
@@ -135,7 +139,7 @@ export async function PUT(req, { params }) {
       });
 
       return newOrder;
-    });
+    }, { timeout: 15000 });
 
     if (!updated) {
       return NextResponse.json({ error: 'Order not found' }, { status: 404 });
@@ -144,9 +148,9 @@ export async function PUT(req, { params }) {
     return NextResponse.json(updated);
   } catch (error) {
     console.error('Failed to update order:', error);
-    const message = error?.message?.includes('not found') ? error.message : 'Failed to update order';
+    const message = error?.message?.includes('not found') ? error.message : (error?.message || 'Failed to update order');
     const statusCode = message.includes('not found') ? 400 : 500;
-    return NextResponse.json({ error: message }, { status: statusCode });
+    return NextResponse.json({ error: message, detail: error?.message }, { status: statusCode });
   }
 }
 

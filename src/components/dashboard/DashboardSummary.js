@@ -57,9 +57,9 @@ export default function DashboardSummary({ data, loading = false }) {
   return (
     <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
       {cards.map((card, idx) => (
-        <div key={idx} className={cn("glass-card p-6 group hover:-translate-y-2 transition-all duration-500 shadow-xl hover:shadow-2xl relative overflow-hidden border", card.borderColor)}>
-          <div className="flex justify-between items-start mb-4 relative z-10">
-            <div className={cn("p-2.5 rounded-xl transition-all duration-500 group-hover:scale-110 group-hover:rotate-6 shadow-sm", card.bgColor)}>
+        <div key={idx} className={cn("glass-card p-4 group hover:-translate-y-1 transition-all duration-500 shadow-xl hover:shadow-2xl relative overflow-hidden border", card.borderColor)}>
+          <div className="flex justify-between items-start mb-3 relative z-10">
+            <div className={cn("p-1.5 rounded-xl transition-all duration-500 group-hover:rotate-6 shadow-sm", card.bgColor)}>
               <card.icon className={cn("w-5 h-5", card.color)} />
             </div>
             <div className="text-right">
@@ -67,7 +67,7 @@ export default function DashboardSummary({ data, loading = false }) {
               <div className="text-[8px] font-black text-slate-300 uppercase tracking-tighter">{card.desc}</div>
             </div>
           </div>
-          <div className={cn("text-2xl font-black tracking-tight truncate group-hover:scale-105 origin-left transition-transform relative z-10", card.color.includes('rose') ? "text-rose-600" : "text-slate-900")}>
+          <div className={cn("text-xl font-black tracking-tight truncate group-hover:scale-105 origin-left transition-transform relative z-10", card.color.includes('rose') ? "text-rose-600" : "text-slate-900")}>
             {formatIDR(card.value)}
           </div>
         </div>

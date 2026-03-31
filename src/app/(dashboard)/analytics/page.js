@@ -315,8 +315,9 @@ function MenuIntelligence({ data }) {
                Intelligence Deep-Dive
             </h3>
         </div>
-        <Table>
-          <TableHeader className="bg-slate-50/50">
+        <div className="overflow-x-auto custom-scrollbar">
+          <Table>
+            <TableHeader className="bg-slate-50/50">
             <TableRow>
               <TableHead className="text-[10px] font-black uppercase text-slate-500 py-8 px-10">Menu Item</TableHead>
               <TableHead className="text-[10px] font-black uppercase text-slate-500 py-8 text-right">Qty</TableHead>
@@ -349,6 +350,7 @@ function MenuIntelligence({ data }) {
             ))}
           </TableBody>
         </Table>
+        </div>
       </div>
     </div>
   );
@@ -437,8 +439,9 @@ function DemandForecast({ data }) {
                Forecast Matrix (Next 7 Cycles)
             </h3>
         </div>
-        <Table>
-          <TableHeader className="bg-slate-50/50">
+        <div className="overflow-x-auto custom-scrollbar">
+          <Table>
+            <TableHeader className="bg-slate-50/50">
             <TableRow>
               <TableHead className="text-[10px] font-black uppercase text-slate-500 py-8 px-10">Menu Item</TableHead>
               <TableHead className="text-[10px] font-black uppercase text-slate-500 py-8 text-right">7D Avg Index</TableHead>
@@ -459,6 +462,7 @@ function DemandForecast({ data }) {
             ))}
           </TableBody>
         </Table>
+        </div>
       </div>
     </div>
   );

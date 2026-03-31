@@ -1,6 +1,5 @@
 /**
- * ESC/POS Command Utility for 58mm Thermal Printers
- * Optimized for ~32 characters per line width.
+ * ESC/POS Command Utility for Thermal Printers
  */
 export const ESC_POS = {
   // Commands
@@ -15,22 +14,21 @@ export const ESC_POS = {
   DOUBLE_WIDTH_ON: '\x1B\x21\x20',
   DOUBLE_SIZE_ON: '\x1B\x21\x30',
   RESET_SIZE: '\x1B\x21\x00',
+  LINE_SPACING_DEFAULT: '\x1B\x32',
   
   // Helpers
-  LINE_WIDTH: 32,
+  separator: (width = 32) => "-".repeat(width) + "\n",
   
-  separator: () => "-".repeat(32) + "\n",
-  
-  formatTwoColumns: (left, right) => {
-    const leftWidth = 20;
-    const rightWidth = 12;
+  formatTwoColumns: (left, right, width = 32) => {
+    const leftWidth = Math.floor(width * 0.6);
+    const rightWidth = width - leftWidth;
     const truncatedLeft = left.substring(0, leftWidth - 1).padEnd(leftWidth);
     const formattedRight = right.toString().substring(0, rightWidth).padStart(rightWidth);
     return truncatedLeft + formattedRight + "\n";
   },
   
-  centerText: (text) => {
-    const padding = Math.max(0, Math.floor((32 - text.length) / 2));
+  centerText: (text, width = 32) => {
+    const padding = Math.max(0, Math.floor((width - text.length) / 2));
     return " ".repeat(padding) + text + "\n";
   }
 };

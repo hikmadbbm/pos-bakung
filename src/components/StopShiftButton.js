@@ -6,6 +6,7 @@ import { LogOut, Clock } from "lucide-react";
 import StopShiftModal from "./StopShiftModal";
 import PinVerificationModal from "./PinVerificationModal";
 import { useToast } from "./ui/use-toast";
+import { useTranslation } from "../lib/language-context";
 
 export default function StopShiftButton() {
   const [isOpen, setIsOpen] = useState(false);
@@ -17,6 +18,7 @@ export default function StopShiftButton() {
   const [activeShift, setActiveShift] = useState(null);
   const [elapsed, setElapsed] = useState("00:00:00");
   const { error } = useToast();
+  const { t } = useTranslation();
 
   const checkShiftStatus = async () => {
     const userStr = localStorage.getItem("user");
@@ -128,8 +130,8 @@ export default function StopShiftButton() {
         onClick={() => setIsAuthOpen(true)}
       >
         <LogOut className="w-4 h-4" />
-        <span className="hidden lg:inline">{isOwnShift ? 'Stop Shift' : 'End External Shift'}</span>
-        <span className="lg:hidden">Stop</span>
+        <span className="hidden lg:inline">{isOwnShift ? t('stop_shift') : t('end_external_shift')}</span>
+        <span className="lg:hidden">{t('stop')}</span>
       </Button>
       
       {/* Mobile Icon Only */}
@@ -154,8 +156,8 @@ export default function StopShiftButton() {
         open={isAuthOpen}
         onClose={() => setIsAuthOpen(false)}
         onSubmit={handleAuthSubmit}
-        title={isOwnShift ? "Stop Shift Security" : "Admin Shift Override"}
-        subtitle={isOwnShift ? "Verification required to end shift" : `Ending shift for ${activeShift?.user?.name || 'Personnel'}`}
+        title={isOwnShift ? t('stop_shift_security') : t('admin_shift_override')}
+        subtitle={isOwnShift ? t('verification_required') : `${t('ending_shift_for')} ${activeShift?.user?.name || 'Personnel'}`}
       />
     </div>
   );

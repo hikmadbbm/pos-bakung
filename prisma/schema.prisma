@@ -8,23 +8,25 @@ datasource db {
 }
 
 model User {
-  id            Int               @id @default(autoincrement())
-  name          String
-  username      String            @unique
-  email         String?
-  password      String
-  role          Role              @default(CASHIER)
-  pin           String?
-  phone_number  String?
-  status        String            @default("ACTIVE")
-  profile_photo String?
-  employee_id   String?
-  notes         String?
-  last_login    DateTime?
-  created_at    DateTime          @default(now())
-  updated_at    DateTime          @updatedAt
-  activityLogs  UserActivityLog[]
-  shifts        UserShift[]
+  id              Int               @id @default(autoincrement())
+  name            String
+  username        String            @unique
+  email           String?
+  password        String
+  role            Role              @default(CASHIER)
+  pin             String?
+  phone_number    String?
+  status          String            @default("ACTIVE")
+  profile_photo   String?
+  employee_id     String?
+  notes           String?
+  last_login      DateTime?
+  created_at      DateTime          @default(now())
+  updated_at      DateTime          @updatedAt
+  ordersCreated   Order[]           @relation("OrderCreatedBy")
+  ordersProcessed Order[]           @relation("OrderProcessedBy")
+  activityLogs    UserActivityLog[]
+  shifts          UserShift[]
 
   @@map("user")
 }
@@ -42,20 +44,20 @@ model UserActivityLog {
 }
 
 model UserShift {
-  id             Int       @id @default(autoincrement())
-  user_id        Int
-  start_time     DateTime  @default(now())
-  end_time       DateTime?
-  starting_cash  Int       @default(0)
-  ending_cash    Int?
-  expected_cash  Int?      @default(0)
-  discrepancy    Int?      @default(0)
-  note           String?
+  id                  Int       @id @default(autoincrement())
+  user_id             Int
+  start_time          DateTime  @default(now())
+  end_time            DateTime?
+  starting_cash       Int       @default(0)
+  ending_cash         Int?
+  expected_cash       Int?      @default(0)
+  discrepancy         Int?      @default(0)
+  note                String?
   cash_breakdown      Json?
+  total_sales         Int       @default(0)
+  status              String    @default("OPEN")
   reconciliation_data Json?
-  total_sales    Int       @default(0)
-  status         String    @default("OPEN")
-  user           User      @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  user                User      @relation(fields: [user_id], references: [id], onDelete: Cascade)
 
   @@index([user_id])
   @@index([status])
@@ -64,14 +66,26 @@ model UserShift {
 }
 
 model StoreConfig {
-  id             Int      @id @default(autoincrement())
-  store_name     String   @default("BAKMIE YOU-TJE")
-  address        String?  @default("Jl. Bakung No. 123, Jakarta")
-  phone          String?  @default("0812-3456-7890")
-  receipt_footer String?  @default("Thank you for visiting!\nPlease come again.")
-  tax_rate       Float    @default(0)
-  service_charge Float    @default(0)
-  updated_at     DateTime @updatedAt
+  id                 Int      @id @default(autoincrement())
+  store_name         String   @default("BAKMIE YOU-TJE")
+  address            String?  @default("Jl. Bakung No. 123, Jakarta")
+  phone              String?  @default("0812-3456-7890")
+  receipt_footer     String?  @default("Thank you for visiting!\nPlease come again.")
+  tax_rate           Float    @default(0)
+  service_charge     Float    @default(0)
+  updated_at         DateTime @updatedAt
+  kitchen_auto_print Boolean  @default(false)
+  kitchen_categories Json?    @default("[]")
+  kitchen_copies     Int      @default(1)
+  kitchen_enabled    Boolean  @default(true)
+  paper_width        Int      @default(58)
+  show_customer      Boolean  @default(true)
+  show_logo          Boolean  @default(false)
+  language           String   @default("en")
+  instagram          String?
+  logo_url           String?
+  whatsapp           String?
+  quick_tags         Json?    @default("[]")
 
   @@map("storeconfig")
 }
@@ -89,6 +103,8 @@ model Menu {
   orderItems OrderItem[]
   recipe     Recipe?
 
+  @@index([categoryId])
+  @@index([name])
   @@map("menu")
 }
 
@@ -146,8 +162,10 @@ model Order {
   payment_method_id    Int?
   discount_rate        Float          @default(0)
   discount_type        String         @default("FIXED")
+  user                 User?          @relation("OrderCreatedBy", fields: [created_by_user_id], references: [id])
   paymentMethod        PaymentMethod? @relation(fields: [payment_method_id], references: [id])
   platform             Platform?      @relation(fields: [platform_id], references: [id])
+  processed_by         User?          @relation("OrderProcessedBy", fields: [processed_by_user_id], references: [id])
   orderItems           OrderItem[]
 
   @@index([date])
@@ -164,12 +182,12 @@ model PaymentMethod {
   account_number String?
   account_name   String?
   description    String?
-  imageUrl       String?
-  qris_data      String?
   is_active      Boolean           @default(true)
   display_order  Int               @default(0)
   created_at     DateTime          @default(now())
   updated_at     DateTime          @updatedAt
+  qris_data      String?
+  imageUrl       String?
   orders         Order[]
 
   @@map("paymentmethod")
@@ -230,48 +248,28 @@ model CashierReconciliation {
   @@map("cashierreconciliation")
 }
 
-enum Role {
-  OWNER
-  MANAGER
-  CASHIER
-  KITCHEN
-  STAFF
-}
-
-enum PlatformType {
-  OFFLINE
-  DELIVERY
-}
-
-enum PaymentMethodType {
-  CASH
-  QRIS
-  BANK_TRANSFER
-  E_WALLET
-  OTHER
-}
-
 model Ingredient {
   id                Int                      @id @default(autoincrement())
-  category          String
-  item_name         String
-  brand             String
-  volume            Float                    // Packaging size/volume
-  unit              String                   // e.g., "kg", "gr", "ml", "pcs"
-  price             Int                      // Latest purchase price
-  cost_per_unit     Float                    @default(0) // price / volume
-  stock             Float                    @default(0)
-  minimum_stock     Float                    @default(0)
-  purchase_location String?
-  purchase_link     String?
-  notes             String?
+  unit              String
+  cost_per_unit     Float                    @default(0)
   created_at        DateTime                 @default(now())
   updated_at        DateTime                 @updatedAt
+  brand             String
+  category          String
+  item_name         String
+  notes             String?
+  price             Int
+  purchase_link     String?
+  purchase_location String?
+  volume            Float
+  minimum_stock     Float                    @default(0)
+  stock             Float                    @default(0)
   price_history     IngredientPriceHistory[]
-  recipe_items      RecipeItem[]
   purchases         Purchase[]
+  recipe_items      RecipeItem[]
   stock_movements   StockMovement[]
 
+  @@index([category])
   @@map("ingredient")
 }
 
@@ -293,14 +291,14 @@ model Purchase {
   ingredient_id   Int
   quantity        Float
   unit            String
-  volume          Float                    @default(1.0) // Units per quantity (e.g., 25kg per sack)
   unit_price      Int
   total_price     Int
   supplier        String?
   notes           String?
   created_at      DateTime                 @default(now())
-  ingredient      Ingredient               @relation(fields: [ingredient_id], references: [id], onDelete: Cascade)
+  volume          Float                    @default(1.0)
   price_histories IngredientPriceHistory[]
+  ingredient      Ingredient               @relation(fields: [ingredient_id], references: [id], onDelete: Cascade)
   stock_movements StockMovement[]
 
   @@index([ingredient_id])
@@ -308,20 +306,109 @@ model Purchase {
 }
 
 model StockMovement {
-  id              Int          @id @default(autoincrement())
-  ingredient_id   Int
-  movement_type   MovementType
-  quantity        Float
-  unit            String
-  reference_id    Int?         // Purchase ID or other ref
-  reference_type  String?      // e.g., "PURCHASE", "RECIPE_USAGE", "ADJUSTMENT"
-  created_at      DateTime     @default(now())
-  ingredient      Ingredient   @relation(fields: [ingredient_id], references: [id], onDelete: Cascade)
-  purchase        Purchase?    @relation(fields: [reference_id], references: [id])
+  id             Int          @id @default(autoincrement())
+  ingredient_id  Int
+  movement_type  MovementType
+  quantity       Float
+  unit           String
+  reference_id   Int?
+  reference_type String?
+  created_at     DateTime     @default(now())
+  ingredient     Ingredient   @relation(fields: [ingredient_id], references: [id], onDelete: Cascade)
+  purchase       Purchase?    @relation(fields: [reference_id], references: [id])
 
   @@index([ingredient_id])
   @@index([created_at])
   @@map("stock_movement")
+}
+
+model Recipe {
+  id                        Int           @id @default(autoincrement())
+  name                      String
+  menu_id                   Int?          @unique
+  base_quantity             Float         @default(1)
+  total_variable_cost       Int           @default(0)
+  fixed_cost_allocation     Int           @default(0)
+  total_hpp                 Int           @default(0)
+  created_at                DateTime      @default(now())
+  updated_at                DateTime      @updatedAt
+  cost_change_alert         Float         @default(0)
+  monthly_fixed_cost        Int           @default(0)
+  monthly_production_volume Int           @default(0)
+  type                      RecipeType    @default(STANDARD)
+  snapshots                 HppSnapshot[]
+  menu                      Menu?         @relation(fields: [menu_id], references: [id])
+  used_in_items             RecipeItem[]  @relation("ComponentToItems")
+  items                     RecipeItem[]  @relation("RecipeToItems")
+
+  @@map("recipe")
+}
+
+model RecipeItem {
+  id                  Int            @id @default(autoincrement())
+  recipe_id           Int
+  item_type           RecipeItemType @default(INGREDIENT)
+  ingredient_id       Int?
+  component_recipe_id Int?
+  quantity            Float
+  unit                String?
+  component_recipe    Recipe?        @relation("ComponentToItems", fields: [component_recipe_id], references: [id])
+  ingredient          Ingredient?    @relation(fields: [ingredient_id], references: [id])
+  recipe              Recipe         @relation("RecipeToItems", fields: [recipe_id], references: [id], onDelete: Cascade)
+
+  @@index([recipe_id])
+  @@index([ingredient_id])
+  @@map("recipe_item")
+}
+
+model HppSnapshot {
+  id            Int      @id @default(autoincrement())
+  recipe_id     Int
+  total_hpp     Int
+  variable_cost Int
+  fixed_cost    Int
+  note          String?
+  created_at    DateTime @default(now())
+  recipe        Recipe   @relation(fields: [recipe_id], references: [id], onDelete: Cascade)
+
+  @@map("hpp_snapshot")
+}
+
+model DailySummary {
+  id             Int      @id @default(autoincrement())
+  date           DateTime @unique
+  revenue        Int      @default(0)
+  net_revenue    Int      @default(0)
+  cogs           Int      @default(0)
+  expenses       Int      @default(0)
+  total_orders   Int      @default(0)
+  top_menus_json Json?
+  created_at     DateTime @default(now())
+  updated_at     DateTime @updatedAt
+
+  @@index([date])
+  @@map("daily_summary")
+}
+
+enum Role {
+  OWNER
+  MANAGER
+  CASHIER
+  KITCHEN
+  STAFF
+}
+
+enum PlatformType {
+  OFFLINE
+  DELIVERY
+}
+
+enum PaymentMethodType {
+  CASH
+  QRIS
+  BANK_TRANSFER
+  E_WALLET
+  OTHER
 }
 
 enum MovementType {
@@ -338,69 +425,4 @@ enum RecipeType {
 enum RecipeItemType {
   INGREDIENT
   COMPONENT
-}
-
-model Recipe {
-  id              Int                @id @default(autoincrement())
-  name            String
-  type            RecipeType         @default(STANDARD)
-  menu_id         Int?               @unique
-  menu            Menu?              @relation(fields: [menu_id], references: [id])
-  base_quantity   Float              @default(1) // Usually 1 portion or yield
-  monthly_fixed_cost Int           @default(0)
-  monthly_production_volume Int    @default(0)
-  cost_change_alert Float           @default(0) // Percentage change
-  total_variable_cost Int            @default(0)
-  fixed_cost_allocation Int          @default(0)
-  total_hpp       Int                @default(0)
-  created_at      DateTime           @default(now())
-  updated_at      DateTime           @updatedAt
-  items           RecipeItem[]       @relation("RecipeToItems")
-  used_in_items   RecipeItem[]       @relation("ComponentToItems")
-  snapshots       HppSnapshot[]
-
-  @@map("recipe")
-}
-
-model RecipeItem {
-  id                  Int            @id @default(autoincrement())
-  recipe_id           Int
-  item_type           RecipeItemType @default(INGREDIENT)
-  ingredient_id       Int?
-  component_recipe_id Int?
-  quantity            Float
-  unit                String?        // Usage unit (e.g. gr)
-  recipe              Recipe         @relation("RecipeToItems", fields: [recipe_id], references: [id], onDelete: Cascade)
-  ingredient          Ingredient?    @relation(fields: [ingredient_id], references: [id])
-  component_recipe    Recipe?        @relation("ComponentToItems", fields: [component_recipe_id], references: [id])
-
-  @@map("recipe_item")
-}
-
-model HppSnapshot {
-  id              Int      @id @default(autoincrement())
-  recipe_id       Int
-  total_hpp       Int
-  variable_cost   Int
-  fixed_cost      Int
-  note            String?
-  created_at      DateTime @default(now())
-  recipe          Recipe   @relation(fields: [recipe_id], references: [id], onDelete: Cascade)
-
-  @@map("hpp_snapshot")
-}
-model DailySummary {
-  id              Int      @id @default(autoincrement())
-  date            DateTime @unique
-  revenue         Int      @default(0)
-  net_revenue     Int      @default(0)
-  cogs            Int      @default(0)
-  expenses        Int      @default(0)
-  total_orders    Int      @default(0)
-  top_menus_json  Json?    // Store JSON of top menus for that day
-  created_at      DateTime @default(now())
-  updated_at      DateTime @updatedAt
-
-  @@index([date])
-  @@map("daily_summary")
 }

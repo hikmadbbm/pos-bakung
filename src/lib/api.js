@@ -16,15 +16,23 @@ apiClient.interceptors.request.use((config) => {
       config.headers.Authorization = `Bearer ${token}`;
     }
   }
+
+  // Handle FormData
+  if (config.data instanceof FormData) {
+    if (config.headers['Content-Type']) {
+      delete config.headers['Content-Type'];
+    }
+  }
+
   return config;
 });
 
 export const api = {
-  get: (url) => apiClient.get(url).then((res) => res.data),
-  post: (url, data) => apiClient.post(url, data).then((res) => res.data),
-  put: (url, data) => apiClient.put(url, data).then((res) => res.data),
-  patch: (url, data) => apiClient.patch(url, data).then((res) => res.data),
-  delete: (url) => apiClient.delete(url).then((res) => res.data),
+  get: (url, options = {}) => apiClient.get(url, options).then((res) => res.data),
+  post: (url, data, options = {}) => apiClient.post(url, data, options).then((res) => res.data),
+  put: (url, data, options = {}) => apiClient.put(url, data, options).then((res) => res.data),
+  patch: (url, data, options = {}) => apiClient.patch(url, data, options).then((res) => res.data),
+  delete: (url, options = {}) => apiClient.delete(url, options).then((res) => res.data),
 };
 
 export function setAuth(token, user) {

@@ -27,12 +27,13 @@ export const PrinterProvider = ({ children }) => {
     '49535343-fe7d-4ae5-8fa9-9fafd205e455'  // Re-confirm ISSC
   ];
 
+  const [reconnectAttempts, setReconnectAttempts] = useState(0);
+
   // Attempt auto-reconnect on mount
   useEffect(() => {
     const savedPrinter = localStorage.getItem("saved_printer_name");
     if (savedPrinter && navigator.bluetooth) {
-      console.log("Found saved printer preference:", savedPrinter);
-      // We can't auto-connect without user gesture usually, but we can set status
+      console.log("Memory: Previously used printer was", savedPrinter);
     }
   }, []);
 
@@ -42,7 +43,7 @@ export const PrinterProvider = ({ children }) => {
       return;
     }
 
-    if (isConnecting || device) return;
+    if (isConnecting) return;
 
     setIsConnecting(true);
     setConnectionStatus("connecting");
@@ -53,80 +54,7 @@ export const PrinterProvider = ({ children }) => {
         optionalServices: serviceUuids
       });
 
-      console.log("Device selected:", selectedDevice.name);
-      const connectedServer = await selectedDevice.gatt.connect();
-      console.log("GATT Server connected");
-      
-      let connectedService = null;
-      let connectedChar = null;
-
-      const charUuids = [
-        '00002af1-0000-1000-8000-00805f9b34fb',
-        '0000ff02-0000-1000-8000-00805f9b34fb',
-        '49535343-8841-43f4-a8d4-ecbe34729bb3',
-        '0000ffe1-0000-1000-8000-00805f9b34fb',
-        '0000bec8-0000-1000-8000-00805f9b34fb'
-      ];
-
-      // Strategy 1: Enumeration (Plural)
-      try {
-        console.log("Attempting plural service discovery...");
-        const services = await connectedServer.getPrimaryServices();
-        console.log(`Discovered ${services.length} services`);
-        
-        for (const s of services) {
-          console.log(`Checking service: ${s.uuid}`);
-          try {
-            const characteristics = await s.getCharacteristics();
-            for (const c of characteristics) {
-              console.log(`  - Characteristic: ${c.uuid} (${JSON.stringify(c.properties)})`);
-              if (c.properties.write || c.properties.writeWithoutResponse) {
-                console.log("  !!! Found writable characteristic:", c.uuid);
-                connectedService = s;
-                connectedChar = c;
-                break;
-              }
-            }
-          } catch (e) { console.warn(`Failed to probe service ${s.uuid}`, e); }
-          if (connectedChar) break;
-        }
-      } catch (e) {
-        console.warn("Plural discovery failed or not supported, falling back to sequential scan.", e);
-      }
-
-      // Strategy 2: Sequential Fallback (using pre-authorized list)
-      if (!connectedChar) {
-        console.log("Starting sequential UUID scan fallback...");
-        for (const uuid of serviceUuids) {
-          try {
-            connectedService = await connectedServer.getPrimaryService(uuid);
-            if (connectedService) {
-              for (const cUuid of charUuids) {
-                try {
-                  connectedChar = await connectedService.getCharacteristic(cUuid);
-                  if (connectedChar) break;
-                } catch (e) { /* continue */ }
-              }
-            }
-            if (connectedChar) break;
-          } catch (e) { /* continue */ }
-        }
-      }
-
-      if (!connectedChar) {
-        throw new Error("Could not find a valid printing service or characteristic.");
-      }
-
-      setDevice(selectedDevice);
-      setServer(connectedServer);
-      setService(connectedService);
-      setCharacteristic(connectedChar);
-      setConnectionStatus("connected");
-
-      localStorage.setItem("saved_printer_name", selectedDevice.name);
-
-      selectedDevice.addEventListener('gattserverdisconnected', onDisconnected);
-      
+      await establishConnection(selectedDevice);
       success(`Connected to ${selectedDevice.name}`);
     } catch (e) {
       console.error("Printer connection error:", e);
@@ -141,26 +69,132 @@ export const PrinterProvider = ({ children }) => {
     }
   };
 
+  const establishConnection = async (selectedDevice) => {
+    setDevice(selectedDevice);
+    setConnectionStatus("connecting");
+
+    console.log("Connecting to GATT Server...");
+    const connectedServer = await selectedDevice.gatt.connect();
+    
+    let connectedService = null;
+    let connectedChar = null;
+
+    const charUuids = [
+      '00002af1-0000-1000-8000-00805f9b34fb',
+      '0000ff02-0000-1000-8000-00805f9b34fb',
+      '49535343-8841-43f4-a8d4-ecbe34729bb3',
+      '0000ffe1-0000-1000-8000-00805f9b34fb',
+      '0000bec8-0000-1000-8000-00805f9b34fb'
+    ];
+
+    try {
+      const services = await connectedServer.getPrimaryServices();
+      for (const s of services) {
+        try {
+          const characteristics = await s.getCharacteristics();
+          for (const c of characteristics) {
+            if (c.properties.write || c.properties.writeWithoutResponse) {
+              connectedService = s;
+              connectedChar = c;
+              break;
+            }
+          }
+        } catch (e) { /* continue */ }
+        if (connectedChar) break;
+      }
+    } catch (e) { /* fallback */ }
+
+    if (!connectedChar) {
+      for (const uuid of serviceUuids) {
+        try {
+          connectedService = await connectedServer.getPrimaryService(uuid);
+          if (connectedService) {
+            for (const cUuid of charUuids) {
+              try {
+                connectedChar = await connectedService.getCharacteristic(cUuid);
+                if (connectedChar) break;
+              } catch (e) { /* continue */ }
+            }
+          }
+          if (connectedChar) break;
+        } catch (e) { /* continue */ }
+      }
+    }
+
+    if (!connectedChar) {
+      throw new Error("Could not find a valid printing service or characteristic.");
+    }
+
+    setServer(connectedServer);
+    setService(connectedService);
+    setCharacteristic(connectedChar);
+    setConnectionStatus("connected");
+    setReconnectAttempts(0);
+
+    localStorage.setItem("saved_printer_name", selectedDevice.name);
+    
+    // Remote listeners first to avoid duplicates
+    selectedDevice.removeEventListener('gattserverdisconnected', onDisconnected);
+    selectedDevice.addEventListener('gattserverdisconnected', onDisconnected);
+  };
+
+  const reconnect = async () => {
+    if (!device || isConnecting) return;
+    
+    setIsConnecting(true);
+    setConnectionStatus("connecting");
+    try {
+      await establishConnection(device);
+      success("Printer reconnected successfully");
+    } catch (e) {
+      console.error("Auto-reconnect failed:", e);
+      setConnectionStatus("disconnected");
+      // Don't toast error on auto-reconnect to keep it subtle
+    } finally {
+      setIsConnecting(false);
+    }
+  };
+
   const disconnect = () => {
     if (device && device.gatt.connected) {
       device.gatt.disconnect();
     }
+    // Explicitly nullify device on intentional disconnect
+    setDevice(null);
     onDisconnected();
   };
 
-  const onDisconnected = () => {
-    setDevice(null);
+  const onDisconnected = (event) => {
     setServer(null);
     setService(null);
     setCharacteristic(null);
     setConnectionStatus("disconnected");
+    
+    // Auto-reconnect logic if it was unintentional
+    const disconnectedDevice = event?.target;
+    if (disconnectedDevice && disconnectedDevice.name) {
+       console.log(`Printer ${disconnectedDevice.name} disconnected unexpectedly.`);
+       // We don't call reconnect directly here to avoid infinite loops 
+       // instead we let the UI handle it or use a small delay
+    }
   };
 
   const print = async (data) => {
     if (!characteristic) {
-      error("Printer not connected");
-      return false;
+      // Try a quick reconnect if we have a device
+      if (device && !isConnecting) {
+        try {
+          await establishConnection(device);
+        } catch (e) {
+          error("Printer disconnected. Please reconnect.");
+          return false;
+        }
+      } else {
+        error("Printer not connected");
+        return false;
+      }
     }
+
     try {
       let buffer = data;
       if (typeof data === 'string') {

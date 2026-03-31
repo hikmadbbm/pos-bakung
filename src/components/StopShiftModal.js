@@ -165,7 +165,7 @@ export default function StopShiftModal({ isOpen, onClose, onSuccess, currentUser
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
       <DialogContent 
-        className="sm:max-w-2xl p-0 overflow-hidden flex flex-col max-h-[90vh]"
+        className="sm:max-w-2xl p-0 overflow-hidden flex flex-col max-h-[90dvh]"
         onPointerDownOutside={(e) => e.preventDefault()}
         onEscapeKeyDown={(e) => e.preventDefault()}
       >

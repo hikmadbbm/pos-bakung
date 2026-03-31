@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { verifyAuth } from '@/lib/auth';
+import { deductStockForOrder } from '@/lib/stock-deduction';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -11,8 +12,9 @@ export async function PATCH(req, { params }) {
     if (response) return response;
 
     const resolvedParams = await params;
-    const id = Number(resolvedParams.id);
-    if (!Number.isFinite(id)) {
+    const idStr = resolvedParams?.id;
+    const id = Number(idStr);
+    if (!idStr || !Number.isFinite(id)) {
       return NextResponse.json({ error: 'Invalid id' }, { status: 400 });
     }
 
@@ -41,15 +43,42 @@ export async function PATCH(req, { params }) {
        }
     }
 
-    const updated = await prisma.order.update({
-      where: { id },
-      data: { status },
-      include: { orderItems: { include: { menu: true } }, platform: true },
+    const updated = await prisma.$transaction(async (tx) => {
+      const oldOrder = await tx.order.findUnique({
+        where: { id },
+        select: { status: true }
+      });
+
+      if (!oldOrder) throw new Error('Order not found');
+
+      const updatedOrder = await tx.order.update({
+        where: { id },
+        data: { status },
+        include: { orderItems: { include: { menu: true } }, platform: true },
+      });
+
+      // Trigger stock deduction ONLY if moving to COMPLETED and it wasn't already COMPLETED
+      if (status === 'COMPLETED' && oldOrder.status !== 'COMPLETED') {
+        await deductStockForOrder(id, tx);
+      }
+
+      return updatedOrder;
     });
+
     return NextResponse.json(updated);
   } catch (error) {
     console.error('Failed to update order status:', error);
-    return NextResponse.json({ error: 'Failed to update order status' }, { status: 500 });
+    const message = error.message.includes('Insufficient Stock') 
+      ? error.message 
+      : 'Failed to update order status';
+    return NextResponse.json(
+      { 
+        error: message, 
+        detail: error.message,
+        stack: error.stack
+      }, 
+      { status: error.message.includes('Insufficient') ? 400 : 500 }
+    );
   }
 }
 

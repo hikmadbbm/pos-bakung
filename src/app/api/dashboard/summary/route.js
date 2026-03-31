@@ -18,7 +18,7 @@ export async function GET(req) {
     const [stats, topMenus, latestOrders] = await Promise.all([
       prisma.order.aggregate({
         where: { 
-          status: 'COMPLETED',
+          status: { in: ['PAID', 'PROCESSING', 'COMPLETED'] },
           date: { gte: start, lte: end }
         },
         _sum: {
@@ -33,7 +33,7 @@ export async function GET(req) {
         by: ['menu_id'],
         where: {
           order: {
-            status: 'COMPLETED',
+            status: { in: ['PAID', 'PROCESSING', 'COMPLETED'] },
             date: { gte: start, lte: end }
           }
         },
@@ -49,7 +49,7 @@ export async function GET(req) {
       }),
       prisma.order.findMany({
         where: { 
-          status: 'COMPLETED',
+          status: { in: ['PAID', 'PROCESSING', 'COMPLETED'] },
           date: { gte: start, lte: end }
         },
         orderBy: { date: 'desc' },
@@ -62,6 +62,7 @@ export async function GET(req) {
 
     // Fetch menu names for top menus
     const menuIds = topMenus.map(m => m.menu_id);
+    
     const menus = await prisma.menu.findMany({
       where: { id: { in: menuIds } },
       select: { id: true, name: true }

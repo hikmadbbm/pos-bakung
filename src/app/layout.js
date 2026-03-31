@@ -25,16 +25,23 @@ export const viewport = {
 import "../styles/globals.css";
 import { ToastProvider } from "../components/ui/use-toast";
 import { PrinterProvider } from "../lib/printer-context";
+import { LanguageProvider } from "../lib/language-context";
+import { Analytics } from "@vercel/analytics/react";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 
 export default function RootLayout({ children }) {
   return (
     <html lang="en" translate="no" className="notranslate">
       <body className="notranslate" suppressHydrationWarning>
-        <ToastProvider>
-          <PrinterProvider>
-            {children}
-          </PrinterProvider>
-        </ToastProvider>
+        <LanguageProvider>
+          <ToastProvider>
+            <PrinterProvider>
+              {children}
+            </PrinterProvider>
+          </ToastProvider>
+        </LanguageProvider>
+        <Analytics />
+        <SpeedInsights />
       </body>
     </html>
   );

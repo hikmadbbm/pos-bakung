@@ -2,8 +2,9 @@ import React from "react";
 import { formatIDR } from "../../lib/format";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "../ui/card";
 import { Sparkles, CheckCircle, ArrowDownRight, AlertTriangle, Info, Activity } from "lucide-react";
+import { cn } from "../../lib/utils";
 
-export default function AiInsights({ insights = [], loading = false, data }) {
+export default function AiInsights({ insights = [], loading = false, data, compact = false }) {
   // Use insights from API but allow local additions/fallbacks
   const displayInsights = [...insights];
   
@@ -23,13 +24,12 @@ export default function AiInsights({ insights = [], loading = false, data }) {
   }
 
   return (
-    <div className="glass-card p-6 md:p-8 relative overflow-hidden group shadow-2xl border-emerald-100/50">
-      {/* Decorative Blur Backgrounds */}
+    <div className={cn("glass-card relative overflow-hidden group shadow-2xl border-emerald-100/50", compact ? "p-4 md:p-6" : "p-6 md:p-8")}>
       <div className="absolute top-0 right-0 -mr-16 -mt-16 w-64 h-64 bg-emerald-500/5 rounded-full blur-3xl pointer-events-none group-hover:bg-emerald-500/10 transition-colors duration-700" />
       <div className="absolute bottom-0 left-0 -ml-16 -mb-16 w-64 h-64 bg-green-500/5 rounded-full blur-3xl pointer-events-none group-hover:bg-green-500/10 transition-colors duration-700" />
 
       <div className="relative z-10">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
+        <div className={cn("flex flex-col md:flex-row md:items-center justify-between gap-4", compact ? "mb-4" : "mb-8")}>
           <div className="flex items-center gap-3">
             <div className="p-3 bg-emerald-800 rounded-2xl shadow-lg shadow-emerald-200/50">
                <Sparkles className="w-5 h-5 text-white animate-pulse" />
@@ -68,9 +68,9 @@ export default function AiInsights({ insights = [], loading = false, data }) {
             </div>
           ))}
           {displayInsights.length === 0 && (
-            <div className="col-span-full py-12 text-center bg-white/30 rounded-3xl border border-dashed border-slate-200 flex flex-col items-center justify-center gap-3">
-               <Activity className="w-8 h-8 text-slate-300 opacity-20" />
-               <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Awaiting more transaction data for analysis...</p>
+            <div className="col-span-full py-8 text-center bg-white/30 rounded-2xl border border-dashed border-slate-100 flex items-center justify-center gap-4">
+               <Activity className="w-4 h-4 text-emerald-400 animate-pulse" />
+               <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] italic">System active • awaiting transaction flow for deep-dive analysis</p>
             </div>
           )}
         </div>

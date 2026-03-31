@@ -11,13 +11,13 @@ export default function ProjectProgress({ percentage = 41, title = "Business Per
   const COLORS = ["#166534", "#E2E8F0"]; // Emerald 800 and Slate 200
 
   return (
-    <div className="glass-card p-8 flex flex-col h-full">
+    <div className="glass-card p-5 lg:p-6 flex flex-col h-full bg-white/40 backdrop-blur-xl border border-slate-100 shadow-xl rounded-[2rem]">
       <div className="flex justify-between items-start mb-2">
         <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{title}</h3>
       </div>
       
-      <div className="flex-1 min-h-[220px] relative mt-4">
-        <ResponsiveContainer width="100%" height="100%">
+      <div className="flex-1 h-[220px] relative mt-4">
+        <ResponsiveContainer width="100%" height={220}>
           <PieChart>
             <Pie
               data={data}

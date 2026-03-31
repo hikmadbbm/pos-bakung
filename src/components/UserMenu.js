@@ -5,10 +5,12 @@ import { LogOut, User, ChevronDown, Lock } from "lucide-react";
 import { api, getAuth, setAuth } from "../lib/api";
 import { cn } from "../lib/utils";
 import { useToast } from "./ui/use-toast";
+import { useTranslation } from "../lib/language-context";
 
 export default function UserMenu() {
   const router = useRouter();
   const { error } = useToast();
+  const { t } = useTranslation();
   const [isOpen, setIsOpen] = useState(false);
   const [user, setUser] = useState(null);
   
@@ -122,7 +124,7 @@ export default function UserMenu() {
               }}
             >
               <User className="mr-3 h-4 w-4 text-gray-400" />
-              Profile
+              {t('profile')}
             </button>
             
             <button
@@ -132,7 +134,7 @@ export default function UserMenu() {
               data-testid="logout-button"
             >
               <LogOut className="mr-3 h-4 w-4 text-red-500" />
-              Sign out
+              {t('logout')}
             </button>
           </div>
         </div>

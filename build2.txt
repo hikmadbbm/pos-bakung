@@ -1,0 +1,115 @@
+
+> pos-bakung@1.0.0 build
+> npx prisma generate && next build
+
+Environment variables loaded from .env
+Prisma schema loaded from prisma\schema.prisma
+
+✔ Generated Prisma Client (v6.19.2) to .\node_modules\@prisma\client in 188ms
+
+Start by importing your Prisma Client (See: https://pris.ly/d/importing-client)
+
+Tip: Need your database queries to be 1000x faster? Accelerate offers you that and more: https://pris.ly/tip-2-accelerate
+
+▲ Next.js 16.1.6 (Turbopack)
+- Environments: .env.local, .env
+
+  Creating an optimized production build ...
+✓ Compiled successfully in 5.4s
+  Running TypeScript ...
+  Collecting page data using 11 workers ...
+  Generating static pages using 11 workers (0/30) ...
+  Generating static pages using 11 workers (7/30) 
+  Generating static pages using 11 workers (14/30) 
+  Generating static pages using 11 workers (22/30) 
+✓ Generating static pages using 11 workers (30/30) in 540.0ms
+  Finalizing page optimization ...
+
+Route (app)
+┌ ○ /
+├ ○ /_not-found
+├ ○ /analytics
+├ ƒ /api/analytics/bundling-suggestions
+├ ƒ /api/analytics/cashier-report
+├ ƒ /api/analytics/demand-forecast
+├ ƒ /api/analytics/menu-intelligence
+├ ƒ /api/analytics/price-recommendation
+├ ƒ /api/analytics/price-trends
+├ ƒ /api/analytics/reconciliation
+├ ƒ /api/analytics/reconciliation-list
+├ ƒ /api/auth/login
+├ ƒ /api/auth/seed-dummy
+├ ƒ /api/auth/seed-owner
+├ ƒ /api/auth/verify-manager
+├ ƒ /api/categories
+├ ƒ /api/categories/[id]
+├ ƒ /api/dashboard
+├ ƒ /api/dashboard/insights
+├ ƒ /api/dashboard/summary
+├ ƒ /api/expenses
+├ ƒ /api/expenses/[id]
+├ ƒ /api/fixed-costs
+├ ƒ /api/fixed-costs/[id]
+├ ƒ /api/health
+├ ƒ /api/health-check
+├ ƒ /api/ingredients
+├ ƒ /api/ingredients/[id]
+├ ƒ /api/ingredients/suggestions
+├ ƒ /api/menus
+├ ƒ /api/menus/[id]
+├ ƒ /api/orders
+├ ƒ /api/orders/[id]
+├ ƒ /api/orders/[id]/status
+├ ƒ /api/orders/import
+├ ƒ /api/orders/pending
+├ ƒ /api/payment-methods
+├ ƒ /api/payment-methods/[id]
+├ ƒ /api/platforms
+├ ƒ /api/platforms/[id]
+├ ƒ /api/pos/init
+├ ƒ /api/purchases
+├ ƒ /api/recipes
+├ ƒ /api/recipes/[id]
+├ ƒ /api/reports/menu-performance
+├ ƒ /api/reports/profit
+├ ƒ /api/reports/sales
+├ ƒ /api/settings/config
+├ ƒ /api/shifts/current/[userId]
+├ ƒ /api/shifts/end
+├ ƒ /api/shifts/history
+├ ƒ /api/shifts/start
+├ ƒ /api/shifts/summary/[userId]
+├ ƒ /api/stock
+├ ƒ /api/stock-movements
+├ ƒ /api/stock/adjust
+├ ƒ /api/upload/payment-method
+├ ƒ /api/users
+├ ƒ /api/users/[id]
+├ ƒ /api/users/[id]/reset-password
+├ ƒ /api/users/me
+├ ○ /cashier-report
+├ ○ /dashboard
+├ ○ /debug-layout
+├ ○ /diagnostic
+├ ○ /expenses
+├ ○ /hpp-calculator
+├ ○ /ingredients
+├ ○ /kitchen
+├ ○ /login
+├ ○ /menu
+├ ○ /orders
+├ ○ /orders-list
+├ ○ /platforms
+├ ○ /preview-ui
+├ ○ /purchase
+├ ○ /recipes
+├ ○ /reports
+├ ○ /settings
+├ ○ /shift
+├ ○ /stock
+└ ○ /stock/movements
+
+
+○  (Static)   prerendered as static content
+ƒ  (Dynamic)  server-rendered on demand
+

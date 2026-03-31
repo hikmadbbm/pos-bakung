@@ -53,7 +53,6 @@ body {
 /* Typography & Elements */
 h1, h2, h3, h4 {
   @apply tracking-tight font-bold;
-  color: #1F2937;
 }
 
 .premium-gradient {
@@ -100,6 +99,29 @@ h1, h2, h3, h4 {
     width: 100%;
   }
 }
+/* Mobile-specific touch improvements */
+@media (max-width: 1024px) {
+  button, [role="button"] {
+    min-height: 44px; /* Minimum touch target size */
+  }
+  
+  input, select, textarea {
+    font-size: 16px !important; /* Prevent iOS zoom on focus */
+  }
+  
+  .glass-card {
+    @apply rounded-[1.5rem];
+  }
+}
+
+.touch-friendly-spacing {
+  @apply gap-4 lg:gap-8;
+}
+
+.mobile-stack {
+  @apply flex-col lg:flex-row;
+}
+
 /* Custom Animations */
 .animate-shake {
   animation: shake 0.4s cubic-bezier(.36,.07,.19,.97) both;

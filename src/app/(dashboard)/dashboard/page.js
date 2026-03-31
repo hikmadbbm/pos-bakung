@@ -15,6 +15,7 @@ const TopMenus = dynamic(() => import("../../../components/dashboard/TopMenus"),
 const ProjectProgress = dynamic(() => import("../../../components/dashboard/ProjectProgress"), { ssr: false });
 const RemindersPanel = dynamic(() => import("../../../components/dashboard/RemindersPanel"), { ssr: false });
 const TimeTracker = dynamic(() => import("../../../components/dashboard/TimeTracker"), { ssr: false });
+const GeminiChat = dynamic(() => import("../../../components/dashboard/GeminiChat"), { ssr: false });
 
 export default function DashboardPage() {
   const [data, setData] = useState(null);
@@ -72,33 +73,23 @@ export default function DashboardPage() {
   }, [loadData]);
 
   return (
-    <div className="space-y-10 pb-20">
+    <div className="space-y-4 pb-12">
       {/* Header Section */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight text-slate-900 border-l-4 border-emerald-800 pl-4">
-            Dashboard
-          </h1>
-          <p className="text-sm font-medium text-slate-500 mt-2 ml-5">
-            Plan, prioritize, and accomplish your tasks with ease.
-          </p>
-        </div>
-        
-        <div className="flex items-center gap-4">
-          <div className="flex items-center gap-3 bg-white p-2 rounded-2xl border border-slate-100 shadow-sm">
-             <select 
-               value={range} 
-               onChange={(e) => setRange(e.target.value)}
-               className="text-xs font-semibold tracking-tight border-none bg-transparent focus:ring-0 px-4 cursor-pointer text-slate-700"
-             >
-               <option value="today">Today</option>
-               <option value="yesterday">Yesterday</option>
-               <option value="last7">Last 7 Days</option>
-               <option value="last30">Last 30 Days</option>
-               <option value="thisMonth">This Month</option>
-               <option value="custom">Custom</option>
-             </select>
-          </div>
+      <div className="flex justify-end items-center mb-1">
+        <div className="flex items-center gap-2 bg-white/40 backdrop-blur-md px-2 py-1 rounded-xl border border-slate-100 shadow-sm">
+           <CalendarIcon className="w-3.5 h-3.5 text-slate-400" />
+           <select 
+             value={range} 
+             onChange={(e) => setRange(e.target.value)}
+             className="text-[10px] font-black uppercase tracking-widest border-none bg-transparent focus:ring-0 cursor-pointer text-slate-500 pr-8"
+           >
+             <option value="today">Today</option>
+             <option value="yesterday">Yesterday</option>
+             <option value="last7">Last 7 Days</option>
+             <option value="last30">Last 30 Days</option>
+             <option value="thisMonth">This Month</option>
+             <option value="custom">Custom</option>
+           </select>
         </div>
       </div>
 
@@ -108,37 +99,41 @@ export default function DashboardPage() {
       </Suspense>
 
       {/* Main Content Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-        {/* Left Column - 8/12 */}
-        <div className="lg:col-span-8 space-y-8">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
+        {/* Left Column - 8/12 - Analytics Focus */}
+        <div className="lg:col-span-8 space-y-4">
           <section className="space-y-4">
              <div className="flex items-center justify-between">
                 <h3 className="text-xs font-semibold text-slate-400 tracking-tight flex items-center gap-2">
-                   <div className="w-1 h-1 bg-emerald-600 rounded-full" /> Intelligence Loop
+                   <div className="w-1 h-1 bg-emerald-600 rounded-full" /> Intelligence Deep Dive
                 </h3>
              </div>
              <Suspense fallback={<div className="h-64 animate-pulse bg-slate-100 rounded-3xl" />}>
-               <AiInsights insights={insights} loading={loading} data={data} />
+               <AiInsights insights={insights} loading={loading} data={data} compact />
              </Suspense>
           </section>
 
           <section className="space-y-4">
-             <h3 className="text-xs font-semibold text-slate-400 tracking-tight">Operations Index</h3>
+             <h3 className="text-xs font-semibold text-slate-400 tracking-tight">Production Performance Matrix</h3>
              <Suspense fallback={<div className="h-64 animate-pulse bg-slate-100 rounded-3xl" />}>
-                <ProjectProgress 
-                  percentage={data?.grossRevenue > 0 ? Math.max(0, Math.min(100, Math.round((data.netProfit / data.grossRevenue) * 100))) : 0} 
-                  title="Net Profit Yield" 
-                />
+                <TopMenus menus={data?.topMenus || []} loading={loading} />
              </Suspense>
           </section>
         </div>
 
-        {/* Right Column - 4/12 */}
-        <div className="lg:col-span-4 space-y-8">
+        {/* Right Column - 4/12 - Operational Focus */}
+        <div className="lg:col-span-4 space-y-4">
            <section className="space-y-4">
-              <h3 className="text-xs font-semibold text-slate-400 tracking-tight">Scheduled Operations</h3>
+              <h3 className="text-xs font-semibold text-slate-400 tracking-tight">Strategic Reminders</h3>
               <Suspense fallback={<div className="h-64 animate-pulse bg-slate-100 rounded-3xl" />}>
                  <RemindersPanel lowStockItems={data?.lowStockItems || []} />
+              </Suspense>
+           </section>
+
+           <section className="space-y-4">
+              <h3 className="text-xs font-semibold text-slate-400 tracking-tight">Hedged Performance</h3>
+              <Suspense fallback={<div className="h-64 animate-pulse bg-slate-100 rounded-3xl" />}>
+                 <BreakEvenInsights data={data} loading={loading} />
               </Suspense>
            </section>
 
@@ -150,22 +145,7 @@ export default function DashboardPage() {
            </section>
         </div>
       </div>
-
-      {/* Bottom Sections */}
-      <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
-         <section className="space-y-4">
-            <h3 className="text-xs font-semibold text-slate-400 tracking-tight">Hedged Performance</h3>
-            <Suspense fallback={<div className="h-64 animate-pulse bg-slate-100 rounded-3xl" />}>
-               <BreakEvenInsights data={data} loading={loading} />
-            </Suspense>
-         </section>
-         <section className="space-y-4">
-            <h3 className="text-xs font-semibold text-slate-400 tracking-tight">Yield Optimization</h3>
-            <Suspense fallback={<div className="h-64 animate-pulse bg-slate-100 rounded-3xl" />}>
-               <TopMenus menus={data?.topMenus || []} loading={loading} />
-            </Suspense>
-         </section>
-      </div>
+      <GeminiChat contextData={data} />
     </div>
   );
 }

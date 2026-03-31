@@ -246,7 +246,7 @@ export default function CashierReportPage() {
                   </div>
                   <span className="text-[10px] font-bold text-slate-400 uppercase">SYSTEM vs ACTUAL</span>
                 </div>
-                <div className="p-0">
+                <div className="p-0 overflow-x-auto custom-scrollbar">
                   <Table>
                     <TableHeader className="bg-slate-50/50">
                       <TableRow>
@@ -304,7 +304,7 @@ export default function CashierReportPage() {
                   </div>
                   <span className="text-[10px] font-bold text-slate-400 uppercase">CASHIER LOGS</span>
                 </div>
-                <div className="p-0">
+                <div className="p-0 overflow-x-auto custom-scrollbar">
                   <Table>
                     <TableHeader className="bg-slate-50/50">
                       <TableRow>
@@ -405,7 +405,7 @@ export default function CashierReportPage() {
                 <div className="p-6 border-b border-slate-100 bg-slate-50/30">
                   <h3 className="text-sm font-black text-slate-900 uppercase tracking-tight">Channel split</h3>
                 </div>
-                <div className="p-0">
+                <div className="p-0 overflow-x-auto custom-scrollbar">
                   <Table>
                     <TableHeader className="bg-slate-50/50">
                       <TableRow>
@@ -459,7 +459,7 @@ export default function CashierReportPage() {
               <span className="text-xs font-black text-slate-400 uppercase tracking-widest">SUBMISSION HISTORY</span>
             </div>
             
-            <div className="glass-card rounded-3xl overflow-hidden shadow-2xl border-none">
+            <div className="glass-card rounded-3xl overflow-hidden shadow-2xl border-none overflow-x-auto custom-scrollbar">
               <Table>
                 <TableHeader className="bg-slate-50/50">
                   <TableRow>
@@ -551,8 +551,8 @@ export default function CashierReportPage() {
         open={!!selectedRecon}
         onOpenChange={(open) => { if (!open) setSelectedRecon(null); }}
       >
-        <DialogContent className="max-w-3xl rounded-[2.5rem] border-none shadow-2xl p-0 overflow-hidden">
-          <div className="p-8 space-y-8 max-h-[90vh] overflow-y-auto scrollbar-hide">
+        <DialogContent className="max-w-3xl rounded-[2.5rem] border-none shadow-2xl p-0 overflow-hidden flex flex-col max-h-[90dvh]">
+          <div className="p-8 space-y-8 flex-1 overflow-y-auto scrollbar-hide min-h-0">
             <div className="flex justify-between items-start">
               <div>
                 <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1">ARCHIVE RECORD</p>
@@ -582,7 +582,7 @@ export default function CashierReportPage() {
                   </div>
                 </div>
 
-                <div className="rounded-[2rem] overflow-hidden border border-slate-100">
+                <div className="rounded-[2rem] overflow-hidden border border-slate-100 overflow-x-auto custom-scrollbar">
                   <Table>
                     <TableHeader className="bg-slate-50/80 backdrop-blur-sm">
                       <TableRow>

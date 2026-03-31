@@ -114,7 +114,7 @@ export default function PinVerificationModal({
 
   return (
     <Dialog open={open} onOpenChange={(val) => !loading && onClose(val)}>
-      <DialogContent className="max-w-sm p-0 overflow-hidden rounded-[2.5rem] border-none shadow-2xl bg-white flex flex-col max-h-[95vh]">
+      <DialogContent className="max-w-sm p-0 overflow-hidden rounded-[2.5rem] border-none shadow-2xl bg-white flex flex-col max-h-[95dvh]">
         {/* Header Section */}
         <div className="bg-emerald-600 p-8 text-white relative overflow-hidden shrink-0">
           <div className="absolute top-0 right-0 p-6 opacity-10">

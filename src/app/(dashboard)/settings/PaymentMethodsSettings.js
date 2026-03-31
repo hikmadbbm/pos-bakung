@@ -1,17 +1,17 @@
 "use client";
 import { useState, useEffect } from "react";
 import { Button } from "../../../components/ui/button";
-import { Card, CardContent } from "../../../components/ui/card";
-import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "../../../components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "../../../components/ui/dialog";
 import { Input } from "../../../components/ui/input";
 import { Label } from "../../../components/ui/label";
 import { Select } from "../../../components/ui/select";
 import { useToast } from "../../../components/ui/use-toast";
 import { Textarea } from "../../../components/ui/textarea";
-import { Plus, Edit2, Trash2, Image as ImageIcon, Check, X, QrCode } from "lucide-react";
+import { Plus, Edit2, Trash2, Image as ImageIcon, Check, X, QrCode, CreditCard } from "lucide-react";
 import { api } from "../../../lib/api";
 import jsQR from "jsqr";
+import { ResponsiveDataView } from "../../../components/ResponsiveDataView";
+import { cn } from "../../../lib/utils";
 
 export default function PaymentMethodsSettings() {
   const [methods, setMethods] = useState([]);
@@ -74,7 +74,7 @@ export default function PaymentMethodsSettings() {
         success("Payment method updated");
       } else {
         await api.post("/payment-methods", formData);
-        success("Payment method created");
+        success("Payment method added");
       }
       setIsDialogOpen(false);
       loadMethods();
@@ -85,7 +85,6 @@ export default function PaymentMethodsSettings() {
   };
 
   const handleDelete = async (id) => {
-    // Optimistic UI
     const previous = methods;
     setConfirmDeleteId(null);
     setMethods(prev => prev.filter(m => m.id !== id));
@@ -94,7 +93,7 @@ export default function PaymentMethodsSettings() {
       success("Payment method deleted");
     } catch (e) {
       console.error(e);
-      setMethods(previous); // rollback
+      setMethods(previous);
       error(e?.response?.data?.error || "Failed to delete payment method");
     }
   };
@@ -114,7 +113,6 @@ export default function PaymentMethodsSettings() {
       reader.onloadend = async () => {
         const base64String = reader.result;
         
-        // If type is QRIS, try to extract QR data
         if (formData.type === "QRIS") {
           const img = new Image();
           img.onload = () => {
@@ -128,17 +126,17 @@ export default function PaymentMethodsSettings() {
             
             if (code) {
               setFormData(prev => ({ ...prev, imageUrl: base64String, qris_data: code.data }));
-              success("QRIS data extracted successfully!");
+              success("QRIS data extracted!");
             } else {
               setFormData(prev => ({ ...prev, imageUrl: base64String }));
-              error("Could not find a valid QR code in the image, but image was saved.");
+              error("Image uploaded, but no QR code found.");
             }
             setUploading(false);
           };
           img.src = base64String;
         } else {
           setFormData({ ...formData, imageUrl: base64String });
-          success("Image processed successfully");
+          success("Image uploaded");
           setUploading(false);
         }
       };
@@ -155,254 +153,265 @@ export default function PaymentMethodsSettings() {
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h3 className="text-lg font-medium">Payment Methods</h3>
-        <Button onClick={() => { resetForm(); setIsDialogOpen(true); }}>
-          <Plus className="w-4 h-4 mr-2" /> Add Method
+    <div className="space-y-10">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+        <div>
+          <h3 className="text-2xl font-black tracking-tight text-slate-900 uppercase italic">Payment Methods</h3>
+          <p className="text-[10px] text-slate-400 font-black uppercase tracking-[0.2em] mt-1">Manage Cash, QRIS, and Bank Transfers</p>
+        </div>
+        <Button onClick={() => { resetForm(); setIsDialogOpen(true); }} className="w-full md:w-auto h-12 px-8 rounded-2xl bg-slate-900 hover:bg-black text-white font-black text-[10px] uppercase tracking-widest shadow-xl active:scale-95 transition-all">
+          <Plus className="w-4 h-4 mr-2" /> New Method
         </Button>
       </div>
 
-      <Card>
-        <CardContent className="p-0">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Order</TableHead>
-                <TableHead>Preview</TableHead>
-                <TableHead>Name</TableHead>
-                <TableHead>Type</TableHead>
-                <TableHead>Details</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {loading ? (
-                <TableRow>
-                  <TableCell colSpan={7} className="text-center py-4">Loading...</TableCell>
-                </TableRow>
-              ) : methods.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={7} className="text-center py-4 text-gray-500">No payment methods found</TableCell>
-                </TableRow>
-              ) : (
-                methods.map((m) => (
-                  <TableRow key={m.id}>
-                    <TableCell>{m.display_order}</TableCell>
-                    <TableCell>
-                      {m.imageUrl ? (
-                        <div className="w-10 h-10 rounded border overflow-hidden bg-gray-50">
-                          <img src={m.imageUrl} alt={m.name} className="w-full h-full object-contain" />
-                        </div>
-                      ) : (
-                        <div className="w-10 h-10 rounded border flex items-center justify-center bg-gray-50 text-gray-400">
-                          <ImageIcon className="w-5 h-5" />
-                        </div>
-                      )}
-                    </TableCell>
-                    <TableCell className="font-medium">{m.name}</TableCell>
-                    <TableCell>
-                      <span className="text-xs font-mono bg-gray-100 px-1.5 py-0.5 rounded">
-                        {m.type}
-                      </span>
-                    </TableCell>
-                    <TableCell className="max-w-[200px] truncate text-xs text-gray-500">
-                      {m.account_number && <div>No: {m.account_number}</div>}
-                      {m.account_name && <div>Name: {m.account_name}</div>}
-                    </TableCell>
-                    <TableCell>
-                      {m.is_active ? (
-                        <span className="flex items-center text-green-600 text-xs">
-                          <Check className="w-3 h-3 mr-1" /> Active
-                        </span>
-                      ) : (
-                        <span className="flex items-center text-gray-400 text-xs">
-                          <X className="w-3 h-3 mr-1" /> Inactive
-                        </span>
-                      )}
-                    </TableCell>
-                    <TableCell className="text-right space-x-1">
-                      {confirmDeleteId === m.id ? (
-                        <span className="inline-flex items-center gap-1">
-                          <span className="text-xs text-gray-500 mr-1">Delete?</span>
-                          <Button variant="destructive" size="sm" className="h-6 px-2 text-xs" onClick={() => handleDelete(m.id)}>Yes</Button>
-                          <Button variant="ghost" size="sm" className="h-6 px-2 text-xs" onClick={() => setConfirmDeleteId(null)}>Cancel</Button>
-                        </span>
-                      ) : (
-                        <>
-                          <Button variant="ghost" size="icon" onClick={() => {
-                            setFormData({
-                              name: m.name,
-                              type: m.type,
-                              account_number: m.account_number || "",
-                              account_name: m.account_name || "",
-                              description: m.description || "",
-                              imageUrl: m.imageUrl || "",
-                              qris_data: m.qris_data || "",
-                              is_active: m.is_active,
-                              display_order: m.display_order
-                            });
-                            setEditingId(m.id);
-                            setIsDialogOpen(true);
-                          }}>
-                            <Edit2 className="w-4 h-4 text-emerald-500" />
-                          </Button>
-                          <Button variant="ghost" size="icon" onClick={() => setConfirmDeleteId(m.id)}>
-                            <Trash2 className="w-4 h-4 text-red-500" />
-                          </Button>
-                        </>
-                      )}
-                    </TableCell>
-                  </TableRow>
-                ))
+      <div className="glass-card rounded-[2.5rem] overflow-hidden shadow-2xl border-none p-0">
+        <ResponsiveDataView
+          loading={loading}
+          data={methods}
+          emptyMessage="No payment methods found"
+          columns={[
+            {
+              header: "Order",
+              accessor: (m) => <span className="font-mono text-slate-400 font-black">#{m.display_order}</span>,
+              className: "pl-10 w-20"
+            },
+            {
+              header: "Icon",
+              accessor: (m) => (
+                <div className="w-12 h-12 rounded-2xl bg-slate-50 border border-slate-100 flex items-center justify-center overflow-hidden">
+                  {m.imageUrl ? (
+                    <img src={m.imageUrl} alt={m.name} className="w-full h-full object-contain p-1" />
+                  ) : (
+                    <ImageIcon className="w-6 h-6 text-slate-300" />
+                  )}
+                </div>
+              ),
+              className: "w-24"
+            },
+            {
+              header: "Name",
+              accessor: (m) => (
+                <div className="font-black text-slate-900 uppercase tracking-tight">
+                  <p className="text-base">{m.name}</p>
+                  <p className="text-[9px] text-slate-400 font-bold tracking-widest mt-1 uppercase">{m.type.replace('_', ' ')}</p>
+                </div>
+              )
+            },
+            {
+              header: "Details",
+              accessor: (m) => (
+                <div className="text-[10px] text-slate-500 font-bold uppercase tracking-wide">
+                  {m.account_number && <div>{m.account_number}</div>}
+                  {m.account_name && <div className="text-slate-400">{m.account_name}</div>}
+                </div>
+              )
+            },
+            {
+              header: "Status",
+              accessor: (m) => (
+                <span className={cn(
+                  "px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest border",
+                  m.is_active ? "bg-emerald-50 text-emerald-600 border-emerald-100" : "bg-slate-50 text-slate-400 border-slate-100"
+                )}>
+                  {m.is_active ? "ACTIVE" : "INACTIVE"}
+                </span>
+              )
+            },
+            {
+              header: "Actions",
+              accessor: (m) => (
+                <div className="flex justify-end gap-2 pr-10">
+                   <Button variant="ghost" size="icon" className="h-10 w-10 text-emerald-400 hover:bg-emerald-50 rounded-xl" onClick={() => {
+                      setFormData({
+                        name: m.name,
+                        type: m.type,
+                        account_number: m.account_number || "",
+                        account_name: m.account_name || "",
+                        description: m.description || "",
+                        imageUrl: m.imageUrl || "",
+                        qris_data: m.qris_data || "",
+                        is_active: m.is_active,
+                        display_order: m.display_order
+                      });
+                      setEditingId(m.id);
+                      setIsDialogOpen(true);
+                   }}>
+                      <Edit2 className="w-4 h-4" />
+                   </Button>
+                   <Button variant="ghost" size="icon" className="h-10 w-10 text-rose-400 hover:bg-rose-50 rounded-xl" onClick={() => setConfirmDeleteId(m.id)}>
+                      <Trash2 className="w-4 h-4" />
+                   </Button>
+                </div>
+              ),
+              align: "right"
+            }
+          ]}
+          renderCard={(m) => (
+            <div className="space-y-4">
+              <div className="flex justify-between items-start">
+                <div className="flex gap-4">
+                  <div className="w-14 h-14 rounded-2xl bg-slate-900 flex items-center justify-center shrink-0 border border-slate-800">
+                    {m.imageUrl ? (
+                      <img src={m.imageUrl} alt={m.name} className="w-full h-full object-contain p-2" />
+                    ) : (
+                      <CreditCard className="w-7 h-7 text-white opacity-20" />
+                    )}
+                  </div>
+                  <div>
+                    <h4 className="font-black text-slate-900 uppercase tracking-tight text-lg leading-tight">{m.name}</h4>
+                    <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest bg-slate-50 px-2 py-0.5 rounded mt-1 inline-block">
+                       {m.type.replace('_', ' ')}
+                    </span>
+                  </div>
+                </div>
+                <div className="text-right">
+                   <span className={cn(
+                      "px-2 py-1 rounded-md text-[8px] font-black uppercase tracking-widest",
+                      m.is_active ? "text-emerald-600 bg-emerald-50" : "text-slate-400 bg-slate-50"
+                   )}>
+                      {m.is_active ? "ACTIVE" : "INACTIVE"}
+                   </span>
+                   <p className="mt-2 text-[10px] font-black text-slate-300 uppercase tracking-widest tabular-nums font-mono">#{m.display_order}</p>
+                </div>
+              </div>
+
+              {(m.account_number || m.account_name) && (
+                <div className="p-4 rounded-xl bg-slate-50 space-y-1">
+                   {m.account_number && <p className="text-[11px] font-black text-slate-900 tracking-wider font-mono">{m.account_number}</p>}
+                   {m.account_name && <p className="text-[9px] font-bold text-slate-400 uppercase">{m.account_name}</p>}
+                </div>
               )}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+
+              <div className="flex gap-2 pt-4 border-t border-slate-50">
+                <Button variant="outline" className="flex-1 h-12 rounded-xl text-[10px] font-black uppercase" onClick={() => {
+                   setFormData({...m});
+                   setEditingId(m.id);
+                   setIsDialogOpen(true);
+                }}>Edit</Button>
+                <Button variant="ghost" className="h-12 w-12 rounded-xl text-rose-500 hover:bg-rose-50" onClick={() => setConfirmDeleteId(m.id)}>
+                   <Trash2 className="w-4.5 h-4.5" />
+                </Button>
+              </div>
+            </div>
+          )}
+        />
+      </div>
 
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="max-w-xl">
-          <DialogHeader>
-            <DialogTitle>{editingId ? "Edit Payment Method" : "Add Payment Method"}</DialogTitle>
-          </DialogHeader>
-          <form onSubmit={handleSubmit} className="space-y-6 px-8 py-4">
-            <div className="grid grid-cols-2 gap-5">
-              <div className="space-y-2">
-                <Label className="text-xs font-bold uppercase tracking-widest text-slate-500 ml-1">Name</Label>
-                <Input 
-                  className="h-11 rounded-xl"
-                  value={formData.name} 
-                  onChange={e => setFormData({...formData, name: e.target.value})}
-                  placeholder="e.g. Bank BCA, QRIS"
-                  required
-                />
+        <DialogContent className="max-w-2xl p-0 overflow-hidden rounded-[2.5rem] bg-white border-none shadow-2xl flex flex-col max-h-[90dvh]">
+          <div className="bg-slate-900 p-10 text-white relative overflow-hidden text-center shrink-0">
+             <div className="absolute top-0 right-0 w-48 h-48 bg-emerald-600 rounded-full -translate-y-1/2 translate-x-1/2 opacity-20 blur-3xl" />
+             <div className="w-16 h-16 bg-white/10 backdrop-blur-md rounded-2xl flex items-center justify-center mx-auto mb-6 border border-white/20">
+                <CreditCard className="w-8 h-8 text-white" />
+             </div>
+             <DialogTitle className="text-3xl font-black uppercase tracking-tight relative z-10">{editingId ? "Edit Method" : "New Method"}</DialogTitle>
+             <p className="text-[10px] font-black text-emerald-400 uppercase tracking-[0.3em] mt-3 relative z-10">Payment Gateway Details</p>
+          </div>
+
+          <form onSubmit={handleSubmit} className="p-10 space-y-8 bg-white flex-1 overflow-y-auto min-h-0 scrollbar-hide">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+              <div className="space-y-3">
+                <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Name</Label>
+                <Input required className="h-14 rounded-2xl bg-slate-50 border-slate-100 font-black text-base uppercase" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} placeholder="e.g. Bank BCA, QRIS" />
               </div>
-              <div className="space-y-2">
-                <Label className="text-xs font-bold uppercase tracking-widest text-slate-500 ml-1">Type</Label>
-                <Select 
-                  className="h-11 rounded-xl"
+              <div className="space-y-3">
+                <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Type</Label>
+                <select 
+                  className="w-full h-14 rounded-2xl bg-slate-50 border border-slate-100 font-black text-[11px] uppercase tracking-widest px-6 appearance-none cursor-pointer"
                   value={formData.type}
                   onChange={e => setFormData({...formData, type: e.target.value})}
-                  options={[
-                    { value: "CASH", label: "Cash" },
-                    { value: "QRIS", label: "QRIS" },
-                    { value: "BANK_TRANSFER", label: "Bank Transfer" },
-                    { value: "E_WALLET", label: "E-Wallet" },
-                    { value: "OTHER", label: "Other" }
-                  ]}
-                />
+                >
+                  <option value="CASH">Cash</option>
+                  <option value="QRIS">QRIS</option>
+                  <option value="BANK_TRANSFER">Bank Transfer</option>
+                  <option value="E_WALLET">E-Wallet</option>
+                  <option value="OTHER">Other</option>
+                </select>
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-5">
-              <div className="space-y-2">
-                <Label className="text-xs font-bold uppercase tracking-widest text-slate-500 ml-1">Account Number (optional)</Label>
-                <Input 
-                  className="h-11 rounded-xl"
-                  value={formData.account_number}
-                  onChange={e => setFormData({...formData, account_number: e.target.value})}
-                  placeholder="e.g. 12345678"
-                />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+              <div className="space-y-3">
+                <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Account Number</Label>
+                <Input className="h-14 rounded-2xl bg-slate-50 border-slate-100 font-black text-base font-mono" value={formData.account_number} onChange={e => setFormData({...formData, account_number: e.target.value})} placeholder="e.g. 12345678" />
               </div>
-              <div className="space-y-2">
-                <Label className="text-xs font-bold uppercase tracking-widest text-slate-500 ml-1">Account Name (optional)</Label>
-                <Input 
-                  className="h-11 rounded-xl"
-                  value={formData.account_name}
-                  onChange={e => setFormData({...formData, account_name: e.target.value})}
-                  placeholder="e.g. John Doe"
-                />
+              <div className="space-y-3">
+                <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Account Name</Label>
+                <Input className="h-14 rounded-2xl bg-slate-50 border-slate-100 font-black text-base uppercase" value={formData.account_name} onChange={e => setFormData({...formData, account_name: e.target.value})} placeholder="e.g. John Doe" />
               </div>
             </div>
 
-            <div className="space-y-2">
-              <Label className="text-xs font-bold uppercase tracking-widest text-slate-500 ml-1">Description / Instructions</Label>
-              <Textarea 
-                className="rounded-xl"
-                value={formData.description}
-                onChange={e => setFormData({...formData, description: e.target.value})}
-                placeholder="Payment instructions..."
-                rows={2}
-              />
+            <div className="space-y-3">
+              <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Payment Instructions</Label>
+              <Textarea className="rounded-2xl bg-slate-50 border-slate-100 p-6 font-bold text-sm uppercase min-h-[100px]" value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})} placeholder="Enter payment instructions for the customer..." />
             </div>
 
-            <div className="space-y-2">
-              <Label className="text-xs font-bold uppercase tracking-widest text-slate-500 ml-1">Image / QR Code</Label>
-              <div className="flex items-start gap-4">
-                <div className="flex-1">
-                  <Input 
-                    type="file" 
-                    accept="image/*" 
-                    className="h-11 rounded-xl px-3 py-2 text-xs"
-                    onChange={handleFileUpload}
-                    disabled={uploading}
-                  />
-                  {uploading && <p className="text-xs text-emerald-500 mt-1">Uploading...</p>}
-                </div>
-                {formData.imageUrl && (
-                  <div className="w-20 h-20 border-2 border-slate-100 rounded-xl relative bg-slate-50 flex items-center justify-center overflow-hidden">
-                    <img src={formData.imageUrl} alt="preview" className="max-w-full max-h-full object-contain" />
-                    <button 
-                      type="button"
-                      className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 shadow-lg"
-                      onClick={() => setFormData({...formData, imageUrl: ""})}
-                    >
-                      <X className="w-3 h-3" />
-                    </button>
-                  </div>
-                )}
+            <div className="space-y-4">
+              <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Logo / QR Code</Label>
+              <div className="p-6 rounded-2xl bg-slate-50 border-2 border-dashed border-slate-200 flex flex-col items-center gap-6">
+                 {formData.imageUrl ? (
+                    <div className="relative group">
+                       <img src={formData.imageUrl} alt="preview" className="w-40 h-40 object-contain bg-white rounded-xl shadow-lg p-2" />
+                       <button 
+                          type="button"
+                          className="absolute -top-3 -right-3 bg-rose-500 text-white rounded-full p-2 shadow-xl opacity-0 group-hover:opacity-100 transition-all scale-75 group-hover:scale-100"
+                          onClick={() => setFormData({...formData, imageUrl: "", qris_data: ""})}
+                       >
+                          <X className="w-4 h-4" />
+                       </button>
+                    </div>
+                 ) : (
+                    <div className="flex flex-col items-center gap-4 text-center py-4">
+                       <div className="w-16 h-16 rounded-2xl bg-white flex items-center justify-center shadow-lg border border-slate-100">
+                          <ImageIcon className="w-8 h-8 text-slate-300" />
+                       </div>
+                       <div>
+                          <p className="text-[10px] font-black text-slate-900 uppercase tracking-widest">Upload Payment Logo</p>
+                          <p className="text-[8px] font-bold text-slate-400 uppercase tracking-tighter mt-1">Recommended for QRIS & Bank Transfers</p>
+                       </div>
+                    </div>
+                 )}
+                 <Input type="file" accept="image/*" onChange={handleFileUpload} disabled={uploading} className="hidden" id="pm-file" />
+                 <Button type="button" variant="outline" asChild className="h-12 px-8 rounded-xl bg-white border-slate-200 text-slate-900 font-black text-[9px] uppercase tracking-widest shadow-sm hover:bg-slate-50">
+                    <label htmlFor="pm-file" className="cursor-pointer">{uploading ? "PROCCESSING..." : "SELECT IMAGE"}</label>
+                 </Button>
               </div>
             </div>
 
             {formData.type === "QRIS" && (
-              <div className="space-y-2 p-4 bg-slate-50 rounded-2xl border border-slate-100 italic">
-                <Label className="flex items-center gap-2 text-xs font-black uppercase tracking-widest text-slate-400">
-                  <QrCode className="w-4 h-4" /> Base QRIS String
-                </Label>
-                <div className="flex gap-2">
-                  <Textarea 
-                    value={formData.qris_data}
-                    onChange={e => setFormData({...formData, qris_data: e.target.value})}
-                    placeholder="000201010211..."
-                    rows={3}
-                    className="font-mono text-xs bg-transparent border-none shadow-none focus:ring-0"
-                  />
+              <div className="space-y-4 p-8 rounded-[2rem] bg-emerald-50 border border-emerald-100 animate-in fade-in slide-in-from-top-4">
+                <div className="flex items-center gap-3">
+                   <QrCode className="w-6 h-6 text-emerald-600" />
+                   <Label className="text-[10px] font-black uppercase tracking-widest text-emerald-800">QRIS Data</Label>
                 </div>
-                <p className="text-[10px] text-gray-400 font-medium">
-                  This string will be used to generate dynamic QR codes with transaction amounts.
-                </p>
+                <Textarea value={formData.qris_data} onChange={e => setFormData({...formData, qris_data: e.target.value})} placeholder="000201010211..." rows={4} className="font-mono text-xs bg-white border-emerald-200 p-4 rounded-xl shadow-inner" />
+                <p className="text-[9px] font-bold text-emerald-600 uppercase leading-relaxed">Used to generate dynamic QR codes for payments. Usually extracted automatically from uploaded QR image.</p>
               </div>
             )}
 
-            <div className="flex items-center gap-6 pt-2">
-              <div className="flex items-center gap-3">
-                <input 
-                  type="checkbox" 
-                  id="is_active"
-                  checked={formData.is_active}
-                  onChange={e => setFormData({...formData, is_active: e.target.checked})}
-                  className="w-5 h-5 rounded-md border-slate-300 text-emerald-600 focus:ring-emerald-500"
-                />
-                <Label htmlFor="is_active" className="cursor-pointer font-bold text-slate-700">Active Status</Label>
+            <div className="flex flex-col md:flex-row items-center gap-8 pt-6 border-t border-slate-50">
+              <div className="flex items-center gap-4">
+                 <button 
+                   type="button"
+                   onClick={() => setFormData({...formData, is_active: !formData.is_active})}
+                   className={cn(
+                     "w-12 h-6 rounded-full transition-all relative flex items-center px-1",
+                     formData.is_active ? "bg-emerald-500" : "bg-slate-200"
+                   )}
+                 >
+                   <div className={cn("w-4 h-4 bg-white rounded-full shadow-lg transition-all", formData.is_active ? "translate-x-6" : "translate-x-0")} />
+                 </button>
+                 <Label className="text-[10px] font-black uppercase tracking-widest text-slate-900">Active Status</Label>
               </div>
-              <div className="flex items-center gap-3 flex-1 justify-end">
-                <Label className="text-xs font-bold uppercase tracking-widest text-slate-400">Display Order</Label>
-                <Input 
-                  type="number" 
-                  value={formData.display_order}
-                  onChange={e => setFormData({...formData, display_order: e.target.value})}
-                  className="w-20 h-10 rounded-xl"
-                />
+              <div className="flex-1 flex justify-end items-center gap-4">
+                 <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Display Order</Label>
+                 <Input type="number" value={formData.display_order} onChange={e => setFormData({...formData, display_order: e.target.value})} className="w-24 h-12 rounded-xl bg-slate-50 border-slate-100 font-black text-center" />
               </div>
             </div>
 
-            <DialogFooter className="px-0 mt-8">
-              <Button type="button" variant="outline" className="h-12 rounded-xl px-8" onClick={() => setIsDialogOpen(false)}>Cancel</Button>
-              <Button type="submit" disabled={uploading} className="h-12 rounded-xl px-8 bg-emerald-600 hover:bg-emerald-700 font-bold shadow-lg shadow-emerald-600/20">
-                {editingId ? "Update Method" : "Create Method"}
-              </Button>
+            <DialogFooter className="pt-6 gap-6">
+              <Button type="button" variant="ghost" className="h-14 px-10 rounded-2xl font-black text-[10px] uppercase text-slate-400" onClick={() => setIsDialogOpen(false)}>Cancel</Button>
+              <Button type="submit" disabled={uploading} className="h-14 px-12 rounded-2xl bg-slate-900 text-white font-black uppercase text-[10px] tracking-widest shadow-2xl">Save Method</Button>
             </DialogFooter>
           </form>
         </DialogContent>

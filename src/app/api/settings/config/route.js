@@ -34,6 +34,18 @@ export async function PUT(req) {
     if (body.receipt_footer !== undefined) data.receipt_footer = body.receipt_footer;
     if (body.tax_rate !== undefined) data.tax_rate = Number(body.tax_rate);
     if (body.service_charge !== undefined) data.service_charge = Number(body.service_charge);
+    if (body.paper_width !== undefined) data.paper_width = Number(body.paper_width);
+    if (body.show_logo !== undefined) data.show_logo = Boolean(body.show_logo);
+    if (body.show_customer !== undefined) data.show_customer = Boolean(body.show_customer);
+    if (body.kitchen_enabled !== undefined) data.kitchen_enabled = Boolean(body.kitchen_enabled);
+    if (body.kitchen_auto_print !== undefined) data.kitchen_auto_print = Boolean(body.kitchen_auto_print);
+    if (body.kitchen_copies !== undefined) data.kitchen_copies = Number(body.kitchen_copies);
+    if (body.kitchen_categories !== undefined) data.kitchen_categories = body.kitchen_categories;
+    if (body.language !== undefined) data.language = body.language;
+    if (body.logo_url !== undefined) data.logo_url = body.logo_url;
+    if (body.instagram !== undefined) data.instagram = body.instagram;
+    if (body.whatsapp !== undefined) data.whatsapp = body.whatsapp;
+    if (body.quick_tags !== undefined) data.quick_tags = body.quick_tags;
 
     const existing = await prisma.storeConfig.findFirst({ orderBy: { id: 'asc' }, select: { id: true } });
     const saved = existing

@@ -81,11 +81,13 @@ export async function GET(req) {
         include: {
           orderItems: { include: { menu: { select: { name: true } } } },
           platform: { select: { name: true } },
+          paymentMethod: { select: { name: true, type: true } },
+          user: { select: { id: true, name: true } },
         },
       }),
       prisma.order.count({ where }),
       prisma.order.aggregate({
-        where: { ...where, status: 'COMPLETED' },
+        where: { ...where, status: { in: ['PAID', 'PROCESSING', 'COMPLETED'] } },
         _sum: {
           total: true,
           net_revenue: true
@@ -245,7 +247,7 @@ export async function POST(req) {
           payment_method_id: payment_method_id || null,
           money_received: receivedNum,
           change_amount,
-          status: status || 'COMPLETED',
+          status: status || 'PAID',
           note: note || null,
           customer_name: customer_name || null,
           created_by_user_id: finalCreatorId,
@@ -260,9 +262,15 @@ export async function POST(req) {
         },
       });
 
+      // 5. Auto-Stock Deduction for immediate PAID/COMPLETED orders
+      if (newOrder.status === 'PAID' || newOrder.status === 'COMPLETED') {
+        const { deductStockForOrder } = await import('@/lib/stock-deduction');
+        await deductStockForOrder(newOrder.id, tx);
+      }
+
       return newOrder;
     }, {
-      timeout: 15000 // Increase timeout to 15s to handle potentially slow cold starts
+      timeout: 20000 // Increase timeout to 20s to handle recursion
     });
 
     logger.info('Order created', { id: created.id, total: created.total });

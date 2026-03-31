@@ -19,8 +19,8 @@ export async function GET(req) {
         orderItems: {
           where: {
             order: {
-              date: { gte: sevenDaysAgo, lt: today },
-              status: 'COMPLETED'
+              status: { in: ['PAID', 'PROCESSING', 'COMPLETED'] },
+              date: { gte: sevenDaysAgo, lt: today }
             }
           }
         }

@@ -14,7 +14,7 @@ export async function GET(req) {
     const { start, end } = parseDateRange(req.nextUrl.searchParams);
     const [orders, expenses, fixedCosts] = await Promise.all([
       prisma.order.findMany({
-        where: { status: 'COMPLETED', date: { gte: start, lte: end } },
+        where: { status: { in: ['PAID', 'PROCESSING', 'COMPLETED'] }, date: { gte: start, lte: end } },
         include: { orderItems: true },
       }),
       prisma.expense.findMany({

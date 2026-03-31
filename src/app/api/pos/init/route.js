@@ -11,7 +11,7 @@ export async function GET(req) {
     const { user, response } = await verifyAuth(req, ['OWNER', 'MANAGER', 'CASHIER', 'KITCHEN']);
     if (response) return response;
 
-    const [menus, categories, platforms, paymentMethods, currentShift] = await Promise.all([
+    const [menus, categories, platforms, paymentMethods, currentShift, storeConfig] = await Promise.all([
       // 1. Active Menus with categorized prices
       prisma.menu.findMany({
         where: { is_active: true },
@@ -38,7 +38,9 @@ export async function GET(req) {
       prisma.userShift.findFirst({
         where: { status: 'OPEN' }, 
         orderBy: { start_time: 'desc' }
-      })
+      }),
+      // 6. Store Configuration (Tax/Service)
+      prisma.storeConfig.findFirst()
     ]);
 
     // Normalize prices for menus
@@ -59,6 +61,7 @@ export async function GET(req) {
       platforms,
       paymentMethods,
       currentShift,
+      storeConfig,
       user: { id: user.id, name: user.name, role: user.role },
       processing_time_ms: duration
     }, {

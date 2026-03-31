@@ -263,9 +263,9 @@ function RecipeList({ onAdd, onEdit }) {
       </div>
 
       <Dialog open={!!viewingRecipeId} onOpenChange={(open) => !open && setViewingRecipeId(null)}>
-        <DialogContent className="max-w-3xl p-0 overflow-hidden rounded-[2.5rem] border-none shadow-2xl bg-white">
+        <DialogContent className="max-w-3xl p-0 overflow-hidden rounded-[2.5rem] border-none shadow-2xl bg-white flex flex-col max-h-[90dvh]">
           {viewingRecipe && (
-            <div className="flex flex-col h-[85vh] sm:h-auto max-h-[90vh]">
+            <div className="flex flex-col flex-1 overflow-hidden">
               <div className="p-8 sm:p-10 border-b border-slate-100 bg-slate-50/50">
                 <div className="flex items-center gap-3 mb-3">
                   <div className="w-2 h-2 bg-emerald-600 rounded-full animate-pulse" />
@@ -767,7 +767,7 @@ function RecipeForm({ id, onClose }) {
 
         {/* Sidebar Intelligence */}
         <div className="lg:col-span-4">
-          <div className="sticky top-32 space-y-10 overflow-y-auto max-h-[85vh] pr-4 scrollbar-hide pb-20">
+          <div className="sticky top-32 space-y-10 overflow-y-auto max-h-[85dvh] pr-4 scrollbar-hide pb-20">
             <div className="bg-slate-900 rounded-[3rem] p-10 text-white shadow-[0_40px_80px_-20px_rgba(0,0,0,0.2)] relative overflow-hidden mx-auto w-full max-w-md lg:max-w-none">
              <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-600/30 rounded-full blur-[100px] -translate-y-1/2 translate-x-1/2" />
              <div className="relative z-10 space-y-10">

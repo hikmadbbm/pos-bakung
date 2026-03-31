@@ -17,9 +17,11 @@ export async function GET(req) {
       return NextResponse.json({ error: 'Invalid date' }, { status: 400 });
     }
 
+    const { start, end } = range;
+
     const [orders, reconciliation, shifts] = await Promise.all([
       prisma.order.findMany({
-        where: { status: 'COMPLETED', date: { gte: range.start, lte: range.end } },
+        where: { status: { in: ['PAID', 'PROCESSING', 'COMPLETED'] }, date: { gte: start, lte: end } },
         select: { 
           id: true, 
           total: true, 

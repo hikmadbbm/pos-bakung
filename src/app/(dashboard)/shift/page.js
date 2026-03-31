@@ -151,52 +151,65 @@ export default function ShiftPage() {
              {currentShift ? "Active Session" : "Punch In"}
           </h3>
             {!currentShift ? (
-              <form onSubmit={handleStartShift} className="space-y-6">
-                <div className="space-y-2">
-                  <Label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Starting Cash (Modal Awal)</Label>
+              <form onSubmit={handleStartShift} className="space-y-8">
+                <div className="space-y-4">
+                  <div className="flex justify-between items-end px-2">
+                    <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Initial Drawer Fund</Label>
+                    <p className="text-[9px] font-black text-emerald-500 uppercase tracking-widest">Security Lock Active</p>
+                  </div>
                   <div className="relative group">
-                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-black text-xs">IDR</span>
+                    <div className="absolute left-8 top-1/2 -translate-y-1/2 text-slate-300 font-black text-2xl group-focus-within:text-emerald-500 transition-colors">Rp</div>
                     <Input 
-                      className="h-14 pl-12 rounded-2xl border-slate-200 bg-slate-50 focus:ring-emerald-600/10 transition-all font-black text-slate-900" 
-                      type="number" 
-                      required
+                      type="number"
                       placeholder="0"
+                      className="h-24 pl-20 pr-8 text-4xl font-black bg-slate-50 border-none focus:ring-0 rounded-[2rem] transition-all font-mono"
                       value={startCash}
                       onChange={(e) => setStartCash(e.target.value)}
+                      required
                     />
                   </div>
+                  <div className="p-6 bg-slate-50 rounded-3xl border border-slate-100 flex gap-4 items-start">
+                     <div className="p-2 bg-emerald-100 rounded-xl">
+                        <DollarSign className="w-4 h-4 text-emerald-600" />
+                     </div>
+                     <p className="text-[10px] text-slate-500 font-black uppercase leading-relaxed tracking-wider opacity-60 italic">
+                       Verify opening liquidity before initializing terminal.
+                     </p>
+                  </div>
                 </div>
-                <Button type="submit" className="w-full h-14 rounded-2xl font-black uppercase tracking-wider bg-emerald-600 hover:bg-emerald-700 shadow-xl shadow-emerald-200 active:scale-95 transition-all">START SHIFT</Button>
+
+                <Button 
+                  type="submit" 
+                  className="w-full h-20 rounded-[2rem] bg-emerald-600 hover:bg-emerald-700 font-black uppercase tracking-[0.3em] text-sm shadow-2xl shadow-emerald-500/20 transition-all active:scale-95"
+                >
+                  INITIALIZE SYSTEM
+                </Button>
               </form>
             ) : (
               <div className="space-y-8">
-                <div className="p-6 bg-emerald-50/50 backdrop-blur-sm border border-emerald-100 rounded-[2rem] space-y-6 shadow-sm shadow-emerald-50">
-                  <div className="flex items-center gap-4 text-emerald-800">
-                    <div className="p-3 bg-white rounded-2xl shadow-sm">
-                      <Clock className="w-6 h-6 text-emerald-600" />
+                <div className="glass-card p-10 bg-emerald-500/5 border border-emerald-500/10 rounded-[3rem] space-y-10 relative overflow-hidden">
+                  <div className="absolute top-0 right-0 w-48 h-48 bg-emerald-500/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
+                  
+                  <div className="flex items-center gap-6 relative z-10">
+                    <div className="w-20 h-20 bg-white rounded-[2rem] shadow-2xl flex items-center justify-center border border-emerald-100 flex-shrink-0">
+                      <Clock className="w-10 h-10 text-emerald-600 animate-pulse-slow" />
                     </div>
                     <div className="flex-1">
-                      <p className="text-sm font-black uppercase tracking-tight text-emerald-900">
-                        {isOwnShift ? 'Shift In Progress' : 'System Wide Shift Active'}
-                      </p>
-                      <p className="text-[10px] font-bold opacity-60 uppercase tracking-wider">
-                        {isOwnShift ? '' : `Personnel: ${currentShift.user?.name || 'Unknown'} | `}
-                        Opened at {currentShift?.start_time ? new Date(currentShift.start_time).toLocaleTimeString() : 'Unknown'}
-                      </p>
+                      <p className="text-emerald-500 text-[10px] font-black uppercase tracking-[0.4em] mb-2">Operational Link Active</p>
+                      <h4 className="text-3xl font-black text-slate-900 tracking-tighter uppercase leading-none italic">
+                        {isOwnShift ? 'OPERATOR: ONLINE' : `BY: ${currentShift.user?.name || 'SYSTEM'}`}
+                      </h4>
                     </div>
                   </div>
                   
-                  <div className="grid grid-cols-2 gap-3 pt-2 border-t border-emerald-100">
+                  <div className="grid grid-cols-2 gap-8 pt-8 border-t border-emerald-500/10 relative z-10">
                     <div>
-                      <p className="text-[10px] text-emerald-600 font-bold uppercase tracking-tight">Starting Cash</p>
-                      <p className="text-sm font-bold text-emerald-900">{formatIDR(currentShift.starting_cash)}</p>
+                      <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest mb-1">SYSTEM START</p>
+                      <p className="text-xl font-black text-slate-800 tracking-tight">{currentShift?.start_time ? new Date(currentShift.start_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '00:00'}</p>
                     </div>
                     <div className="text-right">
-                      <p className="text-[10px] text-emerald-600 font-bold uppercase tracking-tight">Status</p>
-                      <div className="flex items-center justify-end gap-1">
-                        <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
-                        <p className="text-sm font-bold text-green-700">Active</p>
-                      </div>
+                      <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest mb-1">Opening Fund</p>
+                      <p className="text-xl font-black text-emerald-600 tracking-tighter italic">{formatIDR(currentShift.starting_cash)}</p>
                     </div>
                   </div>
                 </div>
@@ -262,8 +275,9 @@ export default function ShiftPage() {
                Session History
             </h3>
         </div>
-        <Table>
-          <TableHeader className="bg-slate-50/50">
+        <div className="overflow-x-auto custom-scrollbar">
+          <Table>
+            <TableHeader className="bg-slate-50/50">
             <TableRow>
               <TableHead className="text-[10px] font-black uppercase text-slate-500 py-5 px-8">Start Time</TableHead>
               <TableHead className="text-[10px] font-black uppercase text-slate-500 py-5">End Time</TableHead>
@@ -302,6 +316,7 @@ export default function ShiftPage() {
             )}
           </TableBody>
         </Table>
+        </div>
       </div>
 
       <StopShiftModal 

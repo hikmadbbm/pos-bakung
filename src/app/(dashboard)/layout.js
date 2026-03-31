@@ -11,63 +11,67 @@ import StopShiftButton from "../../components/StopShiftButton";
 import { FocusModeProvider, useFocusMode } from "../../lib/focus-mode-context";
 import { useToast } from "../../components/ui/use-toast";
 
-const navGroups = [
-  {
-    group: null, // Top level items without a group
-    items: [
-      { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-    ]
-  },
-  {
-    group: "Sales",
-    items: [
-      { href: "/orders", label: "POS", icon: ShoppingCart },
-      { href: "/orders-list", label: "Order History", icon: ClipboardList },
-      { href: "/shift", label: "Shift Management", icon: Clock },
-    ]
-  },
-  {
-    group: "Menu & Kitchen",
-    items: [
-      { href: "/menu", label: "Menu Management", icon: Utensils },
-      { href: "/recipes", label: "Recipes", icon: ClipboardList },
-      { href: "/kitchen", label: "Kitchen View", icon: Utensils },
-    ]
-  },
-  {
-    group: "Inventory",
-    items: [
-      { href: "/ingredients", label: "Ingredient List", icon: ClipboardList },
-      { href: "/purchase", label: "Purchase", icon: ShoppingCart },
-      { href: "/stock", label: "Stock", icon: Activity },
-    ]
-  },
-  {
-    group: "Finance",
-    items: [
-      { href: "/hpp-calculator", label: "HPP Calculator", icon: DollarSign },
-      { href: "/expenses", label: "Expenses & Costs", icon: DollarSign },
-    ]
-  },
-  {
-    group: "Reports",
-    items: [
-      { href: "/reports", label: "General Reports", icon: BarChart },
-      { href: "/cashier-report", label: "Cashier Report", icon: ClipboardList },
-      { href: "/analytics", label: "AI Analytics", icon: Activity },
-    ]
-  },
-  {
-    group: null,
-    items: [
-      { href: "/settings", label: "Settings", icon: Settings },
-    ]
-  }
-];
+import { useTranslation } from "../../lib/language-context";
 
-function DashboardContent({ children }) {
+export function DashboardContent({ children }) {
+  const { t } = useTranslation();
   const pathname = usePathname();
   const router = useRouter();
+
+  const navGroups = useMemo(() => [
+    {
+      group: null, 
+      items: [
+        { href: "/dashboard", label: t('dashboard'), icon: LayoutDashboard },
+      ]
+    },
+    {
+      group: t('pos'),
+      items: [
+        { href: "/orders", label: t('pos'), icon: ShoppingCart },
+        { href: "/orders-list", label: t('orders'), icon: ClipboardList },
+        { href: "/shift", label: t('shift'), icon: Clock },
+      ]
+    },
+    {
+      group: t('kitchen'),
+      items: [
+        { href: "/menu", label: t('products'), icon: Utensils },
+        { href: "/recipes", label: t('recipes'), icon: ClipboardList },
+        { href: "/kitchen", label: t('kitchen'), icon: Utensils },
+      ]
+    },
+    {
+      group: t('stock'),
+      items: [
+        { href: "/ingredients", label: t('vault'), icon: ClipboardList },
+        { href: "/purchase", label: t('add_stock'), icon: ShoppingCart },
+        { href: "/stock", label: t('stock'), icon: Activity },
+      ]
+    },
+    {
+      group: t('expenses'),
+      items: [
+        { href: "/hpp-calculator", label: t('cost_calculator'), icon: DollarSign },
+        { href: "/expenses", label: t('expenses'), icon: DollarSign },
+      ]
+    },
+    {
+      group: t('reports'),
+      items: [
+        { href: "/promotions", label: t('promotions'), icon: Utensils },
+        { href: "/reports", label: t('sales_reports'), icon: BarChart },
+        { href: "/cashier-report", label: t('cashier_logs'), icon: ClipboardList },
+        { href: "/analytics", label: t('sales_insights'), icon: Activity },
+      ]
+    },
+    {
+      group: null,
+      items: [
+        { href: "/settings", label: t('settings'), icon: Settings },
+      ]
+    }
+  ], [t]);
   const { error } = useToast();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(false);
@@ -96,8 +100,8 @@ function DashboardContent({ children }) {
 
   // Define permissions mapping
   const rolePermissions = {
-    OWNER: ["/dashboard", "/orders", "/orders-list", "/menu", "/expenses", "/reports", "/analytics", "/shift", "/settings", "/kitchen", "/recipes", "/cashier-report", "/ingredients", "/purchase", "/stock", "/hpp-calculator"],
-    MANAGER: ["/dashboard", "/orders", "/orders-list", "/menu", "/reports", "/analytics", "/shift", "/kitchen", "/recipes", "/cashier-report", "/ingredients", "/hpp-calculator", "/purchase", "/stock"],
+    OWNER: ["/dashboard", "/orders", "/orders-list", "/menu", "/expenses", "/reports", "/analytics", "/shift", "/settings", "/kitchen", "/recipes", "/cashier-report", "/ingredients", "/purchase", "/stock", "/hpp-calculator", "/promotions"],
+    MANAGER: ["/dashboard", "/orders", "/orders-list", "/menu", "/reports", "/analytics", "/shift", "/kitchen", "/recipes", "/cashier-report", "/ingredients", "/hpp-calculator", "/purchase", "/stock", "/promotions"],
     CASHIER: ["/orders", "/orders-list", "/cashier-report", "/shift"],
     KITCHEN: ["/kitchen", "/orders-list", "/menu", "/ingredients"]
   };
@@ -265,7 +269,7 @@ function DashboardContent({ children }) {
               title={isCollapsed ? "Logout" : ""}
             >
               <LogOut className={cn("w-4 h-4 flex-shrink-0", !isCollapsed && "mr-3")} />
-              {!isCollapsed && "Sign Out"}
+              {!isCollapsed && t('logout')}
             </button>
           </div>
         </aside>
@@ -286,11 +290,11 @@ function DashboardContent({ children }) {
 
         {/* Header */}
         {!isFocusMode && (
-          <header className="h-20 bg-white/80 backdrop-blur-md border-b border-slate-100 flex items-center justify-between px-6 lg:px-10 z-10 shrink-0">
-            <div className="flex items-center gap-6">
+          <header className="h-16 lg:h-20 bg-white/80 backdrop-blur-md border-b border-slate-100 flex items-center justify-between px-4 lg:px-10 z-10 shrink-0 sticky top-0">
+            <div className="flex items-center gap-4 lg:gap-6">
               <button 
                 onClick={() => setIsSidebarOpen(true)}
-                className="lg:hidden p-2 -ml-2 rounded-xl hover:bg-slate-100 text-slate-600"
+                className="lg:hidden p-2.5 rounded-xl bg-slate-50 text-slate-600 active:scale-90 transition-all"
               >
                 <Menu className="w-5 h-5" />
               </button>
@@ -300,37 +304,73 @@ function DashboardContent({ children }) {
               >
                 <Menu className="w-5 h-5" />
               </button>
-              <div>
-                <h2 className="text-xl font-bold text-slate-900 tracking-tight flex items-center gap-3">
-                  {navGroups.flatMap(g => g.items).find((n) => pathname.startsWith(n.href))?.label || "Dashboard"}
+              <div className="flex items-center gap-2">
+                <div className="lg:hidden w-8 h-8 rounded-lg overflow-hidden border border-slate-100 shadow-sm shrink-0">
+                  <img src="/favicon-96x96.png" alt="Logo" className="w-full h-full object-cover" />
+                </div>
+                <h2 className="text-sm lg:text-xl font-black text-slate-900 tracking-tight flex items-center gap-2">
+                  <span className="hidden sm:inline">{navGroups.flatMap(g => g.items).find((n) => pathname.startsWith(n.href))?.label || "Dashboard"}</span>
+                  <span className="sm:hidden text-xs">{navGroups.flatMap(g => g.items).find((n) => pathname.startsWith(n.href))?.label || "Dashboard"}</span>
                   <div className="w-1.5 h-1.5 bg-emerald-600 rounded-full shadow-[0_0_8px_rgba(5,150,105,0.4)]" />
                 </h2>
               </div>
             </div>
             
-            <div className="flex items-center space-x-6">
-              <StopShiftButton />
+            <div className="flex items-center space-x-2 lg:space-x-6">
+              <div className="hidden sm:block">
+                <StopShiftButton />
+              </div>
               {pathname === "/orders" && (
                 <button
                   onClick={() => setIsFocusMode(true)} 
-                  className="p-3 text-slate-400 hover:bg-emerald-50 hover:text-emerald-700 rounded-2xl transition-all active:scale-95 border border-transparent hover:border-emerald-100 shadow-sm"
+                  className="p-2.5 lg:p-3 text-slate-400 hover:bg-emerald-50 hover:text-emerald-700 rounded-xl lg:rounded-2xl transition-all active:scale-95 border border-transparent hover:border-emerald-100 shadow-sm"
                   title="Enter Focus Mode"
                 >
                    <Maximize2 className="w-5 h-5" />
                 </button>
               )}
-              <div className="h-8 w-px bg-slate-100 mx-1" />
+              <div className="h-6 lg:h-8 w-px bg-slate-100 mx-0.5 lg:mx-1" />
               <UserMenu />
             </div>
           </header>
         )}
 
         {/* Page Content */}
-        <div className={cn("flex-1 overflow-auto bg-slate-50/30", !isFocusMode && "p-4 lg:p-10 pb-20 lg:pb-10")}>
+        <div className={cn("flex-1 overflow-auto bg-slate-50/30", !isFocusMode && "p-3 lg:p-10 pb-24 lg:pb-10")}>
           <div className="max-w-[1600px] mx-auto animate-fade-in relative">
             {children}
           </div>
         </div>
+
+        {/* Mobile Bottom Navigation (Visible on mobile/tablet) */}
+        {!isFocusMode && (
+          <div className="lg:hidden fixed bottom-6 left-1/2 -translate-x-1/2 w-[90vw] h-16 bg-white/90 backdrop-blur-xl border border-slate-100 rounded-[2rem] shadow-[0_20px_50px_rgba(0,0,0,0.1)] flex items-center justify-around px-4 z-40">
+            {[
+              { href: "/dashboard", label: "Home", icon: LayoutDashboard },
+              { href: "/orders", label: "Sales", icon: ShoppingCart },
+              { href: "/orders-list", label: "Orders", icon: ClipboardList },
+              { href: "/kitchen", label: "Kitchen", icon: Utensils },
+              { href: "/settings", label: "Settings", icon: Settings },
+            ].map((item) => {
+              const Icon = item.icon;
+              const isActive = pathname === item.href;
+              return (
+                <Link 
+                  key={item.href} 
+                  href={item.href}
+                  className={cn(
+                    "flex flex-col items-center justify-center gap-1 transition-all",
+                    isActive ? "text-emerald-600 scale-110" : "text-slate-400"
+                  )}
+                >
+                  <Icon className="w-5 h-5" />
+                  <span className="text-[8px] font-black uppercase tracking-widest">{item.label}</span>
+                  {isActive && <div className="w-1 h-1 bg-emerald-600 rounded-full mt-0.5" />}
+                </Link>
+              );
+            })}
+          </div>
+        )}
       </main>
     </div>
   );

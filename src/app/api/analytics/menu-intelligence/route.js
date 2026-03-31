@@ -20,8 +20,8 @@ export async function GET(req) {
         orderItems: {
           where: {
             order: {
-              date: { gte: start, lte: end },
-              status: 'COMPLETED'
+              status: { in: ['PAID', 'PROCESSING', 'COMPLETED'] },
+              date: { gte: start, lte: end }
             }
           }
         }

@@ -8,39 +8,39 @@ export default function ExpensesPage() {
   const [activeTab, setActiveTab] = useState("daily");
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col space-y-4">
-        <h2 className="text-2xl font-bold tracking-tight">Expenses & Costs</h2>
+    <div className="max-w-7xl mx-auto space-y-10 animate-fade-in pb-20">
+      <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+        <div>
+          <h2 className="text-2xl font-black tracking-tight text-slate-900 uppercase">Financial Outflow</h2>
+          <p className="text-sm font-medium text-slate-500 mt-1 flex items-center gap-2">
+            Expense Tracking & Overhead Allocation
+            <span className="inline-block w-1 h-1 bg-emerald-600 rounded-full" />
+          </p>
+        </div>
         
-        <div className="border-b border-gray-200">
-          <nav className="-mb-px flex space-x-8" aria-label="Tabs">
-            <button
-              onClick={() => setActiveTab("daily")}
-              className={cn(
-                "whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors",
-                activeTab === "daily"
-                  ? "border-emerald-500 text-emerald-600"
-                  : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
-              )}
-            >
-              Daily Expenses
-            </button>
-            <button
-              onClick={() => setActiveTab("fixed")}
-              className={cn(
-                "whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors",
-                activeTab === "fixed"
-                  ? "border-emerald-500 text-emerald-600"
-                  : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
-              )}
-            >
-              Fixed Overhead
-            </button>
-          </nav>
+        <div className="flex bg-slate-100/50 backdrop-blur-sm rounded-[1.25rem] p-1.5 border border-slate-200/50 shadow-inner">
+          <button
+            onClick={() => setActiveTab("daily")}
+            className={cn(
+              "px-8 py-2.5 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all flex items-center gap-2",
+              activeTab === "daily" ? "bg-white text-slate-900 shadow-xl shadow-slate-200/50" : "text-slate-400 hover:text-slate-600"
+            )}
+          >
+            Daily Log
+          </button>
+          <button
+            onClick={() => setActiveTab("fixed")}
+            className={cn(
+              "px-8 py-2.5 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all flex items-center gap-2",
+              activeTab === "fixed" ? "bg-white text-slate-900 shadow-xl shadow-slate-200/50" : "text-slate-400 hover:text-slate-600"
+            )}
+          >
+            Fixed Burden
+          </button>
         </div>
       </div>
 
-      <div className="mt-6">
+      <div className="animate-in fade-in duration-500">
         {activeTab === "daily" ? <DailyExpenses /> : <FixedCosts />}
       </div>
     </div>

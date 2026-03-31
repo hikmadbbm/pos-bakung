@@ -2,13 +2,12 @@
 import { useEffect, useState } from "react";
 import { api } from "../../../lib/api";
 import { Button } from "../../../components/ui/button";
-import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "../../../components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../../../components/ui/dialog";
 import { Input } from "../../../components/ui/input";
 import { Label } from "../../../components/ui/label";
-import { Select } from "../../../components/ui/select";
-import { Plus, Trash2, Edit2 } from "lucide-react";
+import { Plus, Trash2, Edit2, Globe } from "lucide-react";
 import { useToast } from "../../../components/ui/use-toast";
+import { ResponsiveDataView } from "../../../components/ResponsiveDataView";
 
 export default function PlatformsPage() {
   const { success, error } = useToast();
@@ -45,25 +44,24 @@ export default function PlatformsPage() {
       setIsDialogOpen(false);
       resetForm();
       loadPlatforms();
-      success(isEditing ? "Platform updated" : "Platform added");
+      success(isEditing ? "Channel updated" : "Channel added");
     } catch (e) {
       console.error(e);
-      error("Failed to save platform");
+      error("Failed to save channel");
     }
   };
 
   const handleDelete = async (id) => {
-    // Optimistic UI
     const previous = platforms;
     setConfirmDeleteId(null);
     setPlatforms(prev => prev.filter(p => p.id !== id));
     try {
       await api.delete(`/platforms/${id}`);
-      success("Platform deleted");
+      success("Channel deleted");
     } catch (e) {
       console.error(e);
-      setPlatforms(previous); // rollback
-      error("Failed to delete platform. It might be in use.");
+      setPlatforms(previous);
+      error("Failed to delete channel");
     }
   };
 
@@ -84,132 +82,168 @@ export default function PlatformsPage() {
   };
 
   return (
-    <div className="space-y-8 animate-fade-in pb-20">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 print:hidden">
+    <div className="max-w-7xl mx-auto space-y-10 animate-fade-in pb-20 px-4 md:px-0">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6 print:hidden pb-2">
         <div>
-          <h2 className="text-2xl font-bold tracking-tight text-slate-900">Platform Management</h2>
-          <p className="text-sm font-medium text-slate-500 mt-1 flex items-center gap-2">
-            Configure delivery channels and commission rates
-            <span className="inline-block w-1 h-1 bg-emerald-600 rounded-full" />
-          </p>
+          <h2 className="text-3xl font-black text-slate-900 tracking-tight uppercase italic">Sales Channels</h2>
+          <div className="flex items-center gap-2.5 mt-2">
+            <span className="flex h-2 w-2 rounded-full bg-indigo-500 animate-pulse"></span>
+            <p className="text-[10px] text-slate-400 font-black uppercase tracking-[0.2em]">Live</p>
+          </div>
         </div>
-        <Button onClick={openCreate} className="h-10 px-6 rounded-2xl font-semibold text-[11px] tracking-tight bg-slate-900 text-white hover:bg-slate-800 shadow-xl active:scale-95 transition-all">
-          <Plus className="w-4 h-4 mr-2" /> ADD PLATFORM
+        <Button 
+          onClick={openCreate} 
+          className="w-full md:w-auto h-14 px-10 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] bg-slate-900 text-white hover:bg-black shadow-2xl shadow-slate-200 active:scale-95 transition-all"
+        >
+          <Plus className="w-4 h-4 mr-3" /> Add Channel
         </Button>
       </div>
 
-      <div className="glass-card rounded-[2rem] overflow-hidden shadow-2xl border-none">
-        <Table>
-          <TableHeader className="bg-slate-50/50">
-            <TableRow>
-              <TableHead className="text-[10px] font-black uppercase text-slate-500 py-5 px-6">Name</TableHead>
-              <TableHead className="text-[10px] font-black uppercase text-slate-500 py-5">Integration Type</TableHead>
-              <TableHead className="text-[10px] font-black uppercase text-slate-500 py-5">Rate (%)</TableHead>
-              <TableHead className="text-right text-[10px] font-black uppercase text-slate-500 py-5 px-6">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {loading ? (
-              <TableRow>
-                <TableCell colSpan={4} className="text-center">Loading...</TableCell>
-              </TableRow>
-            ) : platforms.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={4} className="text-center">No platforms found.</TableCell>
-              </TableRow>
-            ) : (
-              platforms.map((p) => (
-                <TableRow key={p.id} className="hover:bg-slate-50/50 border-slate-100 transition-colors group">
-                  <TableCell className="font-black text-slate-900 px-6 py-5 uppercase tracking-tight">{p.name}</TableCell>
-                  <TableCell>
-                    <span className={cn(
-                      "inline-flex items-center px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-tighter shadow-sm",
-                      p.type === 'DELIVERY' ? 'bg-indigo-100 text-indigo-700 border border-indigo-200' : 'bg-slate-100 text-slate-600 border border-slate-200'
-                    )}>
-                      {p.type}
-                    </span>
-                  </TableCell>
-                  <TableCell className="font-black text-slate-900">{p.commission_rate}%</TableCell>
-                  <TableCell className="text-right px-6 space-x-1">
-                    {confirmDeleteId === p.id ? (
-                      <span className="inline-flex items-center gap-2 bg-rose-50 p-1 rounded-xl border border-rose-100">
-                        <span className="text-[9px] font-black text-rose-600 uppercase tracking-tighter ml-2">DELETE?</span>
-                        <Button variant="destructive" size="sm" className="h-7 px-3 rounded-lg font-black text-[9px] uppercase hover:bg-rose-700" onClick={() => handleDelete(p.id)}>YES</Button>
-                        <Button variant="ghost" size="sm" className="h-7 px-3 rounded-lg font-black text-[9px] uppercase hover:bg-rose-100 text-rose-400" onClick={() => setConfirmDeleteId(null)}>NO</Button>
-                      </span>
-                    ) : (
-                      <div className="opacity-0 group-hover:opacity-100 transition-opacity">
-                        <Button variant="ghost" size="icon" className="h-9 w-9 rounded-xl hover:bg-slate-100" onClick={() => openEdit(p)}>
-                          <Edit2 className="w-4 h-4 text-slate-400" />
-                        </Button>
-                        <Button variant="ghost" size="icon" className="h-9 w-9 rounded-xl hover:bg-rose-50 group/del" onClick={() => setConfirmDeleteId(p.id)}>
-                          <Trash2 className="w-4 h-4 text-slate-300 group-hover/del:text-rose-500" />
-                        </Button>
-                      </div>
-                    )}
-                  </TableCell>
-                </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
+      <div className="glass-card rounded-[2.5rem] overflow-hidden shadow-2xl border-none p-0 animate-in fade-in duration-700">
+        <ResponsiveDataView
+          loading={loading}
+          data={platforms}
+          emptyMessage="No channels found"
+          columns={[
+            {
+              header: "Channel Name",
+              accessor: (p) => (
+                <div className="py-2">
+                  <span className="font-black text-slate-900 uppercase tracking-tight text-base group-hover:text-indigo-600 transition-colors">
+                    {p.name}
+                  </span>
+                </div>
+              ),
+              className: "pl-10"
+            },
+            {
+              header: "Type",
+              accessor: (p) => (
+                <span className={cn(
+                  "inline-flex items-center px-4 py-1.5 rounded-full text-[9px] font-black uppercase tracking-[0.2em] shadow-sm border whitespace-nowrap",
+                  p.type === 'DELIVERY' 
+                    ? 'bg-indigo-50 text-indigo-700 border-indigo-100' 
+                    : 'bg-slate-100 text-slate-500 border-slate-200'
+                )}>
+                  {p.type === 'DELIVERY' ? 'Online Delivery' : 'Direct'}
+                </span>
+              )
+            },
+            {
+              header: "Commission (%)",
+              accessor: (p) => (
+                <span className="font-black text-slate-900 text-xl tabular-nums tracking-tighter">
+                  {p.commission_rate}<span className="text-[10px] ml-1 text-slate-300 font-bold">%</span>
+                </span>
+              )
+            },
+            {
+              header: "Actions",
+              accessor: (p) => (
+                confirmDeleteId === p.id ? (
+                  <div className="flex flex-col items-end gap-2 pr-2">
+                     <div className="flex gap-2 bg-rose-50 p-2 rounded-2xl border border-rose-100 shadow-xl shadow-rose-100/50">
+                        <Button variant="destructive" size="sm" className="h-9 px-5 rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-rose-700 active:scale-95" onClick={() => handleDelete(p.id)}>Delete</Button>
+                        <Button variant="ghost" size="sm" className="h-9 px-5 rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-rose-100 text-rose-500" onClick={() => setConfirmDeleteId(null)}>No</Button>
+                     </div>
+                  </div>
+                ) : (
+                  <div className="flex justify-end gap-2 pr-2">
+                    <Button variant="ghost" size="icon" className="h-12 w-12 rounded-[1.25rem] hover:bg-slate-100 hover:shadow-xl transition-all active:scale-90" onClick={() => openEdit(p)}>
+                      <Edit2 className="w-4.5 h-4.5 text-slate-400 group-hover:text-slate-900" />
+                    </Button>
+                    <Button variant="ghost" size="icon" className="h-12 w-12 rounded-[1.25rem] hover:bg-rose-50 hover:shadow-xl group/del transition-all active:scale-90" onClick={() => setConfirmDeleteId(p.id)}>
+                      <Trash2 className="w-4.5 h-4.5 text-slate-300 group-hover/del:text-rose-500" />
+                    </Button>
+                  </div>
+                )
+              ),
+              align: "right",
+              className: "pr-10"
+            }
+          ]}
+          renderCard={(p) => (
+            <div className="space-y-4">
+              <div className="flex justify-between items-start">
+                <div className="flex items-center gap-4">
+                   <div className="w-12 h-12 rounded-2xl bg-slate-900 flex items-center justify-center text-white shadow-xl">
+                      <Globe className="w-6 h-6" />
+                   </div>
+                   <div>
+                    <p className="font-black text-slate-900 uppercase tracking-tight text-lg">{p.name}</p>
+                    <p className="text-[10px] font-bold text-slate-400 uppercase mt-1">
+                      {p.type === 'DELIVERY' ? 'Online Delivery' : 'In-Store'}
+                    </p>
+                   </div>
+                </div>
+                <div className="flex flex-col items-end">
+                   <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1">Commission</p>
+                   <p className="font-black text-indigo-600 text-xl tracking-tighter tabular-nums">{p.commission_rate}<span className="text-xs ml-0.5">%</span></p>
+                </div>
+              </div>
+
+              <div className="flex gap-2 pt-4 border-t border-slate-50">
+                <Button variant="outline" className="flex-1 h-12 rounded-xl text-[10px] font-black uppercase" onClick={() => openEdit(p)}>Edit</Button>
+                <Button variant="ghost" className="h-12 w-12 rounded-xl text-rose-500 hover:bg-rose-50" onClick={() => setConfirmDeleteId(p.id)}><Trash2 className="w-4.5 h-4.5" /></Button>
+              </div>
+            </div>
+          )}
+        />
       </div>
 
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="max-w-lg rounded-[2.5rem] border-none shadow-2xl p-0 overflow-hidden">
-          <div className="bg-slate-900 p-8 text-center relative overflow-hidden">
-             <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-600 rounded-full -translate-y-1/2 translate-x-1/2 opacity-20" />
-             <div className="w-16 h-16 bg-white/10 backdrop-blur-md rounded-3xl flex items-center justify-center mx-auto mb-4 border border-white/20">
-                <Plus className="w-8 h-8 text-white" />
-             </div>
-             <DialogTitle className="text-2xl font-black text-white uppercase tracking-tight">
-               {isEditing ? "Modify Platform" : "Add New Platform"}
+        <DialogContent className="max-w-lg rounded-[2.5rem] border-none shadow-2xl p-0 overflow-hidden bg-white animate-in zoom-in-95 duration-300">
+          <div className="bg-slate-900 p-10 text-center relative overflow-hidden">
+             <div className="absolute top-0 right-0 w-48 h-48 bg-indigo-600 rounded-full -translate-y-1/2 translate-x-1/2 opacity-20 blur-3xl" />
+             <DialogTitle className="text-3xl font-black text-white uppercase tracking-tight relative z-10">
+               {isEditing ? "Edit Channel" : "New Channel"}
              </DialogTitle>
+             <p className="text-[10px] font-black text-indigo-400 uppercase tracking-[0.3em] mt-3 relative z-10">Channel Configuration</p>
           </div>
 
-          <form onSubmit={handleSubmit} className="p-8 space-y-6">
-            <div className="space-y-2">
-              <Label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Platform Name</Label>
+          <form onSubmit={handleSubmit} className="p-10 space-y-8">
+            <div className="space-y-3">
+              <Label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Channel Name</Label>
               <Input
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                 required
-                className="h-12 rounded-2xl border-slate-200 bg-slate-50 focus:ring-emerald-600/10 transition-all font-bold"
-                placeholder="e.g. GoFood"
+                className="h-14 rounded-2xl bg-slate-50 border-slate-100 font-black text-base"
+                placeholder="e.g. GOFOOD / GRABFOOD"
               />
             </div>
-            <div className="space-y-2">
-              <Label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Type</Label>
-              <Select
-                className="h-12 rounded-2xl"
+            
+            <div className="space-y-3">
+              <Label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Channel Type</Label>
+              <select
+                className="w-full h-14 rounded-2xl bg-slate-50 border border-slate-100 font-black text-[11px] uppercase tracking-widest px-6"
                 value={formData.type}
                 onChange={(e) => setFormData({ ...formData, type: e.target.value })}
-                options={[
-                  { value: "OFFLINE", label: "Offline" },
-                  { value: "DELIVERY", label: "Delivery" }
-                ]}
-              />
+              >
+                <option value="OFFLINE">In-Store / Direct</option>
+                <option value="DELIVERY">Online Delivery</option>
+              </select>
             </div>
-            <div className="space-y-2">
-              <Label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Commission Rate (%)</Label>
-              <Input
-                type="number"
-                step="0.1"
-                value={formData.commission_rate}
-                onChange={(e) => setFormData({ ...formData, commission_rate: e.target.value })}
-                required
-                className="h-12 rounded-2xl border-slate-200 bg-slate-50 focus:ring-emerald-600/10 transition-all font-black text-emerald-600"
-                placeholder="20"
-              />
+
+            <div className="space-y-3">
+              <Label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Commission (%)</Label>
+              <div className="relative">
+                <Input
+                  type="number"
+                  step="0.1"
+                  value={formData.commission_rate}
+                  onChange={(e) => setFormData({ ...formData, commission_rate: e.target.value })}
+                  required
+                  className="h-14 rounded-2xl bg-slate-50 border-slate-100 font-black text-2xl pl-14 text-indigo-700"
+                />
+                <span className="absolute left-6 top-1/2 -translate-y-1/2 text-indigo-300 font-black text-lg">%</span>
+              </div>
             </div>
-            <DialogFooter className="px-0 mt-8">
-              <Button type="button" variant="ghost" className="rounded-2xl h-12 px-8 font-black text-slate-400 uppercase tracking-widest text-[10px]" onClick={() => setIsDialogOpen(false)}>
-                Discard
-              </Button>
-              <Button type="submit" className="rounded-2xl h-12 px-10 font-semibold tracking-tight bg-emerald-600 hover:bg-emerald-700 shadow-xl shadow-emerald-200 active:scale-95 transition-all">
-                Save Platform
-              </Button>
-            </DialogFooter>
+
+            <div className="flex items-center justify-between gap-6 pt-6 border-t border-slate-50">
+              <Button type="button" variant="ghost" className="h-14 px-10 rounded-2xl font-black text-[10px] uppercase text-slate-400" onClick={() => setIsDialogOpen(false)}>Cancel</Button>
+              <Button type="submit" className="h-14 px-12 rounded-2xl font-black bg-slate-900 text-white">Save Channel</Button>
+            </div>
           </form>
         </DialogContent>
       </Dialog>

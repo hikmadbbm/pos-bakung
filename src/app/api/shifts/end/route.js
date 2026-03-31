@@ -35,19 +35,32 @@ export async function POST(req) {
     const discrepancy =
       body.discrepancy === undefined || body.discrepancy === null ? null : Number(body.discrepancy);
 
-    const updated = await prisma.userShift.update({
-      where: { id: shift.id },
-      data: {
-        end_time: new Date(),
-        ending_cash: Math.round(ending_cash),
-        total_sales: total_sales !== null && Number.isFinite(total_sales) ? Math.round(total_sales) : shift.total_sales,
-        expected_cash: expected_cash !== null && Number.isFinite(expected_cash) ? Math.round(expected_cash) : shift.expected_cash,
-        discrepancy: discrepancy !== null && Number.isFinite(discrepancy) ? Math.round(discrepancy) : shift.discrepancy,
-        note: body.note || null,
-        cash_breakdown: body.cash_breakdown || null,
-        reconciliation_data: body.reconciliation_data || null,
-        status: 'CLOSED',
-      },
+    const updated = await prisma.$transaction(async (tx) => {
+      // 1. Mark all kitchen orders as finished for this shift
+      // This clears the kitchen view for the next shift
+      await tx.order.updateMany({
+        where: {
+          status: { in: ['PAID', 'PROCESSING'] },
+          // We could also filter by shift.start_time, but usually we want to clear everything
+        },
+        data: { status: 'COMPLETED' }
+      });
+
+      // 2. Close the shift
+      return await tx.userShift.update({
+        where: { id: shift.id },
+        data: {
+          end_time: new Date(),
+          ending_cash: Math.round(ending_cash),
+          total_sales: total_sales !== null && Number.isFinite(total_sales) ? Math.round(total_sales) : shift.total_sales,
+          expected_cash: expected_cash !== null && Number.isFinite(expected_cash) ? Math.round(expected_cash) : shift.expected_cash,
+          discrepancy: discrepancy !== null && Number.isFinite(discrepancy) ? Math.round(discrepancy) : shift.discrepancy,
+          note: body.note || null,
+          cash_breakdown: body.cash_breakdown || null,
+          reconciliation_data: body.reconciliation_data || null,
+          status: 'CLOSED',
+        },
+      });
     });
 
     return NextResponse.json(updated);

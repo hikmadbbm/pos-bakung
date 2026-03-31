@@ -64,13 +64,13 @@ export default function TimeTracker() {
   };
 
   return (
-    <div className="p-8 bg-slate-900 border border-slate-800 shadow-2xl rounded-[2rem] text-white flex flex-col h-full relative overflow-hidden group min-h-[320px]">
-      <div className="absolute top-0 right-0 p-8 opacity-5 group-hover:opacity-10 transition-opacity">
-        <Clock className="w-16 h-16" />
+    <div className="p-6 lg:p-8 bg-slate-900 border border-slate-800 shadow-2xl rounded-[2rem] text-white flex flex-col h-full relative overflow-hidden group min-h-[300px]">
+      <div className="absolute top-0 right-0 p-6 opacity-5 group-hover:opacity-10 transition-opacity">
+        <Clock className="w-12 h-12" />
       </div>
       
       <div className="relative z-10 flex flex-col h-full">
-        <div className="flex justify-between items-start mb-8">
+        <div className="flex justify-between items-start mb-6">
           <h3 className="text-[10px] font-black text-emerald-500 uppercase tracking-[0.4em]">Management Cycle</h3>
           {isShiftActive && shiftOwner && (
             <div className="text-[8px] font-bold text-emerald-400/40 uppercase tracking-widest text-right">
@@ -94,7 +94,7 @@ export default function TimeTracker() {
           )}
         </div>
 
-        <div className="mt-auto pt-8 flex items-center justify-between border-t border-white/5">
+        <div className="mt-auto pt-4 flex items-center justify-between border-t border-white/5">
           <span className="text-[10px] font-black text-emerald-500 uppercase tracking-widest">Shift Status</span>
           <div className="flex items-center gap-2">
             {isShiftActive ? (

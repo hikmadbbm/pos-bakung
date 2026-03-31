@@ -13,7 +13,7 @@ export async function GET(req) {
 
     const { start, end } = parseDateRange(req.nextUrl.searchParams);
     const orders = await prisma.order.findMany({
-      where: { status: 'COMPLETED', date: { gte: start, lte: end } },
+      where: { status: { in: ['PAID', 'PROCESSING', 'COMPLETED'] }, date: { gte: start, lte: end } },
       select: { id: true, total: true, discount: true },
     });
 

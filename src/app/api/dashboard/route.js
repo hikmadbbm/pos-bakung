@@ -16,7 +16,7 @@ export async function GET(req) {
     const [orders, totalOrdersCount] = await Promise.all([
       prisma.order.findMany({
         where: { 
-          status: 'COMPLETED',
+          status: { in: ['PAID', 'PROCESSING', 'COMPLETED'] },
           date: { gte: start, lte: end }
         },
         orderBy: { date: 'desc' },
@@ -24,7 +24,7 @@ export async function GET(req) {
       }),
       prisma.order.count({
         where: { 
-          status: 'COMPLETED',
+          status: { in: ['PAID', 'PROCESSING', 'COMPLETED'] },
           date: { gte: start, lte: end }
         }
       })
@@ -32,7 +32,7 @@ export async function GET(req) {
 
     const aggregate = await prisma.order.aggregate({
       where: { 
-        status: 'COMPLETED',
+        status: { in: ['PAID', 'PROCESSING', 'COMPLETED'] },
         date: { gte: start, lte: end }
       },
       _sum: {

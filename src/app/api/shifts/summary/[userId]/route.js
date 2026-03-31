@@ -33,7 +33,7 @@ export async function GET(req, { params }) {
 
     const orders = await prisma.order.findMany({
       where: {
-        status: 'COMPLETED',
+        status: { in: ['PAID', 'PROCESSING', 'COMPLETED'] },
         date: { gte: shift.start_time },
         OR: [{ created_by_user_id: userId }, { processed_by_user_id: userId }],
       },
