@@ -57,6 +57,17 @@ export function ReceiptPreview({ isOpen, onClose, order, config: propConfig }) {
 
   if (!currentOrder) return null;
 
+  const formatDate = (date) => {
+    if (!date) return "";
+    const d = new Date(date);
+    const dd = String(d.getDate()).padStart(2, '0');
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const yyyy = d.getFullYear();
+    const hh = String(d.getHours()).padStart(2, '0');
+    const min = String(d.getMinutes()).padStart(2, '0');
+    return `${dd}/${mm}/${yyyy} ${hh}:${min}`;
+  };
+
   const width = storeConfig.paper_width === 80 ? 47 : 31;
 
   const handlePrintReceipt = useCallback(async () => {
@@ -156,7 +167,7 @@ export function ReceiptPreview({ isOpen, onClose, order, config: propConfig }) {
       
       data += ESC_POS.ALIGN_LEFT;
       data += `REF: ${order.order_number}\n`;
-      data += `DATE: ${new Date(order.date).toLocaleString()}\n`;
+      data += `DATE: ${formatDate(order.date)}\n`;
       if (storeConfig.show_customer && order.customer_name) {
         data += `GUEST: ${order.customer_name}\n`;
       }
@@ -285,7 +296,7 @@ export function ReceiptPreview({ isOpen, onClose, order, config: propConfig }) {
         data += ESC_POS.ALIGN_LEFT;
         data += ESC_POS.BOLD_ON;
         data += `REF: ${order.order_number}\n`;
-        data += `TIME: ${new Date(order.date).toLocaleTimeString()}\n`;
+        data += `DATE: ${formatDate(order.date)}\n`;
         if (order.customer_name) data += `GUEST: ${order.customer_name}\n`;
         data += ESC_POS.BOLD_Off;
         data += ESC_POS.separator(width);
@@ -411,7 +422,7 @@ export function ReceiptPreview({ isOpen, onClose, order, config: propConfig }) {
                       
                       <div className="space-y-1 py-1">
                         <div className="flex justify-between"><span>REF:</span><span className="font-black">{order.order_number}</span></div>
-                        <div className="flex justify-between"><span>DATE:</span><span>{new Date(order.date).toLocaleString()}</span></div>
+                        <div className="flex justify-between"><span>DATE:</span><span>{formatDate(order.date)}</span></div>
                         {storeConfig.show_customer && order.customer_name && (
                           <div className="flex justify-between"><span>GUEST:</span><span className="font-black">{order.customer_name}</span></div>
                         )}
