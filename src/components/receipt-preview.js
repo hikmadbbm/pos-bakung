@@ -327,63 +327,54 @@ export function ReceiptPreview({ isOpen, onClose, order, config: propConfig }) {
     }
   }, [print, storeConfig.kitchen_enabled, storeConfig.kitchen_copies, storeConfig.kitchen_categories, order, width, success, error]);
 
-  const printKitchenRef = useRef();
-  const printReceiptRef = useRef();
-  printKitchenRef.current = handlePrintKitchen;
-  printReceiptRef.current = handlePrintReceipt;
+  const [printState, setPrintState] = useState("IDLE"); // IDLE, RECEIPT, DELAY, KITCHEN, DONE
+  const activeOrderRef = useRef(null);
 
-  const hasKitchenAutoPrinted = useRef(null);
-  const hasReceiptAutoPrinted = useRef(null);
-  const kitchenTimerRef = useRef(null);
-
-  // 1. Customer Receipt Auto-Print Logic
+  // Print Sequence State Machine
   useEffect(() => {
+    // 1. Initial health checks
     if (!isOpen || !order || order.order_number === "TRX-PREVIEW-999") return;
     if (propConfig && (!storeConfig || !storeConfig.id)) return;
 
     const orderIdentifier = order.id || order.order_number;
 
-    if (storeConfig.receipt_auto_print && hasReceiptAutoPrinted.current !== orderIdentifier) {
-      hasReceiptAutoPrinted.current = orderIdentifier;
-      console.log(`[Printer] Customer Receipt Auto-Print: ${orderIdentifier}`);
-      printReceiptRef.current?.();
+    // Reset sequence if this is a NEW order
+    if (activeOrderRef.current !== orderIdentifier) {
+      activeOrderRef.current = orderIdentifier;
+      setPrintState("START");
     }
-  }, [isOpen, storeConfig.receipt_auto_print, storeConfig.id, order?.id]); // Note: handlePrintReceipt removed from deps since we use ref
+  }, [isOpen, order, storeConfig, propConfig]);
 
-  // 2. Kitchen Ticket Auto-Print Logic (Delayed)
   useEffect(() => {
-    if (!isOpen || !order || order.order_number === "TRX-PREVIEW-999") return;
-    if (propConfig && (!storeConfig || !storeConfig.id)) return;
-    if (!storeConfig.kitchen_auto_print || !storeConfig.kitchen_enabled) return;
-
-    const orderIdentifier = order.id || order.order_number;
-    
-    // Safety check: Avoid duplicate timers for the same order
-    if (hasKitchenAutoPrinted.current === orderIdentifier) return;
-    hasKitchenAutoPrinted.current = orderIdentifier;
-
-    const delayAmount = (storeConfig.kitchen_delay || 0) * 1000;
-    console.log(`[Printer] Kitchen Auto-Print scheduled in ${delayAmount}ms for ${orderIdentifier}`);
-    
-    kitchenTimerRef.current = setTimeout(() => {
-      console.log(`[Printer] Delayed timer fired! Executing Kitchen Print for ${orderIdentifier}`);
-      if (printKitchenRef.current) {
-        printKitchenRef.current();
+    if (printState === "START") {
+      if (storeConfig.receipt_auto_print) {
+        setPrintState("RECEIPT");
+      } else {
+        setPrintState("DELAY");
       }
-      kitchenTimerRef.current = null;
-    }, delayAmount);
-
-    return () => {
-      // We don't clear the timer here because we want it to persist across re-renders for the same order
-    };
-  }, [isOpen, storeConfig.kitchen_auto_print, storeConfig.kitchen_enabled, storeConfig.kitchen_delay, storeConfig.id, order?.id]);
-
-  // Clean up on unmount
-  useEffect(() => {
-    return () => {
-      if (kitchenTimerRef.current) clearTimeout(kitchenTimerRef.current);
-    };
-  }, []);
+    } else if (printState === "RECEIPT") {
+      console.log(`[Sequence] Step 1: Automatic Receipt Print for ${activeOrderRef.current}`);
+      handlePrintReceipt().finally(() => {
+        setPrintState("DELAY");
+      });
+    } else if (printState === "DELAY") {
+      if (!storeConfig.kitchen_auto_print || !storeConfig.kitchen_enabled) {
+        setPrintState("DONE");
+        return;
+      }
+      const delayAmount = (storeConfig.kitchen_delay || 0) * 1000;
+      console.log(`[Sequence] Step 2: Waiting ${delayAmount}ms for Kitchen Ticket...`);
+      const timer = setTimeout(() => {
+        setPrintState("KITCHEN");
+      }, delayAmount);
+      return () => clearTimeout(timer);
+    } else if (printState === "KITCHEN") {
+      console.log(`[Sequence] Step 3: Automatic Kitchen Print for ${activeOrderRef.current}`);
+      handlePrintKitchen().finally(() => {
+        setPrintState("DONE");
+      });
+    }
+  }, [printState, storeConfig, handlePrintReceipt, handlePrintKitchen]);
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
