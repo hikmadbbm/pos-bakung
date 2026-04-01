@@ -54,7 +54,8 @@ export default function SettingsPage() {
     kitchen_auto_print: false,
     kitchen_copies: 1,
     kitchen_categories: [],
-    kitchen_delay: 0
+    kitchen_delay: 0,
+    receipt_auto_print: false
   });
 
   // Import State
@@ -913,7 +914,7 @@ export default function SettingsPage() {
 
                     <div className="space-y-8">
                       <h4 className="text-[11px] font-black text-slate-400 uppercase tracking-[0.5em] flex items-center gap-6">
-                         <div className="w-12 h-px bg-slate-200" /> Layout Settings
+                         <div className="w-12 h-px bg-slate-200" /> Layout & Automation
                       </h4>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                          <div className="space-y-3">
@@ -947,6 +948,20 @@ export default function SettingsPage() {
                                  className="w-20 h-12 rounded-xl font-black text-[9px] uppercase tracking-widest"
                                >
                                  {receiptConfig.show_customer ? "ON" : "OFF"}
+                               </Button>
+                            </div>
+                            <div className="flex items-center justify-between p-6 bg-emerald-50/50 rounded-2xl border border-emerald-100">
+                               <div>
+                                  <Label className="text-[10px] font-black uppercase tracking-widest text-emerald-900 mb-0.5 block">Receipt Auto Print</Label>
+                                  <p className="text-[8px] font-bold text-emerald-600 uppercase">Print immediately after pay</p>
+                               </div>
+                               <Button 
+                                 type="button" 
+                                 variant={receiptConfig.receipt_auto_print ? "default" : "outline"} 
+                                 onClick={() => setReceiptConfig({...receiptConfig, receipt_auto_print: !receiptConfig.receipt_auto_print})}
+                                 className={cn("w-20 h-12 rounded-xl font-black text-[9px] uppercase tracking-widest", receiptConfig.receipt_auto_print ? "bg-emerald-600 hover:bg-emerald-700 shadow-lg shadow-emerald-500/20" : "")}
+                               >
+                                 {receiptConfig.receipt_auto_print ? "ON" : "OFF"}
                                </Button>
                             </div>
                          </div>

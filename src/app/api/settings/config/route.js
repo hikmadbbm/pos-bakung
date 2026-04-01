@@ -48,6 +48,7 @@ export async function PUT(req) {
     if (body.whatsapp !== undefined) data.whatsapp = body.whatsapp;
     if (body.quick_tags !== undefined) data.quick_tags = body.quick_tags;
     if (body.kitchen_delay !== undefined) data.kitchen_delay = Number(body.kitchen_delay);
+    if (body.receipt_auto_print !== undefined) data.receipt_auto_print = Boolean(body.receipt_auto_print);
 
     const existing = await prisma.storeConfig.findFirst({ orderBy: { id: 'asc' }, select: { id: true } });
     const saved = existing

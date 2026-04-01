@@ -88,6 +88,7 @@ model StoreConfig {
   quick_tags         Json?    @default("[]")
   show_name          Boolean  @default(true)
   kitchen_delay      Int      @default(0)
+  receipt_auto_print Boolean  @default(false)
 
   @@map("storeconfig")
 }

@@ -59,7 +59,7 @@ export function ReceiptPreview({ isOpen, onClose, order, config: propConfig }) {
 
   const width = storeConfig.paper_width === 80 ? 47 : 31;
 
-  const handlePrintReceipt = async () => {
+  const handlePrintReceipt = useCallback(async () => {
     if (!print) return;
     setPrintingReceipt(true);
     try {
@@ -167,21 +167,21 @@ export function ReceiptPreview({ isOpen, onClose, order, config: propConfig }) {
         data += ESC_POS.BOLD_ON;
         data += (item.menu?.name || "Unknown").toUpperCase() + "\n";
         data += ESC_POS.BOLD_Off;
-
+ 
         // Line 2: Note (Italic)
         if (item.note) {
           data += ESC_POS.ITALIC_ON;
           data += `- ${item.note}\n`;
           data += ESC_POS.ITALIC_OFF;
         }
-
+ 
         // Line 3: Qty x Price and Total
         const priceToUse = item.price || 0;
         const qtyPrice = `${item.qty} x ${formatIDR(priceToUse).replace('Rp', '').trim()}`;
         const itemTotal = formatIDR(item.qty * priceToUse).replace('Rp', '').trim();
         data += ESC_POS.formatTwoColumns(qtyPrice, itemTotal, width);
       });
-
+ 
       // General Order Note
       if (order.note) {
         data += ESC_POS.separator(width);
@@ -214,7 +214,7 @@ export function ReceiptPreview({ isOpen, onClose, order, config: propConfig }) {
         data += ESC_POS.formatTwoColumns(`Tax (${storeConfig.tax_rate}%)`, formatIDR(taxAmount), width);
         finalTotal += taxAmount;
       }
-
+ 
       if (order.discount > 0) {
         data += ESC_POS.formatTwoColumns("Discount", `-${formatIDR(order.discount)}`, width);
         finalTotal -= order.discount;
@@ -223,7 +223,7 @@ export function ReceiptPreview({ isOpen, onClose, order, config: propConfig }) {
       data += ESC_POS.BOLD_ON;
       data += ESC_POS.formatTwoColumns("TOTAL", formatIDR(Math.max(0, finalTotal)), width);
       data += ESC_POS.BOLD_Off;
-
+ 
       data += ESC_POS.separator(width);
       data += ESC_POS.formatTwoColumns("METHOD", order.payment_method?.toUpperCase() || "CASH", width);
       
@@ -240,7 +240,7 @@ export function ReceiptPreview({ isOpen, onClose, order, config: propConfig }) {
       
       await print(data);
       success("Receipt printed");
-
+ 
       // Increment print count in DB
       try {
         const updated = await api.post(`/orders/${currentOrder.id}/print`);
@@ -254,7 +254,7 @@ export function ReceiptPreview({ isOpen, onClose, order, config: propConfig }) {
     } finally {
       setPrintingReceipt(false);
     }
-  };
+  }, [print, storeConfig, currentOrder, order, width, success, error]);
 
   const handlePrintKitchen = useCallback(async () => {
     if (!print || !storeConfig.kitchen_enabled || !order) return;
@@ -315,32 +315,39 @@ export function ReceiptPreview({ isOpen, onClose, order, config: propConfig }) {
     }
   }, [print, storeConfig.kitchen_enabled, storeConfig.kitchen_copies, storeConfig.kitchen_categories, order, width, success, error]);
 
-  const hasAutoPrinted = useRef(null);
+  const hasKitchenAutoPrinted = useRef(null);
+  const hasReceiptAutoPrinted = useRef(null);
 
   useEffect(() => {
     // 1. Initial health checks
     if (!isOpen || !order || order.order_number === "TRX-PREVIEW-999") return;
 
     // 2. Resolve race condition: ensure config has loaded from DB/Props before proceeding
-    // If storeConfig hasn't synced from propConfig yet (id is missing), skip this pass.
     if (propConfig && (!storeConfig || !storeConfig.id)) return;
 
-    if (!storeConfig.kitchen_auto_print || !storeConfig.kitchen_enabled) return;
-
-    // 3. Unique session guard
     const orderIdentifier = order.id || order.order_number;
-    if (hasAutoPrinted.current === orderIdentifier) return;
-    hasAutoPrinted.current = orderIdentifier;
 
-    const delayAmount = (storeConfig.kitchen_delay || 0) * 1000;
-    console.log(`[Printer] Kitchen Auto-Print Scheduled. Delay: ${delayAmount}ms. Order: ${orderIdentifier}`);
-    
-    const timer = setTimeout(() => {
-      handlePrintKitchen();
-    }, delayAmount);
+    // --- Customer Receipt Auto-Print ---
+    if (storeConfig.receipt_auto_print && hasReceiptAutoPrinted.current !== orderIdentifier) {
+      hasReceiptAutoPrinted.current = orderIdentifier;
+      console.log(`[Printer] Customer Receipt Auto-Print sequence initiated: ${orderIdentifier}`);
+      handlePrintReceipt();
+    }
 
-    return () => clearTimeout(timer);
-  }, [isOpen, storeConfig, order, handlePrintKitchen, propConfig]);
+    // --- Kitchen Ticket Auto-Print with Delay ---
+    if (storeConfig.kitchen_auto_print && storeConfig.kitchen_enabled && hasKitchenAutoPrinted.current !== orderIdentifier) {
+      hasKitchenAutoPrinted.current = orderIdentifier;
+      
+      const delayAmount = (storeConfig.kitchen_delay || 0) * 1000;
+      console.log(`[Printer] Kitchen Auto-Print Scheduled. Delay: ${delayAmount}ms. Order: ${orderIdentifier}`);
+      
+      const timer = setTimeout(() => {
+        handlePrintKitchen();
+      }, delayAmount);
+
+      return () => clearTimeout(timer);
+    }
+  }, [isOpen, storeConfig, order, handlePrintKitchen, handlePrintReceipt, propConfig]);
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
