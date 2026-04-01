@@ -318,23 +318,29 @@ export function ReceiptPreview({ isOpen, onClose, order, config: propConfig }) {
   const hasAutoPrinted = useRef(null);
 
   useEffect(() => {
-    if (isOpen && storeConfig.kitchen_auto_print && storeConfig.kitchen_enabled && order && order.order_number !== "TRX-PREVIEW-999") {
-      // Only auto-print once per unique order session
-      const orderIdentifier = order.id || order.order_number;
-      if (hasAutoPrinted.current === orderIdentifier) return;
-      hasAutoPrinted.current = orderIdentifier;
+    // 1. Initial health checks
+    if (!isOpen || !order || order.order_number === "TRX-PREVIEW-999") return;
 
-      const delayAmount = (storeConfig.kitchen_delay || 0) * 1000;
-      
-      console.log(`Kitchen Auto-Print queued with ${delayAmount}ms delay for order ${order.id}`);
-      
-      const timer = setTimeout(() => {
-        handlePrintKitchen();
-      }, delayAmount);
+    // 2. Resolve race condition: ensure config has loaded from DB/Props before proceeding
+    // If storeConfig hasn't synced from propConfig yet (id is missing), skip this pass.
+    if (propConfig && (!storeConfig || !storeConfig.id)) return;
 
-      return () => clearTimeout(timer);
-    }
-  }, [isOpen, storeConfig.kitchen_auto_print, storeConfig.kitchen_enabled, order?.id, storeConfig.kitchen_delay, handlePrintKitchen]);
+    if (!storeConfig.kitchen_auto_print || !storeConfig.kitchen_enabled) return;
+
+    // 3. Unique session guard
+    const orderIdentifier = order.id || order.order_number;
+    if (hasAutoPrinted.current === orderIdentifier) return;
+    hasAutoPrinted.current = orderIdentifier;
+
+    const delayAmount = (storeConfig.kitchen_delay || 0) * 1000;
+    console.log(`[Printer] Kitchen Auto-Print Scheduled. Delay: ${delayAmount}ms. Order: ${orderIdentifier}`);
+    
+    const timer = setTimeout(() => {
+      handlePrintKitchen();
+    }, delayAmount);
+
+    return () => clearTimeout(timer);
+  }, [isOpen, storeConfig, order, handlePrintKitchen, propConfig]);
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
