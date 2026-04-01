@@ -138,6 +138,10 @@ export async function POST(req) {
       discount_rate,
       created_by_user_id,
       status,
+      tax_rate,
+      tax_amount,
+      service_rate,
+      service_amount,
     } = body;
 
     if (!items || items.length === 0) {

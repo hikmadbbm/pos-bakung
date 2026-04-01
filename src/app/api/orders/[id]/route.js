@@ -29,8 +29,24 @@ export async function PUT(req, { params }) {
     }
 
     const body = await req.json();
-    const { items, payment_method, payment_method_id, money_received, note, customer_name, platform_id, discount, discount_type, discount_rate, status, created_by_user_id } =
-      body;
+    const { 
+      items, 
+      payment_method, 
+      payment_method_id, 
+      money_received, 
+      note, 
+      customer_name, 
+      platform_id, 
+      discount, 
+      discount_type, 
+      discount_rate, 
+      status, 
+      created_by_user_id,
+      tax_rate,
+      tax_amount,
+      service_rate,
+      service_amount
+    } = body;
 
     if (!items || items.length === 0) {
       return NextResponse.json({ error: 'Order items cannot be empty' }, { status: 400 });
@@ -117,6 +133,10 @@ export async function PUT(req, { params }) {
           payment_method,
           payment_method_id: payment_method_id ? Number(payment_method_id) : null,
           money_received: received,
+          tax_rate: Number(tax_rate) || 0,
+          tax_amount: Number(tax_amount) || 0,
+          service_rate: Number(service_rate) || 0,
+          service_amount: Number(service_amount) || 0,
           change_amount,
           status: status || 'PENDING',
           note: note || null,
