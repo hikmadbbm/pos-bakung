@@ -280,6 +280,7 @@ export function ReceiptPreview({ isOpen, onClose, order, config: propConfig }) {
       }
 
       if (itemsToPrint.length === 0) {
+        console.warn(`[Printer] Kitchen Print Aborted: No items matching the selected categories (${kitchenCats.join(',')}) for order ${order.order_number}`);
         return;
       }
 
@@ -326,6 +327,11 @@ export function ReceiptPreview({ isOpen, onClose, order, config: propConfig }) {
     }
   }, [print, storeConfig.kitchen_enabled, storeConfig.kitchen_copies, storeConfig.kitchen_categories, order, width, success, error]);
 
+  const printKitchenRef = useRef();
+  const printReceiptRef = useRef();
+  printKitchenRef.current = handlePrintKitchen;
+  printReceiptRef.current = handlePrintReceipt;
+
   const hasKitchenAutoPrinted = useRef(null);
   const hasReceiptAutoPrinted = useRef(null);
   const kitchenTimerRef = useRef(null);
@@ -339,44 +345,38 @@ export function ReceiptPreview({ isOpen, onClose, order, config: propConfig }) {
 
     if (storeConfig.receipt_auto_print && hasReceiptAutoPrinted.current !== orderIdentifier) {
       hasReceiptAutoPrinted.current = orderIdentifier;
-      console.log(`[Printer] Customer Receipt Auto-Print sequence initiated: ${orderIdentifier}`);
-      handlePrintReceipt();
+      console.log(`[Printer] Customer Receipt Auto-Print: ${orderIdentifier}`);
+      printReceiptRef.current?.();
     }
-  }, [isOpen, storeConfig.receipt_auto_print, storeConfig.id, order?.id, handlePrintReceipt]);
+  }, [isOpen, storeConfig.receipt_auto_print, storeConfig.id, order?.id]); // Note: handlePrintReceipt removed from deps since we use ref
 
-  // 2. Kitchen Ticket Auto-Print Logic
+  // 2. Kitchen Ticket Auto-Print Logic (Delayed)
   useEffect(() => {
     if (!isOpen || !order || order.order_number === "TRX-PREVIEW-999") return;
     if (propConfig && (!storeConfig || !storeConfig.id)) return;
-
     if (!storeConfig.kitchen_auto_print || !storeConfig.kitchen_enabled) return;
 
     const orderIdentifier = order.id || order.order_number;
     
-    // Safety: If the order changes, clear any pending kitchen timers from previous orders
-    if (kitchenTimerRef.current && hasKitchenAutoPrinted.current !== orderIdentifier) {
-      clearTimeout(kitchenTimerRef.current);
-      kitchenTimerRef.current = null;
-    }
-
+    // Safety check: Avoid duplicate timers for the same order
     if (hasKitchenAutoPrinted.current === orderIdentifier) return;
     hasKitchenAutoPrinted.current = orderIdentifier;
 
     const delayAmount = (storeConfig.kitchen_delay || 0) * 1000;
-    console.log(`[Printer] Kitchen Auto-Print Scheduled. Delay: ${delayAmount}ms. Order: ${orderIdentifier}`);
+    console.log(`[Printer] Kitchen Auto-Print scheduled in ${delayAmount}ms for ${orderIdentifier}`);
     
     kitchenTimerRef.current = setTimeout(() => {
-      console.log(`[Printer] Executing delayed kitchen print now for ${orderIdentifier}`);
-      handlePrintKitchen();
+      console.log(`[Printer] Delayed timer fired! Executing Kitchen Print for ${orderIdentifier}`);
+      if (printKitchenRef.current) {
+        printKitchenRef.current();
+      }
       kitchenTimerRef.current = null;
     }, delayAmount);
 
     return () => {
-       // Only clear if unmounting OR order totally changes (caught by ref check above too)
-       // Standard return cleanup will fire on every re-render of this effect.
-       // But we only want to clear if we are genuinely leaving or changing orders.
+      // We don't clear the timer here because we want it to persist across re-renders for the same order
     };
-  }, [isOpen, storeConfig.kitchen_auto_print, storeConfig.kitchen_enabled, storeConfig.kitchen_delay, storeConfig.id, order?.id, handlePrintKitchen]);
+  }, [isOpen, storeConfig.kitchen_auto_print, storeConfig.kitchen_enabled, storeConfig.kitchen_delay, storeConfig.id, order?.id]);
 
   // Clean up on unmount
   useEffect(() => {
