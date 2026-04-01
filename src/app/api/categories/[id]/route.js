@@ -29,6 +29,9 @@ export async function PUT(req, { params }) {
       }
       data.color = body.color;
     }
+    if (body.type !== undefined) {
+      data.type = body.type;
+    }
 
     const updated = await prisma.menuCategory.update({ where: { id }, data });
     return NextResponse.json(updated);

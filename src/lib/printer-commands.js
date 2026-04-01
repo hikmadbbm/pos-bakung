@@ -10,6 +10,8 @@ export const ESC_POS = {
   ALIGN_RIGHT: '\x1B\x61\x02',
   BOLD_ON: '\x1B\x45\x01',
   BOLD_Off: '\x1B\x45\x00',
+  ITALIC_ON: '\x1B\x34',
+  ITALIC_OFF: '\x1B\x35',
   DOUBLE_HEIGHT_ON: '\x1B\x21\x10',
   DOUBLE_WIDTH_ON: '\x1B\x21\x20',
   DOUBLE_SIZE_ON: '\x1B\x21\x30',
@@ -17,14 +19,21 @@ export const ESC_POS = {
   LINE_SPACING_DEFAULT: '\x1B\x32',
   
   // Helpers
-  separator: (width = 32) => "-".repeat(width) + "\n",
+  separator: (width = 31) => "-".repeat(width) + "\n",
   
-  formatTwoColumns: (left, right, width = 32) => {
-    const leftWidth = Math.floor(width * 0.6);
-    const rightWidth = width - leftWidth;
-    const truncatedLeft = left.substring(0, leftWidth - 1).padEnd(leftWidth);
-    const formattedRight = right.toString().substring(0, rightWidth).padStart(rightWidth);
-    return truncatedLeft + formattedRight + "\n";
+  formatTwoColumns: (left, right, width = 31) => {
+    // Determine how much space the right side needs
+    const rightStr = right.toString();
+    const rightLen = rightStr.length;
+    const availableLeft = width - rightLen - 1; // 1 space gap
+    
+    if (left.length <= availableLeft) {
+      return left.padEnd(availableLeft) + " " + rightStr + "\n";
+    } else {
+      // If left text is too long, wrap it? 
+      // For now, truncate for the receipt line, but in 3-line mode it's okay because the item name has its own line.
+      return left.substring(0, availableLeft).padEnd(availableLeft) + " " + rightStr + "\n";
+    }
   },
   
   centerText: (text, width = 32) => {

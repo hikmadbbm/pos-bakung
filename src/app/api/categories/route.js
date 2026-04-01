@@ -33,7 +33,7 @@ export async function POST(req) {
     const { response } = await verifyAuth(req, ['OWNER', 'MANAGER']);
     if (response) return response;
     const body = await req.json();
-    const { name, color } = body;
+    const { name, color, type } = body;
 
     if (!name || typeof name !== 'string') {
       return NextResponse.json({ error: 'name is required' }, { status: 400 });
@@ -44,7 +44,11 @@ export async function POST(req) {
 
     const result = await prisma.$transaction(async (tx) => {
       const created = await tx.menuCategory.create({
-        data: { name, color: color || '#000000' },
+        data: { 
+          name, 
+          color: color || '#000000',
+          type: type || 'FOOD'
+        },
       });
       return created;
     });

@@ -113,25 +113,39 @@ export async function POST(req) {
         }
       });
 
-      // 4. Update Ingredient: Price, Stock, and CPU
-      // cost_per_unit here is unit_price / volume (multiplier)
-      const cpu = Number(unit_price) / purchaseVolume;
+      // 4. Update Ingredient: Price, Stock, and CPU (Using Weighted Average Cost!)
+      const currentStock = Number(ingredient.stock) || 0;
+      const currentCPU = Number(ingredient.cost_per_unit) || 0;
+      const newBaseQty = Number(quantity) * purchaseVolume;
+      const newCPU = Number(unit_price) / purchaseVolume;
+      
+      // WAC Calculation: ( (existingStock * existingCPU) + (newStock * newCPU) ) / (existingStock + newStock)
+      // If stock is 0 or negative, we take the new price as the new baseline
+      const totalNewStock = Math.max(0, currentStock) + newBaseQty;
+      const weightedAvgCost = currentStock > 0 
+        ? ((currentStock * currentCPU) + (newBaseQty * newCPU)) / totalNewStock
+        : newCPU;
+
+      const changePercentage = currentCPU > 0 ? ((newCPU - currentCPU) / currentCPU) * 100 : 0;
 
       await tx.ingredient.update({
         where: { id: Number(finalIngredientId) },
         data: {
           price: Number(unit_price),
-          cost_per_unit: cpu,
-          stock: { increment: Number(quantity) * purchaseVolume }, // Add total base units
+          cost_per_unit: weightedAvgCost,
+          stock: { increment: newBaseQty },
           updated_at: new Date()
         }
       });
 
-      // 5. Record Price History
+      // 5. Record Price History with Intelligence metrics
       await tx.ingredientPriceHistory.create({
         data: {
           ingredient_id: Number(finalIngredientId),
           price: Number(unit_price),
+          vendor_name: supplier || null,
+          change_percentage: changePercentage,
+          cost_per_unit: weightedAvgCost, // Tracking the WAC snapshot
           reference_purchase_id: purchase.id,
           date: purchase_date ? new Date(purchase_date) : new Date(),
         }

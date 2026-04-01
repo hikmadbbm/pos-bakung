@@ -48,11 +48,13 @@ export default function SettingsPage() {
     paper_width: 58,
     show_logo: false,
     show_customer: true,
+    show_name: true,
     language: "en",
     kitchen_enabled: true,
     kitchen_auto_print: false,
     kitchen_copies: 1,
-    kitchen_categories: []
+    kitchen_categories: [],
+    kitchen_delay: 0
   });
 
   // Import State
@@ -848,7 +850,17 @@ export default function SettingsPage() {
                       </h4>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                         <div className="space-y-3">
-                          <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Store Name</Label>
+                          <div className="flex justify-between items-end gap-4">
+                            <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Store Name</Label>
+                            <Button 
+                              type="button" 
+                              variant={receiptConfig.show_name ? "default" : "outline"} 
+                              onClick={() => setReceiptConfig({...receiptConfig, show_name: !receiptConfig.show_name})}
+                              className="w-16 h-8 rounded-lg font-black text-[8px] uppercase tracking-widest"
+                            >
+                              {receiptConfig.show_name ? "ON" : "OFF"}
+                            </Button>
+                          </div>
                           <Input className="h-16 rounded-2xl font-black text-sm uppercase px-8 bg-white border-slate-200 focus:border-emerald-500 transition-colors" value={receiptConfig.store_name || ""} onChange={e => setReceiptConfig({...receiptConfig, store_name: e.target.value})} placeholder="Store Name" />
                         </div>
                         <div className="space-y-3">
@@ -960,7 +972,7 @@ export default function SettingsPage() {
 
                      {receiptConfig.kitchen_enabled && (
                        <div className="space-y-10 animate-in fade-in duration-500">
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
+                          <div className="grid grid-cols-1 md:grid-cols-3 gap-10">
                              <div className="space-y-4">
                                 <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Auto-Print</Label>
                                 <div className="p-8 rounded-[2rem] bg-slate-50 border border-slate-100 flex items-center justify-between">
@@ -995,7 +1007,25 @@ export default function SettingsPage() {
                                       </button>
                                    ))}
                                    <div className="flex-1 text-right">
-                                      <p className="text-[10px] font-black text-slate-300 uppercase underline">Number of copies</p>
+                                      <p className="text-[10px] font-black text-slate-300 uppercase underline">Copies</p>
+                                   </div>
+                                </div>
+                             </div>
+                             <div className="space-y-4">
+                                <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Print Delay</Label>
+                                <div className="p-8 rounded-[2rem] bg-slate-50 border border-slate-100 flex items-center gap-6">
+                                   <div className="relative flex-1">
+                                      <Input 
+                                        type="number" 
+                                        className="h-12 rounded-xl border-none bg-white font-black text-center pr-10" 
+                                        value={receiptConfig.kitchen_delay || 0} 
+                                        onChange={e => setReceiptConfig({...receiptConfig, kitchen_delay: e.target.value})} 
+                                        min="0"
+                                      />
+                                      <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[9px] font-black text-slate-400 uppercase">SEC</span>
+                                   </div>
+                                   <div className="text-right">
+                                      <p className="text-[10px] font-black text-slate-300 uppercase underline leading-none">After Receipt</p>
                                    </div>
                                 </div>
                              </div>

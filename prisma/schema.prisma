@@ -81,11 +81,13 @@ model StoreConfig {
   paper_width        Int      @default(58)
   show_customer      Boolean  @default(true)
   show_logo          Boolean  @default(false)
+  show_name          Boolean  @default(true)
   language           String   @default("en")
   instagram          String?
   logo_url           String?
   whatsapp           String?
   quick_tags         Json?    @default("[]")
+  kitchen_delay      Int      @default(0)
 
   @@map("storeconfig")
 }
@@ -109,9 +111,10 @@ model Menu {
 }
 
 model MenuCategory {
-  id    Int    @id @default(autoincrement())
+  id    Int          @id @default(autoincrement())
   name  String
   color String
+  type  CategoryType @default(FOOD)
   menus Menu[]
 
   @@map("menucategory")
@@ -143,30 +146,36 @@ model MenuPrice {
 }
 
 model Order {
-  id                   Int            @id @default(autoincrement())
-  order_number         String?        @unique @default(uuid())
-  date                 DateTime       @default(now())
+  id                   Int             @id @default(autoincrement())
+  order_number         String?         @unique @default(uuid())
+  date                 DateTime        @default(now())
   total                Int
-  commission           Int            @default(0)
-  net_revenue          Int            @default(0)
+  commission           Int             @default(0)
+  net_revenue          Int             @default(0)
   platform_id          Int?
-  payment_method       String         @default("CASH")
-  money_received       Int            @default(0)
-  change_amount        Int            @default(0)
-  status               String         @default("COMPLETED")
+  payment_method       String          @default("CASH")
+  money_received       Int             @default(0)
+  change_amount        Int             @default(0)
+  status               String          @default("COMPLETED")
   note                 String?
   customer_name        String?
-  discount             Int            @default(0)
+  discount             Int             @default(0)
   created_by_user_id   Int?
   processed_by_user_id Int?
   payment_method_id    Int?
-  discount_rate        Float          @default(0)
-  discount_type        String         @default("FIXED")
-  user                 User?          @relation("OrderCreatedBy", fields: [created_by_user_id], references: [id])
-  paymentMethod        PaymentMethod? @relation(fields: [payment_method_id], references: [id])
-  platform             Platform?      @relation(fields: [platform_id], references: [id])
-  processed_by         User?          @relation("OrderProcessedBy", fields: [processed_by_user_id], references: [id])
+  discount_rate        Float           @default(0)
+  discount_type        String          @default("FIXED")
+  print_count          Int             @default(0)
+  service_amount       Int             @default(0)
+  service_rate         Float           @default(0)
+  tax_amount           Int             @default(0)
+  tax_rate             Float           @default(0)
+  user                 User?           @relation("OrderCreatedBy", fields: [created_by_user_id], references: [id])
+  paymentMethod        PaymentMethod?  @relation(fields: [payment_method_id], references: [id])
+  platform             Platform?       @relation(fields: [platform_id], references: [id])
+  processed_by         User?           @relation("OrderProcessedBy", fields: [processed_by_user_id], references: [id])
   orderItems           OrderItem[]
+  stockMovements       StockMovement[]
 
   @@index([date])
   @@index([status])
@@ -194,14 +203,15 @@ model PaymentMethod {
 }
 
 model OrderItem {
-  id       Int   @id @default(autoincrement())
+  id       Int     @id @default(autoincrement())
   order_id Int
   menu_id  Int
   qty      Int
   price    Int
   cost     Int
-  menu     Menu  @relation(fields: [menu_id], references: [id])
-  order    Order @relation(fields: [order_id], references: [id], onDelete: Cascade)
+  note     String?
+  menu     Menu    @relation(fields: [menu_id], references: [id])
+  order    Order   @relation(fields: [order_id], references: [id], onDelete: Cascade)
 
   @@index([menu_id])
   @@index([order_id])
@@ -277,6 +287,9 @@ model IngredientPriceHistory {
   id                    Int        @id @default(autoincrement())
   ingredient_id         Int
   price                 Int
+  vendor_name           String?
+  change_percentage     Float?
+  cost_per_unit         Float?     @default(0)
   date                  DateTime   @default(now())
   reference_purchase_id Int?
   ingredient            Ingredient @relation(fields: [ingredient_id], references: [id], onDelete: Cascade)
@@ -299,7 +312,7 @@ model Purchase {
   volume          Float                    @default(1.0)
   price_histories IngredientPriceHistory[]
   ingredient      Ingredient               @relation(fields: [ingredient_id], references: [id], onDelete: Cascade)
-  stock_movements StockMovement[]
+  stockMovements  StockMovement[]
 
   @@index([ingredient_id])
   @@map("purchase")
@@ -313,9 +326,12 @@ model StockMovement {
   unit           String
   reference_id   Int?
   reference_type String?
+  order_id       Int?
+  purchase_id    Int?
   created_at     DateTime     @default(now())
   ingredient     Ingredient   @relation(fields: [ingredient_id], references: [id], onDelete: Cascade)
-  purchase       Purchase?    @relation(fields: [reference_id], references: [id])
+  order          Order?       @relation(fields: [order_id], references: [id])
+  purchase       Purchase?    @relation(fields: [purchase_id], references: [id])
 
   @@index([ingredient_id])
   @@index([created_at])
@@ -388,6 +404,11 @@ model DailySummary {
 
   @@index([date])
   @@map("daily_summary")
+}
+
+enum CategoryType {
+  FOOD
+  DRINK
 }
 
 enum Role {

@@ -21,12 +21,23 @@ export async function DELETE(req, { params }) {
 
       const ingredientId = purchase.ingredient_id;
       const totalBaseUnits = purchase.quantity * purchase.volume;
+      const purchaseCPU = purchase.unit_price / purchase.volume;
+      
+      const currentStock = Number(purchase.ingredient.stock);
+      const currentWac = Number(purchase.ingredient.cost_per_unit);
+      
+      // Calculate new WAC by removing this specific purchase impact
+      const newStock = currentStock - totalBaseUnits;
+      const totalValueBefore = currentStock * currentWac;
+      const totalValueAfter = totalValueBefore - (totalBaseUnits * purchaseCPU);
+      const newWac = newStock > 0 ? (Math.max(0, totalValueAfter) / newStock) : 0;
 
-      // 1. Revert Stock
+      // 1. Revert Stock and WAC
       await tx.ingredient.update({
         where: { id: ingredientId },
         data: {
           stock: { decrement: totalBaseUnits },
+          cost_per_unit: newWac,
           updated_at: new Date()
         }
       });
@@ -43,17 +54,21 @@ export async function DELETE(req, { params }) {
       // 3. Delete Purchase
       await tx.purchase.delete({ where: { id: purchaseId } });
 
-      // 4. Revert to previous price
+      // 4. Update the 'price' field (the 'latest' price display) to the real previous purchase if available
       const prevPurchase = await tx.purchase.findFirst({
-        where: { ingredient_id: ingredientId },
+        where: { ingredient_id: ingredientId, id: { not: purchaseId } },
         orderBy: { purchase_date: 'desc' }
       });
 
       if (prevPurchase) {
-        const cpu = prevPurchase.unit_price / prevPurchase.volume;
         await tx.ingredient.update({
           where: { id: ingredientId },
-          data: { price: prevPurchase.unit_price, cost_per_unit: cpu }
+          data: { price: prevPurchase.unit_price }
+        });
+      } else {
+         await tx.ingredient.update({
+          where: { id: ingredientId },
+          data: { price: 0 }
         });
       }
 
@@ -92,15 +107,30 @@ export async function PUT(req, { params }) {
       const oldImpact = oldPurchase.quantity * oldPurchase.volume;
       const newImpact = Number(quantity) * Number(volume);
 
-      // 2. Update Ingredient Stock & Price
-      const cpu = Number(unit_price) / Number(volume);
+      // 2. Update Ingredient Stock & Price using WAC adjustment
+      const oldPrice = oldPurchase.unit_price;
+      const oldCPU = oldPurchase.unit_price / oldPurchase.volume;
+      const newCPU = Number(unit_price) / Number(volume);
       
+      const currentStock = Number(oldPurchase.ingredient.stock);
+      const currentWac = Number(oldPurchase.ingredient.cost_per_unit);
+      
+      const netStockChange = newImpact - oldImpact;
+      const newTotalStock = currentStock + netStockChange;
+      
+      // Calculate new WAC by removing the old impact value and adding the new one
+      const oldTotalValue = currentStock * currentWac;
+      const newTotalValue = oldTotalValue - (oldImpact * oldCPU) + (newImpact * newCPU);
+      
+      const finalWac = newTotalStock > 0 ? newTotalValue / newTotalStock : newCPU;
+      const changePercentage = currentWac > 0 ? ((newCPU - currentWac) / currentWac) * 100 : 0;
+
       await tx.ingredient.update({
         where: { id: ingredientId },
         data: {
-          stock: { increment: newImpact - oldImpact }, // Net change
+          stock: { increment: netStockChange },
           price: Number(unit_price),
-          cost_per_unit: cpu,
+          cost_per_unit: finalWac,
           updated_at: new Date()
         }
       });
@@ -133,6 +163,9 @@ export async function PUT(req, { params }) {
         where: { reference_purchase_id: purchaseId },
         data: {
           price: Number(unit_price),
+          vendor_name: supplier || null,
+          change_percentage: changePercentage,
+          cost_per_unit: finalWac,
           date: purchase_date ? new Date(purchase_date) : oldPurchase.purchase_date
         }
       });

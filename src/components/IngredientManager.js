@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Search, Plus, Edit2, Trash2, ExternalLink, RefreshCw, Layers, ArrowRight } from "lucide-react";
+import { Search, Plus, Edit2, Trash2, ExternalLink, RefreshCw, Layers, ArrowRight, X } from "lucide-react";
 import { Button } from "./ui/button";
 import { useToast } from "./ui/use-toast";
 import { api } from "../lib/api";
@@ -180,27 +180,27 @@ export default function IngredientManager({ isStandalone = false }) {
 
       {/* Form Card */}
       {(isAdding || editing) && (
-        <div className="glass-card rounded-[3rem] shadow-[0_50px_100px_-20px_rgba(0,0,0,0.15)] border-none overflow-hidden animate-in fade-in slide-in-from-bottom-8 duration-700">
-          <div className="p-8 md:p-12 bg-slate-900 text-white relative overflow-hidden">
-             <div className="absolute top-0 right-0 w-[40rem] h-[40rem] bg-emerald-600/10 rounded-full blur-[120px] -translate-y-1/2 translate-x-1/2" />
+        <div className="glass-card rounded-[2rem] shadow-[0_32px_128px_-12px_rgba(0,0,0,0.15)] border-none overflow-hidden animate-in fade-in slide-in-from-bottom-8 duration-700">
+          <div className="p-6 md:p-10 bg-slate-900 text-white relative overflow-hidden">
+             <div className="absolute top-0 right-0 w-[30rem] h-[30rem] bg-emerald-600/10 rounded-full blur-[100px] -translate-y-1/2 translate-x-1/2" />
              <div className="flex items-center justify-between relative z-10">
-                <div className="space-y-3">
-                  <h3 className="text-2xl md:text-4xl font-black tracking-tighter uppercase">{editing ? "Edit Material" : "Add Material"}</h3>
-                  <div className="flex items-center gap-3">
-                    <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
-                    <p className="text-[10px] font-black text-emerald-400 uppercase tracking-[0.3em]">Material Details</p>
+                <div className="space-y-2">
+                  <h3 className="text-xl md:text-3xl font-black tracking-tighter uppercase">{editing ? "Edit Material" : "Add Material"}</h3>
+                  <div className="flex items-center gap-2">
+                    <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse" />
+                    <p className="text-[9px] font-bold text-emerald-400 uppercase tracking-[0.3em]">Material Intelligence</p>
                   </div>
                 </div>
                 <button 
                   onClick={() => { setEditing(null); setIsAdding(false); }} 
-                  className="w-12 h-12 md:w-16 md:h-16 rounded-[1.25rem] md:rounded-[1.5rem] bg-white/5 border border-white/10 flex items-center justify-center hover:bg-rose-600 transition-all group shadow-2xl"
+                  className="w-12 h-12 md:w-14 md:h-14 rounded-xl md:rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center hover:bg-rose-600 transition-all group shadow-2xl"
                 >
-                  <Trash2 className="w-5 h-5 md:w-6 md:h-6 text-white group-hover:scale-110 transition-transform" />
+                  <X className="w-5 h-5 md:w-6 md:h-6 text-white group-hover:scale-110 transition-transform" />
                 </button>
              </div>
           </div>
           
-          <div className="p-8 md:p-14 space-y-12 md:space-y-16 bg-white/40 backdrop-blur-2xl">
+          <div className="p-6 md:p-10 space-y-10 md:space-y-12 bg-white/40 backdrop-blur-2xl">
             {/* Section 1: Basic */}
             <div className="space-y-8 md:space-y-10">
               <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.5em] flex items-center gap-5">
@@ -269,16 +269,16 @@ export default function IngredientManager({ isStandalone = false }) {
               </div>
             </div>
 
-            <div className="pt-10 md:pt-14 flex flex-col md:flex-row justify-end items-center gap-6 md:gap-10 border-t border-slate-100/50">
+            <div className="pt-6 md:pt-10 flex flex-col md:flex-row justify-end items-center gap-4 md:gap-8 border-t border-slate-100/50">
               <button 
                 onClick={() => { setEditing(null); setIsAdding(false); }} 
-                className="font-black text-[10px] uppercase tracking-[0.4em] text-slate-300 hover:text-rose-600 transition-all order-2 md:order-1"
+                className="font-black text-[9px] uppercase tracking-[0.4em] text-slate-300 hover:text-rose-600 transition-all order-2 md:order-1"
               >
                 Cancel
               </button>
               <button 
                 onClick={handleSave} 
-                className="w-full md:w-auto px-12 md:px-20 h-16 md:h-18 bg-slate-900 hover:bg-black text-white rounded-[1.5rem] font-black text-[11px] uppercase tracking-[0.2em] shadow-2xl shadow-slate-200 transition-all active:scale-95 flex items-center justify-center gap-5 order-1 md:order-2"
+                className="w-full md:w-auto px-10 md:px-14 h-14 md:h-16 bg-slate-900 hover:bg-black text-white rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-2xl shadow-slate-200 transition-all active:scale-95 flex items-center justify-center gap-4 order-1 md:order-2"
               >
                 {saving ? (
                   <>

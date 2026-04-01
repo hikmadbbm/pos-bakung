@@ -10,6 +10,7 @@ import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuIte
 import { useToast } from "../../../components/ui/use-toast";
 import { cn } from "../../../lib/utils";
 import { ResponsiveDataView } from "../../../components/ResponsiveDataView";
+import { ReceiptPreview } from "../../../components/receipt-preview";
 
 export default function OrderHistoryPage() {
   const { success, error } = useToast();
@@ -24,6 +25,9 @@ export default function OrderHistoryPage() {
   const [isPinDialogOpen, setIsPinDialogOpen] = useState(false);
   const [pendingStatusChange, setPendingStatusChange] = useState(null); 
   const [user, setUser] = useState(null);
+  const [isReceiptPreviewOpen, setIsReceiptPreviewOpen] = useState(false);
+  const [receiptOrder, setReceiptOrder] = useState(null);
+  const [storeConfig, setStoreConfig] = useState(null);
 
   const [activeFilter, setActiveFilter] = useState("today");
   const getLocalDate = () => new Date().toLocaleDateString('en-CA');
@@ -38,7 +42,17 @@ export default function OrderHistoryPage() {
 
   useEffect(() => {
     loadOrders(1);
+    loadStoreConfig();
   }, [searchTerm, startDate, endDate, activeFilter]);
+
+  const loadStoreConfig = async () => {
+    try {
+      const res = await api.get("/settings/config");
+      if (res) setStoreConfig(res);
+    } catch (e) {
+      console.warn("History: Failed to load store config", e);
+    }
+  };
 
   const handleFilterChange = (filter) => {
     setActiveFilter(filter);
@@ -442,7 +456,13 @@ export default function OrderHistoryPage() {
                     </div>
                     
                     <div className="flex flex-col justify-end items-end gap-4 lg:gap-6">
-                       <button className="h-16 lg:h-20 w-full rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-black uppercase text-[10px] lg:text-[11px] tracking-[0.3em] shadow-lg active:scale-95 transition-all flex items-center justify-center gap-4 lg:gap-6 group">
+                       <button 
+                         onClick={() => {
+                           setReceiptOrder(selectedOrder);
+                           setIsReceiptPreviewOpen(true);
+                         }}
+                         className="h-16 lg:h-20 w-full rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-black uppercase text-[10px] lg:text-[11px] tracking-[0.3em] shadow-lg active:scale-95 transition-all flex items-center justify-center gap-4 lg:gap-6 group"
+                       >
                          <Printer className="w-5 h-5 lg:w-6 lg:h-6 group-hover:rotate-12 transition-transform" /> PRINT RECEIPT
                        </button>
                        <button 
@@ -459,6 +479,22 @@ export default function OrderHistoryPage() {
         </DialogContent>
       </Dialog>
       
+      {receiptOrder && (
+        <ReceiptPreview 
+          isOpen={isReceiptPreviewOpen} 
+          onClose={() => {
+            setIsReceiptPreviewOpen(false);
+            // Refresh the current order details to get latest print_count
+            if (selectedOrder?.id === receiptOrder.id) {
+              loadOrders(pagination.page);
+              // Optimistically update selectedOrder if possible or let user re-open
+            }
+          }} 
+          order={receiptOrder} 
+          config={storeConfig}
+        />
+      )}
+
       <PinVerificationModal 
         open={isPinDialogOpen}
         onClose={() => {

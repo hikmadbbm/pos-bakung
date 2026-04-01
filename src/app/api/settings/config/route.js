@@ -37,6 +37,7 @@ export async function PUT(req) {
     if (body.paper_width !== undefined) data.paper_width = Number(body.paper_width);
     if (body.show_logo !== undefined) data.show_logo = Boolean(body.show_logo);
     if (body.show_customer !== undefined) data.show_customer = Boolean(body.show_customer);
+    if (body.show_name !== undefined) data.show_name = Boolean(body.show_name);
     if (body.kitchen_enabled !== undefined) data.kitchen_enabled = Boolean(body.kitchen_enabled);
     if (body.kitchen_auto_print !== undefined) data.kitchen_auto_print = Boolean(body.kitchen_auto_print);
     if (body.kitchen_copies !== undefined) data.kitchen_copies = Number(body.kitchen_copies);
@@ -46,6 +47,7 @@ export async function PUT(req) {
     if (body.instagram !== undefined) data.instagram = body.instagram;
     if (body.whatsapp !== undefined) data.whatsapp = body.whatsapp;
     if (body.quick_tags !== undefined) data.quick_tags = body.quick_tags;
+    if (body.kitchen_delay !== undefined) data.kitchen_delay = Number(body.kitchen_delay);
 
     const existing = await prisma.storeConfig.findFirst({ orderBy: { id: 'asc' }, select: { id: true } });
     const saved = existing

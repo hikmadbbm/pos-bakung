@@ -29,7 +29,7 @@ export default function MenuPage() {
   const [isEditing, setIsEditing] = useState(null);
 
   const [isCategoryDialogOpen, setIsCategoryDialogOpen] = useState(false);
-  const [categoryFormData, setCategoryFormData] = useState({ name: "", color: "#cccccc" });
+  const [categoryFormData, setCategoryFormData] = useState({ name: "", color: "#cccccc", type: "FOOD" });
   const [isCategoryEditing, setIsCategoryEditing] = useState(null);
 
   const [confirmDeleteId, setConfirmDeleteId] = useState(null);
@@ -198,12 +198,12 @@ export default function MenuPage() {
   };
 
   const openEditCategory = (cat) => {
-    setCategoryFormData({ name: cat.name, color: cat.color });
+    setCategoryFormData({ name: cat.name, color: cat.color, type: cat.type || "FOOD" });
     setIsCategoryEditing(cat.id);
   };
 
   const resetCategoryForm = () => {
-    setCategoryFormData({ name: "", color: "#cccccc" });
+    setCategoryFormData({ name: "", color: "#cccccc", type: "FOOD" });
     setIsCategoryEditing(null);
   };
 
@@ -497,8 +497,20 @@ export default function MenuPage() {
           <div className="p-10 space-y-10 flex-1 overflow-y-auto min-h-0 scrollbar-hide">
             <form onSubmit={handleCategorySubmit} className="p-8 bg-slate-50 rounded-[2rem] space-y-6">
               <h3 className="text-[10px] font-black uppercase tracking-widest">Add Category</h3>
-              <div className="grid grid-cols-1 md:grid-cols-[1fr_auto] gap-6">
-                <Input value={categoryFormData.name} onChange={(e) => setCategoryFormData({ ...categoryFormData, name: e.target.value })} required placeholder="Name" className="h-14 rounded-2xl bg-white font-black uppercase tracking-widest" />
+              <div className="grid grid-cols-1 md:grid-cols-[1fr_auto_auto] gap-6 items-end">
+                <div className="space-y-4">
+                  <Input value={categoryFormData.name} onChange={(e) => setCategoryFormData({ ...categoryFormData, name: e.target.value })} required placeholder="Name" className="h-14 rounded-2xl bg-white font-black uppercase tracking-widest" />
+                </div>
+                <div className="space-y-4">
+                  <select
+                    className="h-14 rounded-2xl bg-white border border-slate-100 font-black text-[11px] uppercase tracking-widest px-6"
+                    value={categoryFormData.type}
+                    onChange={(e) => setCategoryFormData({ ...categoryFormData, type: e.target.value })}
+                  >
+                    <option value="FOOD">FOOD</option>
+                    <option value="DRINK">DRINK</option>
+                  </select>
+                </div>
                 <input type="color" value={categoryFormData.color} onChange={(e) => setCategoryFormData({ ...categoryFormData, color: e.target.value })} className="h-14 w-20 cursor-pointer border-4 border-white rounded-2xl" />
               </div>
               <div className="flex justify-end gap-4">
@@ -521,6 +533,17 @@ export default function MenuPage() {
                   {
                     header: "Name",
                     accessor: (cat) => <span className="font-black text-slate-900 uppercase tracking-widest text-[11px]">{cat.name}</span>
+                  },
+                  {
+                    header: "Type",
+                    accessor: (cat) => (
+                      <span className={cn(
+                        "px-3 py-1 rounded-full text-[8px] font-black uppercase tracking-widest",
+                        cat.type === 'DRINK' ? "bg-blue-50 text-blue-600" : "bg-orange-50 text-orange-600"
+                      )}>
+                        {cat.type}
+                      </span>
+                    )
                   },
                   {
                     header: "Actions",

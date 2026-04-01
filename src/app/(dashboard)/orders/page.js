@@ -204,6 +204,7 @@ export default function OrdersPage() {
   const [editingNoteItem, setEditingNoteItem] = useState(null);
   const [tempNote, setTempNote] = useState("");
   const [quickTagsConfig, setQuickTagsConfig] = useState({ FOOD: [], DRINK: [] });
+  const [storeConfig, setStoreConfig] = useState(null);
 
   const loadPendingOrders = useCallback(async () => {
     try {
@@ -250,6 +251,7 @@ export default function OrdersPage() {
         localStorage.setItem(cacheKey, JSON.stringify(res));
 
         if (res.storeConfig) {
+          setStoreConfig(res.storeConfig);
           setTaxRate(res.storeConfig.tax_rate || 0);
           setServiceRate(res.storeConfig.service_charge || 0);
           if (res.storeConfig.quick_tags) {
@@ -322,30 +324,63 @@ export default function OrdersPage() {
   }, [selectedPlatform]);
 
   // --- Cart Logic ---
+  const generateCartItemId = () => Math.random().toString(36).substr(2, 9);
 
   const addToCart = (menu) => {
     const price = getPrice(menu);
     setCart((prev) => {
-      const existing = prev.find((item) => item.menu_id === menu.id);
+      // Find item with same menu_id and EMPTY note (as it's coming from menu grid)
+      const existing = prev.find((item) => item.menu_id === menu.id && (!item.note || item.note.trim() === ""));
       if (existing) {
         return prev.map((item) =>
-          item.menu_id === menu.id ? { ...item, qty: item.qty + 1, price } : item
+          item.cartItemId === existing.cartItemId ? { ...item, qty: item.qty + 1, price } : item
         );
       }
-      return [...prev, { menu_id: menu.id, name: menu.name, price, qty: 1, note: "", category_id: menu.category_id }];
+      return [...prev, { 
+        cartItemId: generateCartItemId(),
+        menu_id: menu.id, 
+        name: menu.name, 
+        price, 
+        qty: 1, 
+        note: "", 
+        categoryId: menu.categoryId 
+      }];
     });
   };
 
-  const updateItemNote = (menuId, note) => {
-    setCart(prev => prev.map(item => 
-      item.menu_id === menuId ? { ...item, note } : item
-    ));
+  /**
+   * Updates notes for a specific cart row. 
+   * If after editing, multiple rows have same menuId + note, they are merged.
+   */
+  const updateItemNotes = (cartItemId, newNote) => {
+    setCart(prev => {
+      const itemToUpdate = prev.find(i => i.cartItemId === cartItemId);
+      if (!itemToUpdate) return prev;
+
+      // Create new state with updated note for target item
+      const updatedCart = prev.map(item => 
+        item.cartItemId === cartItemId ? { ...item, note: newNote } : item
+      );
+
+      // Check if we need to merge this updated item with another one
+      const mergedCart = [];
+      updatedCart.forEach(item => {
+        const existing = mergedCart.find(m => m.menu_id === item.menu_id && (m.note || "").trim() === (item.note || "").trim());
+        if (existing) {
+          existing.qty += item.qty;
+        } else {
+          mergedCart.push({ ...item });
+        }
+      });
+
+      return mergedCart;
+    });
   };
 
-  const updateQty = (menuId, delta) => {
+  const updateQty = (cartItemId, delta) => {
     setCart((prev) =>
       prev.map((item) => {
-        if (item.menu_id === menuId) {
+        if (item.cartItemId === cartItemId) {
           const newQty = Math.max(0, item.qty + delta);
           return { ...item, qty: newQty };
         }
@@ -567,10 +602,13 @@ export default function OrdersPage() {
   const handleResumeOrder = (order) => {
     // Map orderItems back to cart format
     const newCart = order.orderItems.map(item => ({
+      cartItemId: generateCartItemId(),
       menu_id: item.menu_id,
-      name: item.menu.name,
+      name: item.menu?.name || 'Unknown',
       price: item.price,
-      qty: item.qty
+      qty: item.qty,
+      note: item.note || "",
+      categoryId: item.menu?.categoryId
     }));
     
     setCart(newCart);
@@ -724,14 +762,14 @@ export default function OrdersPage() {
             ))
           ) : filteredMenus.map((menu) => {
             const currentPrice = getPrice(menu);
-            const inCart = cart.find(i => i.menu_id === menu.id);
+            const inCart = cart.filter(i => i.menu_id === menu.id).reduce((sum, item) => sum + item.qty, 0);
             return (
               <div key={menu.id} className="aspect-auto sm:aspect-square relative w-full group">
                 <button
                   className={cn(
                     "relative sm:absolute sm:inset-0 w-full h-full text-left bg-white/40 backdrop-blur-3xl border transition-all duration-300 active:scale-95 focus:outline-none overflow-hidden shadow-sm hover:shadow-xl hover:-translate-y-1",
                     "p-2.5 sm:p-5 flex flex-col justify-between items-start rounded-xl",
-                    inCart 
+                    inCart > 0 
                       ? "ring-4 ring-emerald-500/10 bg-emerald-50/50 border-emerald-200" 
                       : "border-white hover:border-emerald-300 hover:bg-white"
                   )}
@@ -770,9 +808,9 @@ export default function OrdersPage() {
                         {formatIDR(currentPrice)}
                       </div>
                     </div>
-                    {inCart && (
+                    {inCart > 0 && (
                       <div className="absolute -top-3 -right-3 sm:-top-4 sm:-right-4 w-7 h-7 sm:w-10 sm:h-10 bg-gradient-to-br from-rose-400 to-rose-600 text-white rounded-full flex items-center justify-center shadow-[0_5px_15px_-5px_rgba(244,63,94,0.6)] animate-in zoom-in duration-300 border-2 border-white z-20">
-                        <span className="text-[10px] sm:text-sm font-black tracking-tighter">{inCart.qty}</span>
+                        <span className="text-[10px] sm:text-sm font-black tracking-tighter">{inCart}</span>
                       </div>
                     )}
                   </div>
@@ -859,11 +897,14 @@ export default function OrdersPage() {
               </div>
             ) : (
               cart.map((item) => (
-                <div key={item.menu_id} className="flex flex-col p-4 rounded-2xl border border-slate-100 hover:border-emerald-200 bg-white group transition-all duration-300 gap-4">
+                <div key={item.cartItemId} className="flex flex-col p-4 rounded-2xl border border-slate-100 hover:border-emerald-200 bg-white group transition-all duration-300 gap-4">
                   <div className="flex justify-between items-start w-full">
                     <div className="flex-1 min-w-0 pr-2">
                       <div className="font-black text-[13px] sm:text-sm text-slate-900 uppercase tracking-tight leading-tight break-words">{item.name}</div>
-                      <div className="text-[10px] font-bold text-slate-400 mt-1 uppercase tracking-widest">{formatIDR(item.price)}</div>
+                      <div className="text-[10px] font-bold text-slate-400 mt-1 uppercase tracking-widest flex items-center gap-2">
+                        {formatIDR(item.price)}
+                        {item.note && <span className="text-amber-600 font-bold italic truncate">- {item.note}</span>}
+                      </div>
                     </div>
                     <div className="flex items-center gap-1 shrink-0">
                       <button 
@@ -882,7 +923,7 @@ export default function OrdersPage() {
                       </button>
                       <button 
                         className="h-8 w-8 flex items-center justify-center text-rose-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all" 
-                        onClick={() => updateQty(item.menu_id, -item.qty)}
+                        onClick={() => updateQty(item.cartItemId, -item.qty)}
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>
@@ -894,17 +935,21 @@ export default function OrdersPage() {
                     <div className="flex items-center bg-slate-50 p-1 rounded-xl border border-slate-100">
                       <button 
                         className="h-8 w-8 flex items-center justify-center rounded-lg hover:bg-white hover:shadow-sm text-slate-400 hover:text-slate-900 transition-all border border-transparent hover:border-slate-100" 
-                        onClick={() => updateQty(item.menu_id, -1)}
+                        onClick={() => updateQty(item.cartItemId, -1)}
                       >
                         <Minus className="w-3.5 h-3.5" />
                       </button>
                       <span className="w-10 text-center text-xs font-black text-slate-900 tracking-tighter">{item.qty}</span>
                       <button 
                         className="h-8 w-8 flex items-center justify-center rounded-lg hover:bg-white hover:shadow-sm text-slate-400 hover:text-slate-900 transition-all border border-transparent hover:border-slate-100" 
-                        onClick={() => updateQty(item.menu_id, 1)}
+                        onClick={() => updateQty(item.cartItemId, 1)}
                       >
                         <Plus className="w-3.5 h-3.5" />
                       </button>
+                    </div>
+                    <div className="text-right flex-1">
+                      <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{item.qty}x</div>
+                      <div className="text-xs font-black text-slate-900">{formatIDR(item.qty * item.price)}</div>
                     </div>
                   </div>
                 </div>
@@ -1361,6 +1406,7 @@ export default function OrdersPage() {
           isOpen={!!completedOrder} 
           onClose={() => setCompletedOrder(null)} 
           order={completedOrder} 
+          config={storeConfig}
         />
       )}
 
@@ -1576,9 +1622,17 @@ export default function OrdersPage() {
                   <Label className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-400 mb-4 block">Quick Tags</Label>
                   <div className="flex flex-wrap gap-2">
                     {( () => {
-                      const category = categories.find(c => c.id === editingNoteItem.category_id);
+                      const category = categories.find(c => c.id === editingNoteItem.categoryId);
                       const catName = category?.name?.toUpperCase() || "";
-                      const isDrink = catName.includes("MINUM") || catName.includes("DRINK") || catName.includes("KOPI") || catName.includes("TEH");
+                      const isDrink = category?.type === 'DRINK' || 
+                                     catName.includes("MINUM") || 
+                                     catName.includes("DRINK") || 
+                                     catName.includes("BEVERAGE") || 
+                                     catName.includes("WATER") || 
+                                     catName.includes("SODA") || 
+                                     catName.includes("JUICE") || 
+                                     catName.includes("KOPI") || 
+                                     catName.includes("TEH");
                       
                       let tags = isDrink 
                         ? (quickTagsConfig.DRINK?.length > 0 ? quickTagsConfig.DRINK : DRINK_TAGS)
@@ -1628,16 +1682,16 @@ export default function OrdersPage() {
                 className="flex-1 h-16 rounded-2xl font-black uppercase tracking-widest text-[10px] border-slate-100"
                 onClick={() => setEditingNoteItem(null)}
               >
-                Cancel
+                Discard
               </Button>
               <Button 
-                className="flex-1 h-16 rounded-2xl bg-slate-900 hover:bg-black text-white font-black uppercase tracking-widest text-[10px] shadow-xl active:scale-95 transition-all"
+                className="flex-1 h-12 rounded-2xl bg-emerald-600 hover:bg-emerald-700 font-black uppercase tracking-widest text-[10px] text-white shadow-lg" 
                 onClick={() => {
-                  updateItemNote(editingNoteItem.menu_id, tempNote);
+                  updateItemNotes(editingNoteItem.cartItemId, tempNote);
                   setEditingNoteItem(null);
                 }}
               >
-                Apply Request
+                Save Note
               </Button>
             </div>
           </div>

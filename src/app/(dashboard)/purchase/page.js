@@ -15,6 +15,7 @@ import { formatIDR } from "@/lib/format";
 import PurchaseForm from "@/components/PurchaseForm";
 import { cn } from "@/lib/utils";
 import { ResponsiveDataView } from "@/components/ResponsiveDataView";
+import Portal from "@/components/Portal";
 import { 
   DropdownMenu, 
   DropdownMenuTrigger, 
@@ -77,51 +78,53 @@ export default function PurchasePage() {
     <div className="max-w-7xl mx-auto space-y-10 animate-fade-in pb-20 px-4 md:px-0 relative">
       {/* New/Edit Purchase Modal Overlay */}
       {(showForm || editData) && (
-        <div className="fixed inset-0 z-[150] flex items-center justify-center p-4 md:p-10 bg-slate-900/60 backdrop-blur-md animate-in fade-in duration-300">
-          <div className="bg-slate-50 rounded-[3rem] w-full max-w-6xl max-h-[90dvh] overflow-y-auto shadow-2xl shadow-black/20 animate-in zoom-in-95 duration-300 relative">
-            <div className="sticky top-0 z-[160] bg-white border-b border-slate-100 p-8 flex items-center justify-between">
-              <div className="flex items-center gap-4">
-                 <div className="w-14 h-14 bg-slate-900 rounded-[1.25rem] flex items-center justify-center shadow-xl">
-                    <Plus className="w-6 h-6 text-white" />
-                 </div>
-                 <div>
-                    <h2 className="text-2xl font-black text-slate-900 tracking-tight uppercase italic">
-                      {editData ? "Edit Purchase" : "New Purchase"}
-                    </h2>
-                    <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">
-                      {editData ? "Update stock acquisition details" : "Record stock acquisition"}
-                    </p>
-                 </div>
+        <Portal>
+          <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 md:p-8 bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-300">
+            <div className="bg-white rounded-[2rem] w-full max-w-[800px] max-h-[85vh] overflow-y-auto shadow-[0_32px_128px_-12px_rgba(0,0,0,0.3)] animate-in zoom-in-95 duration-300 relative border border-slate-100 flex flex-col">
+              <div className="sticky top-0 z-[200] bg-white border-b border-slate-50 p-6 flex items-center justify-between shrink-0">
+                <div className="flex items-center gap-3">
+                   <div className="w-12 h-12 bg-slate-900 rounded-xl flex items-center justify-center shadow-lg">
+                      <Plus className="w-5 h-5 text-white" />
+                   </div>
+                   <div>
+                      <h2 className="text-2xl font-black text-slate-900 tracking-tight uppercase italic">
+                        {editData ? "Edit Purchase" : "New Purchase"}
+                      </h2>
+                      <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">
+                        {editData ? "Update stock acquisition details" : "Record stock acquisition"}
+                      </p>
+                   </div>
+                </div>
+                <Button 
+                  variant="ghost" 
+                  size="icon" 
+                  onClick={() => {
+                    setShowForm(false);
+                    setEditData(null);
+                  }} 
+                  className="h-12 w-12 rounded-full hover:bg-slate-50 transition-all"
+                >
+                  <X className="w-5 h-5 text-slate-400" />
+                </Button>
               </div>
-              <Button 
-                variant="ghost" 
-                size="icon" 
-                onClick={() => {
-                  setShowForm(false);
-                  setEditData(null);
-                }} 
-                className="h-14 w-14 rounded-full hover:bg-slate-50 transition-all"
-              >
-                <X className="w-6 h-6 text-slate-400" />
-              </Button>
-            </div>
-            
-            <div className="p-10">
-              <PurchaseForm 
-                initialData={editData}
-                onClose={() => {
-                  setShowForm(false);
-                  setEditData(null);
-                }} 
-                onSuccess={() => {
-                  setShowForm(false);
-                  setEditData(null);
-                  loadPurchases();
-                }} 
-              />
+              
+              <div className="p-6 overflow-y-auto custom-scrollbar">
+                <PurchaseForm 
+                  initialData={editData}
+                  onClose={() => {
+                    setShowForm(false);
+                    setEditData(null);
+                  }} 
+                  onSuccess={() => {
+                    setShowForm(false);
+                    setEditData(null);
+                    loadPurchases();
+                  }} 
+                />
+              </div>
             </div>
           </div>
-        </div>
+        </Portal>
       )}
 
       {/* Custom Delete Confirmation Modal */}

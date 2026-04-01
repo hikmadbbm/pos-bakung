@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { logger } from '@/lib/logger';
 import jwt from 'jsonwebtoken';
 import { verifyAuth } from '@/lib/auth';
+import { deductStockForOrder } from '@/lib/stock-deduction';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -184,6 +185,7 @@ export async function POST(req) {
           qty: item.qty,
           price: finalPrice,
           cost: menu.cost,
+          note: item.note || null,
         };
       });
 
@@ -246,6 +248,10 @@ export async function POST(req) {
           payment_method,
           payment_method_id: payment_method_id || null,
           money_received: receivedNum,
+          tax_rate: Number(tax_rate) || 0,
+          tax_amount: Number(tax_amount) || 0,
+          service_rate: Number(service_rate) || 0,
+          service_amount: Number(service_amount) || 0,
           change_amount,
           status: status || 'PAID',
           note: note || null,
@@ -264,8 +270,7 @@ export async function POST(req) {
 
       // 5. Auto-Stock Deduction for immediate PAID/COMPLETED orders
       if (newOrder.status === 'PAID' || newOrder.status === 'COMPLETED') {
-        const { deductStockForOrder } = await import('@/lib/stock-deduction');
-        await deductStockForOrder(newOrder.id, tx);
+        await deductStockForOrder(newOrder.id, tx, newOrder);
       }
 
       return newOrder;
@@ -276,9 +281,11 @@ export async function POST(req) {
     logger.info('Order created', { id: created.id, total: created.total });
     return NextResponse.json(created, { status: 201 });
   } catch (error) {
-    console.error('Failed to create order:', error);
-    const message = error?.message?.includes('not found') ? error.message : (error?.message || 'Failed to create order');
-    const status = message.includes('not found') ? 400 : 500;
-    return NextResponse.json({ error: message, detail: error?.message }, { status });
+    const message = error?.message || 'Failed to create order';
+    // Only return 400 for legitimate data-missing errors (Menu, Ingredient not in DB)
+    // Avoid returning 400 for server-level errors like "Transaction not found"
+    const isClientError = message.toLowerCase().includes('not found') && !message.toLowerCase().includes('transaction');
+    const statusCode = isClientError ? 400 : 500;
+    return NextResponse.json({ error: message, detail: error?.message }, { status: statusCode });
   }
 }

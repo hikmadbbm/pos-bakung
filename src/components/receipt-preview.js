@@ -16,14 +16,16 @@ export function ReceiptPreview({ isOpen, onClose, order, config: propConfig }) {
   const [printingReceipt, setPrintingReceipt] = useState(false);
   const [printingKitchen, setPrintingKitchen] = useState(false);
   const [previewMode, setPreviewMode] = useState("receipt"); // "receipt" or "kitchen"
-  const [storeConfig, setStoreConfig] = useState({
+  const [currentOrder, setCurrentOrder] = useState(order);
+  const [storeConfig, setStoreConfig] = useState(propConfig || {
     store_name: "BAKMIE YOU-TJE",
-    address: "Jl. Bakung No. 123, Jakarta",
+    address: "Jl. Bakung No. 123",
     phone: "0812-3456-7890",
     receipt_footer: "Thank you for visiting!",
     paper_width: 58,
-    show_logo: false,
+    show_logo: true,
     show_customer: true,
+    show_name: true,
     kitchen_enabled: true,
     kitchen_auto_print: false,
     kitchen_copies: 1,
@@ -49,10 +51,11 @@ export function ReceiptPreview({ isOpen, onClose, order, config: propConfig }) {
     if (isOpen) {
       if (!propConfig) loadStoreConfig();
       setPreviewMode("receipt");
+      setCurrentOrder(order);
     }
-  }, [isOpen, loadStoreConfig, propConfig]);
+  }, [isOpen, loadStoreConfig, propConfig, order]);
 
-  if (!order) return null;
+  if (!currentOrder) return null;
 
   const width = storeConfig.paper_width === 80 ? 47 : 31;
 
@@ -70,29 +73,47 @@ export function ReceiptPreview({ isOpen, onClose, order, config: propConfig }) {
              img.onload = () => {
                const canvas = document.createElement("canvas");
                const ctx = canvas.getContext("2d");
-               const maxWidth = storeConfig.paper_width === 80 ? 576 : 384; 
+               
+               // LO-RES OPTIMIZATION: Reduce width to ~240-300px to speed up serial transmission!
+               // For 58mm, 240px is about 60% width.
+               const maxWidth = storeConfig.paper_width === 80 ? 448 : 240; 
                let w = img.width;
                let h = img.height;
+               
                if (w > maxWidth) {
                  h = Math.round((h * maxWidth) / w);
                  w = maxWidth;
                }
+               
                w = Math.floor(w / 8) * 8; 
                canvas.width = w;
                canvas.height = h;
+               
+               // Fill background white
                ctx.fillStyle = "white";
                ctx.fillRect(0, 0, w, h);
+               
+               // Draw image with high contrast
                ctx.drawImage(img, 0, 0, w, h);
                
                const pixels = ctx.getImageData(0, 0, w, h).data;
                let str = '\x1D\x76\x30\x00' + String.fromCharCode((w/8)%256, Math.floor((w/8)/256), h%256, Math.floor(h/256));
+               
                for (let y = 0; y < h; y++) {
                  for (let x = 0; x < w / 8; x++) {
                    let byte = 0;
                    for (let b = 0; b < 8; b++) {
                      const idx = (y * w + (x * 8 + b)) * 4;
-                     const lum = 0.299 * pixels[idx] + 0.587 * pixels[idx+1] + 0.114 * pixels[idx+2];
-                     if (pixels[idx+3] > 128 && lum < 128) byte |= (1 << (7 - b));
+                     const r = pixels[idx];
+                     const g = pixels[idx+1];
+                     const bval = pixels[idx+2];
+                     const alpha = pixels[idx+3];
+                     
+                     // Sharp Threshold for Flat B&W (128 is pure middle)
+                     const lum = 0.299 * r + 0.587 * g + 0.114 * bval;
+                     if (alpha > 128 && lum < 128) { 
+                        byte |= (1 << (7 - b));
+                     }
                    }
                    str += String.fromCharCode(byte);
                  }
@@ -111,17 +132,26 @@ export function ReceiptPreview({ isOpen, onClose, order, config: propConfig }) {
          } catch(e) { console.warn("Logo failed", e); }
       }
       
-      data += ESC_POS.ALIGN_CENTER;
-      data += ESC_POS.BOLD_ON;
-      data += ESC_POS.DOUBLE_WIDTH_ON;
-      data += (storeConfig.store_name || "BAKMIE YOU-TJE") + "\n";
-      data += ESC_POS.RESET_SIZE;
-      data += ESC_POS.BOLD_Off;
+      if (storeConfig.show_name !== false) {
+        data += ESC_POS.ALIGN_CENTER;
+        data += ESC_POS.BOLD_ON;
+        data += ESC_POS.DOUBLE_WIDTH_ON;
+        data += (storeConfig.store_name || "BAKMIE YOU-TJE") + "\n";
+        data += ESC_POS.RESET_SIZE;
+        data += ESC_POS.BOLD_Off;
+      }
       
       data += (storeConfig.address || "") + "\n";
       if (storeConfig.phone) data += `Tel: ${storeConfig.phone}\n`;
       if (storeConfig.instagram) data += `IG: ${storeConfig.instagram}\n`;
       if (storeConfig.whatsapp) data += `WA: ${storeConfig.whatsapp}\n`;
+      data += ESC_POS.separator(width);
+      
+      // Original / Copy Label
+      data += ESC_POS.ALIGN_CENTER;
+      data += ESC_POS.BOLD_ON;
+      data += currentOrder.print_count > 0 ? "COPY RECEIPT\n" : "ORIGINAL RECEIPT\n";
+      data += ESC_POS.BOLD_Off;
       data += ESC_POS.separator(width);
       
       data += ESC_POS.ALIGN_LEFT;
@@ -133,9 +163,31 @@ export function ReceiptPreview({ isOpen, onClose, order, config: propConfig }) {
       data += ESC_POS.separator(width);
       
       order.orderItems.forEach(item => {
-        const line = `${item.qty}x ${item.menu?.name}`;
-        data += ESC_POS.formatTwoColumns(line, formatIDR(item.qty * item.price), width);
+        // Line 1: Name (Bold)
+        data += ESC_POS.BOLD_ON;
+        data += (item.menu?.name || "Unknown").toUpperCase() + "\n";
+        data += ESC_POS.BOLD_Off;
+
+        // Line 2: Note (Italic)
+        if (item.note) {
+          data += ESC_POS.ITALIC_ON;
+          data += `- ${item.note}\n`;
+          data += ESC_POS.ITALIC_OFF;
+        }
+
+        // Line 3: Qty x Price and Total
+        const priceToUse = item.price || 0;
+        const qtyPrice = `${item.qty} x ${formatIDR(priceToUse).replace('Rp', '').trim()}`;
+        const itemTotal = formatIDR(item.qty * priceToUse).replace('Rp', '').trim();
+        data += ESC_POS.formatTwoColumns(qtyPrice, itemTotal, width);
       });
+
+      // General Order Note
+      if (order.note) {
+        data += ESC_POS.separator(width);
+        data += ESC_POS.BOLD_ON + "NOTES:\n" + ESC_POS.BOLD_Off;
+        data += order.note + "\n";
+      }
       
       data += ESC_POS.separator(width);
       
@@ -143,13 +195,21 @@ export function ReceiptPreview({ isOpen, onClose, order, config: propConfig }) {
       
       let finalTotal = order.total;
       
-      if (storeConfig.service_charge > 0) {
+      if (order.service_amount > 0) {
+        data += ESC_POS.formatTwoColumns(`Service (${order.service_rate || storeConfig.service_charge}%)`, formatIDR(order.service_amount), width);
+        finalTotal += order.service_amount;
+      } else if (!order.hasOwnProperty('service_amount') && storeConfig.service_charge > 0) {
+        // Fallback for old orders
         const serviceAmount = Math.round(order.total * (storeConfig.service_charge / 100));
         data += ESC_POS.formatTwoColumns(`Service (${storeConfig.service_charge}%)`, formatIDR(serviceAmount), width);
         finalTotal += serviceAmount;
       }
       
-      if (storeConfig.tax_rate > 0) {
+      if (order.tax_amount > 0) {
+        data += ESC_POS.formatTwoColumns(`Tax (${order.tax_rate || storeConfig.tax_rate}%)`, formatIDR(order.tax_amount), width);
+        finalTotal += order.tax_amount;
+      } else if (!order.hasOwnProperty('tax_amount') && storeConfig.tax_rate > 0) {
+        // Fallback for old orders
         const taxAmount = Math.round(finalTotal * (storeConfig.tax_rate / 100));
         data += ESC_POS.formatTwoColumns(`Tax (${storeConfig.tax_rate}%)`, formatIDR(taxAmount), width);
         finalTotal += taxAmount;
@@ -163,6 +223,15 @@ export function ReceiptPreview({ isOpen, onClose, order, config: propConfig }) {
       data += ESC_POS.BOLD_ON;
       data += ESC_POS.formatTwoColumns("TOTAL", formatIDR(Math.max(0, finalTotal)), width);
       data += ESC_POS.BOLD_Off;
+
+      data += ESC_POS.separator(width);
+      data += ESC_POS.formatTwoColumns("METHOD", order.payment_method?.toUpperCase() || "CASH", width);
+      
+      const receivedAmount = order.money_received || finalTotal;
+      const changeAmount = Math.max(0, receivedAmount - finalTotal);
+      
+      data += ESC_POS.formatTwoColumns("PAID", formatIDR(receivedAmount), width);
+      data += ESC_POS.formatTwoColumns("CHANGE", formatIDR(changeAmount), width);
       
       data += ESC_POS.separator(width);
       data += ESC_POS.ALIGN_CENTER;
@@ -171,6 +240,14 @@ export function ReceiptPreview({ isOpen, onClose, order, config: propConfig }) {
       
       await print(data);
       success("Receipt printed");
+
+      // Increment print count in DB
+      try {
+        const updated = await api.post(`/orders/${currentOrder.id}/print`);
+        if (updated) setCurrentOrder(updated);
+      } catch (e) {
+        console.warn("Failed to increment print count", e);
+      }
     } catch (e) {
       console.error("Print failed", e);
       error("Printer communication failed");
@@ -217,8 +294,12 @@ export function ReceiptPreview({ isOpen, onClose, order, config: propConfig }) {
           data += ESC_POS.DOUBLE_HEIGHT_ON;
           data += `[ ] ${item.qty} x ${item.menu?.name}\n`;
           data += ESC_POS.RESET_SIZE;
-          if (order.note) data += `    * ${order.note}\n`;
+          if (item.note) data += `    -> ${item.note.toUpperCase()}\n`;
         });
+        
+        if (order.note) {
+          data += ESC_POS.BOLD_ON + "ORDER NOTE: " + order.note + ESC_POS.BOLD_Off + "\n";
+        }
         
         data += ESC_POS.separator(width);
         data += ESC_POS.FEED_PAPER(4);
@@ -234,11 +315,26 @@ export function ReceiptPreview({ isOpen, onClose, order, config: propConfig }) {
     }
   }, [print, storeConfig.kitchen_enabled, storeConfig.kitchen_copies, storeConfig.kitchen_categories, order, width, success, error]);
 
+  const hasAutoPrinted = useRef(null);
+
   useEffect(() => {
     if (isOpen && storeConfig.kitchen_auto_print && storeConfig.kitchen_enabled && order && order.order_number !== "TRX-PREVIEW-999") {
-      handlePrintKitchen();
+      // Only auto-print once per unique order session
+      const orderIdentifier = order.id || order.order_number;
+      if (hasAutoPrinted.current === orderIdentifier) return;
+      hasAutoPrinted.current = orderIdentifier;
+
+      const delayAmount = (storeConfig.kitchen_delay || 0) * 1000;
+      
+      console.log(`Kitchen Auto-Print queued with ${delayAmount}ms delay for order ${order.id}`);
+      
+      const timer = setTimeout(() => {
+        handlePrintKitchen();
+      }, delayAmount);
+
+      return () => clearTimeout(timer);
     }
-  }, [isOpen, storeConfig.kitchen_auto_print, storeConfig.kitchen_enabled, order, handlePrintKitchen]);
+  }, [isOpen, storeConfig.kitchen_auto_print, storeConfig.kitchen_enabled, order?.id, storeConfig.kitchen_delay, handlePrintKitchen]);
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -280,7 +376,9 @@ export function ReceiptPreview({ isOpen, onClose, order, config: propConfig }) {
                             <img src={storeConfig.logo_url} alt="Logo" className="max-w-[120px] max-h-[80px] object-contain filter grayscale contrast-125" />
                           </div>
                         )}
-                        <h4 className="font-black text-base uppercase leading-tight tracking-tighter">{storeConfig.store_name}</h4>
+                        {storeConfig.show_name !== false && (
+                          <h4 className="font-black text-base uppercase leading-tight tracking-tighter">{storeConfig.store_name}</h4>
+                        )}
                         <p className="text-[7.5px] leading-relaxed opacity-60 px-4">{storeConfig.address}</p>
                         {(storeConfig.phone || storeConfig.instagram || storeConfig.whatsapp) && (
                           <div className="flex flex-wrap justify-center gap-x-4 gap-y-1 text-[7px] opacity-50 font-black uppercase pt-1">
@@ -289,6 +387,11 @@ export function ReceiptPreview({ isOpen, onClose, order, config: propConfig }) {
                             {storeConfig.whatsapp && <span className="flex items-center gap-1">WA: {storeConfig.whatsapp}</span>}
                           </div>
                         )}
+                        <div className="pt-2 text-center">
+                          <span className="text-[7px] font-black tracking-widest uppercase opacity-40">
+                            *** {currentOrder.print_count > 0 ? "Copy Receipt" : "Original Receipt"} ***
+                          </span>
+                        </div>
                       </div>
 
                       <div className="border-b-[1.5px] border-dashed border-slate-200" />
@@ -305,9 +408,13 @@ export function ReceiptPreview({ isOpen, onClose, order, config: propConfig }) {
                       
                       <div className="space-y-2 py-2">
                         {order.orderItems?.map((item, idx) => (
-                          <div key={idx} className="flex justify-between items-start gap-4">
-                            <p className="font-black uppercase flex-1 leading-tight">{item.qty}x {item.menu?.name}</p>
-                            <span className="font-black text-[10px] tabular-nums whitespace-nowrap">{formatIDR(item.qty * item.price)}</span>
+                          <div key={idx} className="space-y-0.5">
+                            <p className="font-black uppercase leading-tight">{item.menu?.name}</p>
+                            {item.note && <p className="italic text-[8px] opacity-70">- {item.note}</p>}
+                            <div className="flex justify-between items-center text-[8px] opacity-80 pt-0.5">
+                              <span>{item.qty} x {formatIDR(item.price).replace('Rp', '').trim()}</span>
+                              <span className="font-bold">{formatIDR(item.qty * item.price).replace('Rp', '').trim()}</span>
+                            </div>
                           </div>
                         ))}
                       </div>
@@ -317,21 +424,31 @@ export function ReceiptPreview({ isOpen, onClose, order, config: propConfig }) {
                       <div className="space-y-1.5 py-1">
                         <div className="flex justify-between"><span>Subtotal</span><span className="tabular-nums">{formatIDR(order.total)}</span></div>
                         
-                        {storeConfig.service_charge > 0 && (
+                        {order.service_amount > 0 ? (
+                          <div className="flex justify-between opacity-70">
+                            <span>Service ({order.service_rate || storeConfig.service_charge}%)</span>
+                            <span className="tabular-nums">{formatIDR(order.service_amount)}</span>
+                          </div>
+                        ) : (!order.hasOwnProperty('service_amount') && storeConfig.service_charge > 0) ? (
                           <div className="flex justify-between opacity-70">
                             <span>Service ({storeConfig.service_charge}%)</span>
                             <span className="tabular-nums">{formatIDR(Math.round(order.total * (storeConfig.service_charge / 100)))}</span>
                           </div>
-                        )}
+                        ) : null}
                         
-                        {storeConfig.tax_rate > 0 && (
+                        {order.tax_amount > 0 ? (
+                          <div className="flex justify-between opacity-70">
+                            <span>Tax ({order.tax_rate || storeConfig.tax_rate}%)</span>
+                            <span className="tabular-nums">{formatIDR(order.tax_amount)}</span>
+                          </div>
+                        ) : (!order.hasOwnProperty('tax_amount') && storeConfig.tax_rate > 0) ? (
                           <div className="flex justify-between opacity-70">
                             <span>Tax ({storeConfig.tax_rate}%)</span>
                             <span className="tabular-nums">
                               {formatIDR(Math.round((order.total + (storeConfig.service_charge > 0 ? order.total * (storeConfig.service_charge / 100) : 0)) * (storeConfig.tax_rate / 100)))}
                             </span>
                           </div>
-                        )}
+                        ) : null}
                         
                         {order.discount > 0 && (
                           <div className="flex justify-between font-bold">
@@ -344,10 +461,34 @@ export function ReceiptPreview({ isOpen, onClose, order, config: propConfig }) {
                           <span className="tracking-tighter uppercase">TOTAL</span>
                           <span className="tabular-nums">{formatIDR(Math.max(0, 
                             order.total + 
-                            Math.round(order.total * (storeConfig.service_charge / 100 || 0)) + 
-                            Math.round((order.total + (order.total * (storeConfig.service_charge / 100 || 0))) * (storeConfig.tax_rate / 100 || 0)) - 
+                            (order.service_amount || (order.hasOwnProperty('service_amount') ? 0 : Math.round(order.total * (storeConfig.service_charge / 100 || 0)))) + 
+                            (order.tax_amount || (order.hasOwnProperty('tax_amount') ? 0 : Math.round((order.total + (order.total * (storeConfig.service_charge / 100 || 0))) * (storeConfig.tax_rate / 100 || 0)))) - 
                             (order.discount || 0)
                           ))}</span>
+                        </div>
+                      </div>
+
+                      <div className="border-b-[1.5px] border-dashed border-slate-200" />
+                      
+                      <div className="space-y-1 py-1 font-bold">
+                        <div className="flex justify-between"><span>METHOD</span><span>{order.payment_method || "CASH"}</span></div>
+                        <div className="flex justify-between opacity-70">
+                          <span>PAID</span>
+                          <span>{formatIDR(order.money_received || (order.total + 
+                            (order.service_amount || 0) + 
+                            (order.tax_amount || 0) - 
+                            (order.discount || 0))
+                          )}</span>
+                        </div>
+                        <div className="flex justify-between opacity-70 text-emerald-600">
+                          <span>CHANGE</span>
+                          <span>{formatIDR(Math.max(0, (order.money_received || (order.total + 
+                            (order.service_amount || 0) + 
+                            (order.tax_amount || 0) - 
+                            (order.discount || 0))) - (order.total + 
+                            (order.service_amount || 0) + 
+                            (order.tax_amount || 0) - 
+                            (order.discount || 0))))}</span>
                         </div>
                       </div>
 

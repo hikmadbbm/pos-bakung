@@ -14,6 +14,10 @@ import { api } from "@/lib/api";
 import { formatIDR } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
+import PurchaseOCR from "./PurchaseOCR";
+import PriceChangeAlert from "./PriceChangeAlert";
+import { Sparkles, History } from "lucide-react";
+
 export default function PurchaseForm({ onClose, onSuccess, initialData }) {
   const [ingredients, setIngredients] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -22,6 +26,9 @@ export default function PurchaseForm({ onClose, onSuccess, initialData }) {
   const [selectedIngredient, setSelectedIngredient] = useState(null);
   const [isNewIngredient, setIsNewIngredient] = useState(false);
   const [searchFocused, setSearchFocused] = useState(false);
+  const [showOCR, setShowOCR] = useState(false);
+  const [showPriceAlert, setShowPriceAlert] = useState(false);
+  const [priceHistory, setPriceHistory] = useState([]);
   
   const [formData, setFormData] = useState({
     ingredient_id: "",
@@ -63,6 +70,7 @@ export default function PurchaseForm({ onClose, onSuccess, initialData }) {
              brand: initialData.ingredient.brand || ""
         });
         setSelectedIngredient(initialData.ingredient);
+        loadPriceHistory(initialData.ingredient_id);
       }
     } catch (e) {
       console.error(e);
@@ -72,12 +80,14 @@ export default function PurchaseForm({ onClose, onSuccess, initialData }) {
     }
   };
 
-  const filteredIngredients = searchTerm.trim() 
-    ? ingredients.filter(i => 
-        i.item_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (i.brand && i.brand.toLowerCase().includes(searchTerm.toLowerCase()))
-      )
-    : ingredients.slice(0, 5);
+  const loadPriceHistory = async (id) => {
+    try {
+      const res = await api.get(`/ingredients/${id}/price-history`);
+      if (res) setPriceHistory(res);
+    } catch (e) {
+      console.warn("Failed to load history", e);
+    }
+  };
 
   const handleSelectIngredient = (ing) => {
     setSelectedIngredient(ing);
@@ -93,7 +103,59 @@ export default function PurchaseForm({ onClose, onSuccess, initialData }) {
       brand: ing.brand || ""
     });
     setSearchTerm("");
+    loadPriceHistory(ing.id);
   };
+
+  const handleOCRExtracted = (data) => {
+    // If multiple items, we'll suggest the first one that matches or just take the first
+    if (data.items && data.items.length > 0) {
+      const item = data.items[0];
+      
+      // Try to find a match in the ingredients list
+      const match = ingredients.find(ing => 
+        ing.item_name.toLowerCase() === item.name.toLowerCase()
+      );
+      
+      if (match) {
+        handleSelectIngredient(match);
+      } else {
+        setIsNewIngredient(true);
+        setFormData(prev => ({
+          ...prev,
+          new_ingredient_name: item.name,
+          unit: item.unit || prev.unit,
+          unit_price: item.unit_price || prev.unit_price,
+          quantity: item.quantity || prev.quantity
+        }));
+      }
+
+      setFormData(prev => ({
+        ...prev,
+        supplier: data.supplier || prev.supplier,
+        notes: `OCR Imported: ${item.name} total ${item.total_price}`
+      }));
+
+      success(`Successfully extracted ${data.items.length} items. Mapping first item.`);
+    }
+  };
+
+  const checkPriceIntelligence = () => {
+    if (!selectedIngredient || !formData.unit_price) return;
+    const currentWac = selectedIngredient.cost_per_unit || 0;
+    const newCpu = Number(formData.unit_price) / (Number(formData.volume) || 1);
+    
+    // Only show alert if price changed significantly (>0.5%)
+    if (currentWac > 0 && Math.abs((newCpu - currentWac) / currentWac) > 0.005) {
+      setShowPriceAlert(true);
+    }
+  };
+
+  useEffect(() => {
+    if (selectedIngredient && formData.unit_price) {
+      const timer = setTimeout(checkPriceIntelligence, 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [formData.unit_price, selectedIngredient]);
 
   const handleCreateNew = () => {
     setSelectedIngredient(null);
@@ -168,56 +230,87 @@ export default function PurchaseForm({ onClose, onSuccess, initialData }) {
             <h3 className="text-xs font-black uppercase tracking-[0.3em] text-slate-400">Search & Select</h3>
           </div>
           
-          <div className="relative group">
-            <Search className="absolute left-6 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-emerald-500 transition-colors" />
-            <Input
-              placeholder="Search for material or add new..."
-              value={searchTerm}
-              onFocus={() => setSearchFocused(true)}
-              onBlur={() => setTimeout(() => setSearchFocused(false), 200)}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-14 h-16 bg-white border-slate-100 rounded-[1.5rem] font-black text-slate-900 focus-visible:ring-emerald-500 transition-all shadow-sm group-hover:shadow-md"
-            />
-            
-            {searchFocused && (
-              <div className="absolute z-[100] w-full mt-4 bg-white border border-slate-100 rounded-[2rem] shadow-[0_30px_60px_-15px_rgba(0,0,0,0.25)] max-h-80 overflow-y-auto animate-in fade-in slide-in-from-top-2">
-                   <button
-                    type="button"
-                    onClick={handleCreateNew}
-                    className="w-full flex items-center gap-5 p-6 border-b border-slate-50 hover:bg-slate-900 group transition-all text-left"
-                  >
-                    <div className="w-12 h-12 rounded-xl bg-emerald-50 flex items-center justify-center group-hover:bg-emerald-500 transition-colors">
-                       <Plus className="w-5 h-5 text-emerald-600 group-hover:text-white" />
-                    </div>
-                    <div>
-                      <div className="font-black text-slate-900 group-hover:text-white uppercase tracking-tight">Create New: "{searchTerm || 'Type Name...'}"</div>
-                      <div className="text-[10px] font-black text-slate-400 group-hover:text-emerald-400 uppercase tracking-widest mt-1">Add missing item to system</div>
-                    </div>
-                  </button>
-
-                  {filteredIngredients.map(i => (
-                    <button
-                      key={i.id}
+          <div className="flex gap-4">
+            <div className="relative group flex-1">
+              <Search className="absolute left-6 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-emerald-500 transition-colors" />
+              <Input
+                placeholder="Search for material or add new..."
+                value={searchTerm}
+                onFocus={() => setSearchFocused(true)}
+                onBlur={() => setTimeout(() => setSearchFocused(false), 200)}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-14 h-16 bg-white border-slate-100 rounded-[1.5rem] font-black text-slate-900 focus-visible:ring-emerald-500 transition-all shadow-sm group-hover:shadow-md"
+              />
+              
+              {searchFocused && (
+                <div className="absolute z-[100] w-full mt-4 bg-white border border-slate-100 rounded-[2rem] shadow-[0_30px_60px_-15px_rgba(0,0,0,0.25)] max-h-80 overflow-y-auto animate-in fade-in slide-in-from-top-2">
+                     <button
                       type="button"
-                      onClick={() => handleSelectIngredient(i)}
-                      className="w-full flex items-center justify-between p-6 border-b border-slate-50 last:border-0 hover:bg-slate-50 transition-all text-left group"
+                      onClick={() => {
+                        setSelectedIngredient(null);
+                        setIsNewIngredient(true);
+                        setFormData({
+                          ...formData,
+                          ingredient_id: "",
+                          new_ingredient_name: searchTerm,
+                          unit: "",
+                          volume: "1",
+                          category: "",
+                          brand: ""
+                        });
+                        setSearchTerm("");
+                      }}
+                      className="w-full flex items-center gap-4 p-4 border-b border-slate-50 hover:bg-slate-900 group transition-all text-left"
                     >
-                      <div className="flex items-center gap-5">
-                        <div className="w-12 h-12 rounded-xl bg-slate-100 flex items-center justify-center text-slate-400 font-black text-[10px]">
-                           {i.unit}
-                        </div>
-                        <div>
-                           <div className="font-black text-slate-900 uppercase tracking-tight group-hover:text-emerald-600 transition-colors">{i.item_name}</div>
-                           <div className="text-[9px] text-slate-300 font-black uppercase tracking-widest mt-1">{i.brand || "UNBRANDED"} • {i.category}</div>
-                        </div>
+                      <div className="w-10 h-10 rounded-xl bg-emerald-50 flex items-center justify-center group-hover:bg-emerald-500 transition-colors">
+                         <Plus className="w-4 h-4 text-emerald-600 group-hover:text-white" />
                       </div>
-                      <div className="text-right">
-                         <div className="text-sm font-black text-emerald-600">{formatIDR(i.price)}</div>
-                         <div className="text-[9px] text-slate-300 font-black uppercase tracking-widest mt-1">Last Rate</div>
+                      <div>
+                        <div className="font-bold text-slate-900 group-hover:text-white uppercase tracking-tight text-sm">Create New: "{searchTerm || 'Type Name...'}"</div>
+                        <div className="text-[9px] font-bold text-slate-400 group-hover:text-emerald-400 uppercase tracking-widest mt-0.5">Add missing item to system</div>
                       </div>
                     </button>
-                  ))}
-              </div>
+
+                    {ingredients
+                      .filter(i => 
+                        i.item_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                        (i.brand && i.brand.toLowerCase().includes(searchTerm.toLowerCase()))
+                      )
+                      .slice(0, 5)
+                      .map(i => (
+                      <button
+                        key={i.id}
+                        type="button"
+                        onClick={() => handleSelectIngredient(i)}
+                        className="w-full flex items-center justify-between p-4 border-b border-slate-50 last:border-0 hover:bg-slate-50 transition-all text-left group"
+                      >
+                        <div className="flex items-center gap-4">
+                          <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center text-slate-400 font-bold text-[9px]">
+                             {i.unit}
+                          </div>
+                          <div>
+                             <div className="font-bold text-slate-900 uppercase tracking-tight text-sm group-hover:text-emerald-600 transition-colors">{i.item_name}</div>
+                             <div className="text-[8px] text-slate-300 font-bold uppercase tracking-widest mt-0.5">{i.brand || "UNBRANDED"} • {i.category}</div>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                           <div className="text-sm font-bold text-emerald-600">{formatIDR(i.price)}</div>
+                           <div className="text-[8px] text-slate-300 font-bold uppercase tracking-widest mt-0.5">Last Rate</div>
+                        </div>
+                      </button>
+                    ))}
+                </div>
+              )}
+            </div>
+            {!initialData && (
+              <Button
+                type="button"
+                onClick={() => setShowOCR(true)}
+                className="h-14 w-14 md:w-auto md:px-6 rounded-[1.25rem] bg-emerald-600 hover:bg-emerald-700 text-white shadow-xl shadow-emerald-500/10 active:scale-95 transition-all"
+              >
+                <Sparkles className="w-4 h-4 md:mr-2" />
+                <span className="hidden md:inline font-bold uppercase text-[10px] tracking-widest">Scan</span>
+              </Button>
             )}
           </div>
         </div>
@@ -390,6 +483,19 @@ export default function PurchaseForm({ onClose, onSuccess, initialData }) {
            </div>
         </div>
       </div>
+      <PriceChangeAlert 
+        isOpen={showPriceAlert} 
+        onClose={() => setShowPriceAlert(false)} 
+        ingredient={selectedIngredient}
+        newPrice={Number(formData.unit_price)}
+        history={priceHistory}
+      />
+
+      <PurchaseOCR
+        isOpen={showOCR}
+        onClose={() => setShowOCR(false)}
+        onItemsExtracted={handleOCRExtracted}
+      />
     </form>
   );
 }

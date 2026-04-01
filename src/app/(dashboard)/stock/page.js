@@ -15,6 +15,7 @@ import { formatIDR } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
 import { ResponsiveDataView } from "@/components/ResponsiveDataView";
+import Portal from "@/components/Portal";
 
 export default function StockPage() {
   const [ingredients, setIngredients] = useState([]);
@@ -84,50 +85,52 @@ export default function StockPage() {
     <div className="max-w-7xl mx-auto space-y-10 animate-fade-in pb-20 px-4 md:px-0">
       {/* Adjust Stock Modal */}
       {adjustModal.open && (
-         <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md animate-in fade-in duration-200">
-          <div className="bg-white rounded-[2rem] w-full max-w-md p-8 shadow-2xl animate-in zoom-in-95 duration-200 relative">
-            <Button variant="ghost" size="icon" className="absolute right-4 top-4 rounded-full" onClick={() => setAdjustModal({ open: false, quantity: "", reason: "", ingredient: null })}>
-              <X className="w-5 h-5 text-slate-400" />
-            </Button>
-            <div className="w-16 h-16 bg-slate-50 rounded-[1.25rem] flex items-center justify-center mb-6">
-              <Settings2 className="w-8 h-8 text-slate-900" />
+        <Portal>
+          <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md animate-in fade-in duration-200">
+            <div className="bg-white rounded-[2rem] w-full max-w-md p-8 shadow-[0_32px_128px_-12px_rgba(0,0,0,0.3)] animate-in zoom-in-95 duration-200 relative">
+              <Button variant="ghost" size="icon" className="absolute right-4 top-4 rounded-full" onClick={() => setAdjustModal({ open: false, quantity: "", reason: "", ingredient: null })}>
+                <X className="w-5 h-5 text-slate-400" />
+              </Button>
+              <div className="w-16 h-16 bg-slate-50 rounded-[1.25rem] flex items-center justify-center mb-6">
+                <Settings2 className="w-8 h-8 text-slate-900" />
+              </div>
+              <h3 className="text-2xl font-black text-slate-900 uppercase italic tracking-tight mb-2">Adjust Stock</h3>
+              <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-6">
+                Current <span className="text-slate-900">{adjustModal.ingredient?.item_name}</span> stock: <span className="text-emerald-600">{Number(adjustModal.ingredient?.stock || 0).toLocaleString("id-ID", { maximumFractionDigits: 2 })} {adjustModal.ingredient?.unit}</span>
+              </p>
+              <form onSubmit={handleAdjustSubmit} className="space-y-6">
+                 <div className="space-y-3">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Adjustment Delta (Positive or Negative)</label>
+                    <div className="relative group">
+                       <div className="absolute left-6 top-1/2 -translate-y-1/2 text-[9px] font-black text-slate-400 uppercase tracking-widest">{adjustModal.ingredient?.unit}</div>
+                       <Input 
+                         autoFocus
+                         type="number" 
+                         placeholder="e.g. -500 or 10" 
+                         value={adjustModal.quantity}
+                         onChange={(e) => setAdjustModal({...adjustModal, quantity: e.target.value })}
+                         className="pl-16 h-14 bg-slate-50 border-slate-100 rounded-2xl font-black text-slate-900 font-mono shadow-inner focus:bg-white transition-all"
+                       />
+                    </div>
+                 </div>
+                 <div className="space-y-3">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Reason / Notes</label>
+                    <Input 
+                      placeholder="e.g. Spilled, Expired, Physical Count" 
+                      value={adjustModal.reason}
+                      onChange={(e) => setAdjustModal({...adjustModal, reason: e.target.value })}
+                      className="h-14 bg-slate-50 border-slate-100 rounded-2xl font-black text-slate-900 text-xs shadow-inner focus:bg-white transition-all"
+                    />
+                 </div>
+                 <div className="pt-2">
+                   <Button type="submit" disabled={isRefreshing} className="w-full h-14 rounded-xl bg-slate-900 hover:bg-black font-black uppercase text-[10px] tracking-widest text-white border-none shadow-xl shadow-slate-200 transition-all active:scale-95">
+                     {isRefreshing ? "Applying..." : "Apply Adjustment"}
+                   </Button>
+                 </div>
+              </form>
             </div>
-            <h3 className="text-2xl font-black text-slate-900 uppercase italic tracking-tight mb-2">Adjust Stock</h3>
-            <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-6">
-              Current <span className="text-slate-900">{adjustModal.ingredient?.item_name}</span> stock: <span className="text-emerald-600">{Number(adjustModal.ingredient?.stock || 0).toLocaleString("id-ID", { maximumFractionDigits: 2 })} {adjustModal.ingredient?.unit}</span>
-            </p>
-            <form onSubmit={handleAdjustSubmit} className="space-y-6">
-               <div className="space-y-3">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Adjustment Delta (Positive or Negative)</label>
-                  <div className="relative group">
-                     <div className="absolute left-6 top-1/2 -translate-y-1/2 text-[9px] font-black text-slate-400 uppercase tracking-widest">{adjustModal.ingredient?.unit}</div>
-                     <Input 
-                       autoFocus
-                       type="number" 
-                       placeholder="e.g. -500 or 10" 
-                       value={adjustModal.quantity}
-                       onChange={(e) => setAdjustModal({...adjustModal, quantity: e.target.value })}
-                       className="pl-16 h-14 bg-slate-50 border-slate-100 rounded-2xl font-black text-slate-900 font-mono shadow-inner focus:bg-white transition-all"
-                     />
-                  </div>
-               </div>
-               <div className="space-y-3">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Reason / Notes</label>
-                  <Input 
-                    placeholder="e.g. Spilled, Expired, Physical Count" 
-                    value={adjustModal.reason}
-                    onChange={(e) => setAdjustModal({...adjustModal, reason: e.target.value })}
-                    className="h-14 bg-slate-50 border-slate-100 rounded-2xl font-black text-slate-900 text-xs shadow-inner focus:bg-white transition-all"
-                  />
-               </div>
-               <div className="pt-2">
-                 <Button type="submit" disabled={isRefreshing} className="w-full h-14 rounded-xl bg-slate-900 hover:bg-black font-black uppercase text-[10px] tracking-widest text-white border-none shadow-xl shadow-slate-200 transition-all active:scale-95">
-                   {isRefreshing ? "Applying..." : "Apply Adjustment"}
-                 </Button>
-               </div>
-            </form>
-          </div>
-         </div>
+           </div>
+        </Portal>
       )}
 
       {/* Header Section */}
