@@ -328,37 +328,62 @@ export function ReceiptPreview({ isOpen, onClose, order, config: propConfig }) {
 
   const hasKitchenAutoPrinted = useRef(null);
   const hasReceiptAutoPrinted = useRef(null);
+  const kitchenTimerRef = useRef(null);
 
+  // 1. Customer Receipt Auto-Print Logic
   useEffect(() => {
-    // 1. Initial health checks
     if (!isOpen || !order || order.order_number === "TRX-PREVIEW-999") return;
-
-    // 2. Resolve race condition: ensure config has loaded from DB/Props before proceeding
     if (propConfig && (!storeConfig || !storeConfig.id)) return;
 
     const orderIdentifier = order.id || order.order_number;
 
-    // --- Customer Receipt Auto-Print ---
     if (storeConfig.receipt_auto_print && hasReceiptAutoPrinted.current !== orderIdentifier) {
       hasReceiptAutoPrinted.current = orderIdentifier;
       console.log(`[Printer] Customer Receipt Auto-Print sequence initiated: ${orderIdentifier}`);
       handlePrintReceipt();
     }
+  }, [isOpen, storeConfig.receipt_auto_print, storeConfig.id, order?.id, handlePrintReceipt]);
 
-    // --- Kitchen Ticket Auto-Print with Delay ---
-    if (storeConfig.kitchen_auto_print && storeConfig.kitchen_enabled && hasKitchenAutoPrinted.current !== orderIdentifier) {
-      hasKitchenAutoPrinted.current = orderIdentifier;
-      
-      const delayAmount = (storeConfig.kitchen_delay || 0) * 1000;
-      console.log(`[Printer] Kitchen Auto-Print Scheduled. Delay: ${delayAmount}ms. Order: ${orderIdentifier}`);
-      
-      const timer = setTimeout(() => {
-        handlePrintKitchen();
-      }, delayAmount);
+  // 2. Kitchen Ticket Auto-Print Logic
+  useEffect(() => {
+    if (!isOpen || !order || order.order_number === "TRX-PREVIEW-999") return;
+    if (propConfig && (!storeConfig || !storeConfig.id)) return;
 
-      return () => clearTimeout(timer);
+    if (!storeConfig.kitchen_auto_print || !storeConfig.kitchen_enabled) return;
+
+    const orderIdentifier = order.id || order.order_number;
+    
+    // Safety: If the order changes, clear any pending kitchen timers from previous orders
+    if (kitchenTimerRef.current && hasKitchenAutoPrinted.current !== orderIdentifier) {
+      clearTimeout(kitchenTimerRef.current);
+      kitchenTimerRef.current = null;
     }
-  }, [isOpen, storeConfig, order, handlePrintKitchen, handlePrintReceipt, propConfig]);
+
+    if (hasKitchenAutoPrinted.current === orderIdentifier) return;
+    hasKitchenAutoPrinted.current = orderIdentifier;
+
+    const delayAmount = (storeConfig.kitchen_delay || 0) * 1000;
+    console.log(`[Printer] Kitchen Auto-Print Scheduled. Delay: ${delayAmount}ms. Order: ${orderIdentifier}`);
+    
+    kitchenTimerRef.current = setTimeout(() => {
+      console.log(`[Printer] Executing delayed kitchen print now for ${orderIdentifier}`);
+      handlePrintKitchen();
+      kitchenTimerRef.current = null;
+    }, delayAmount);
+
+    return () => {
+       // Only clear if unmounting OR order totally changes (caught by ref check above too)
+       // Standard return cleanup will fire on every re-render of this effect.
+       // But we only want to clear if we are genuinely leaving or changing orders.
+    };
+  }, [isOpen, storeConfig.kitchen_auto_print, storeConfig.kitchen_enabled, storeConfig.kitchen_delay, storeConfig.id, order?.id, handlePrintKitchen]);
+
+  // Clean up on unmount
+  useEffect(() => {
+    return () => {
+      if (kitchenTimerRef.current) clearTimeout(kitchenTimerRef.current);
+    };
+  }, []);
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
