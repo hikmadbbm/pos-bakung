@@ -327,34 +327,33 @@ export function ReceiptPreview({ isOpen, onClose, order, config: propConfig }) {
     }
   }, [print, storeConfig.kitchen_enabled, storeConfig.kitchen_copies, storeConfig.kitchen_categories, order, width, success, error]);
 
-  const [printState, setPrintState] = useState("IDLE"); // IDLE, RECEIPT, DELAY, KITCHEN, DONE
+  const [printState, setPrintState] = useState("IDLE");
   const activeOrderRef = useRef(null);
+  
+  // Guard refs to prevent double-firing handlers in the same state
+  const isExecutingRef = useRef(false);
 
-  // Print Sequence State Machine
   useEffect(() => {
-    // 1. Initial health checks
     if (!isOpen || !order || order.order_number === "TRX-PREVIEW-999") return;
     if (propConfig && (!storeConfig || !storeConfig.id)) return;
 
     const orderIdentifier = order.id || order.order_number;
 
-    // Reset sequence if this is a NEW order
     if (activeOrderRef.current !== orderIdentifier) {
       activeOrderRef.current = orderIdentifier;
+      isExecutingRef.current = false;
       setPrintState("START");
     }
   }, [isOpen, order, storeConfig, propConfig]);
 
   useEffect(() => {
     if (printState === "START") {
-      if (storeConfig.receipt_auto_print) {
-        setPrintState("RECEIPT");
-      } else {
-        setPrintState("DELAY");
-      }
-    } else if (printState === "RECEIPT") {
-      console.log(`[Sequence] Step 1: Automatic Receipt Print for ${activeOrderRef.current}`);
+      setPrintState(storeConfig.receipt_auto_print ? "RECEIPT" : "DELAY");
+    } else if (printState === "RECEIPT" && !isExecutingRef.current) {
+      isExecutingRef.current = true;
+      console.log(`[Sequence] Executing Receipt Print...`);
       handlePrintReceipt().finally(() => {
+        isExecutingRef.current = false;
         setPrintState("DELAY");
       });
     } else if (printState === "DELAY") {
@@ -363,14 +362,16 @@ export function ReceiptPreview({ isOpen, onClose, order, config: propConfig }) {
         return;
       }
       const delayAmount = (storeConfig.kitchen_delay || 0) * 1000;
-      console.log(`[Sequence] Step 2: Waiting ${delayAmount}ms for Kitchen Ticket...`);
+      console.log(`[Sequence] Delaying Kitchen Print by ${delayAmount}ms...`);
       const timer = setTimeout(() => {
         setPrintState("KITCHEN");
       }, delayAmount);
       return () => clearTimeout(timer);
-    } else if (printState === "KITCHEN") {
-      console.log(`[Sequence] Step 3: Automatic Kitchen Print for ${activeOrderRef.current}`);
+    } else if (printState === "KITCHEN" && !isExecutingRef.current) {
+      isExecutingRef.current = true;
+      console.log(`[Sequence] Executing Kitchen Print...`);
       handlePrintKitchen().finally(() => {
+        isExecutingRef.current = false;
         setPrintState("DONE");
       });
     }
