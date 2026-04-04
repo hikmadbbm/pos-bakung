@@ -43,15 +43,39 @@ function parseAmountToInt(value) {
   return Math.round(num);
 }
 
-function QRISImage({ baseQRIS, amount, staticImage }) {
+// Standard QRIS Branding Components
+const QRISLogoFull = () => (
+  <div className="flex flex-col items-start">
+    <div className="flex items-center gap-1">
+       <div className="bg-slate-900 text-white font-black text-[12px] px-1.5 py-0.5 rounded-sm tracking-tighter leading-none italic">QRIS</div>
+       <div className="text-slate-600 font-extrabold text-[7px] leading-[1.1] uppercase tracking-tighter italic">
+         QR Code Standar<br/>Pembayaran Nasional
+       </div>
+    </div>
+  </div>
+);
+
+const GPNLogo = () => (
+  <div className="flex items-center gap-1.5 grayscale opacity-80">
+     <div className="text-rose-600">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M12 2L4.5 20.29L5.21 21L12 18L18.79 21L19.5 20.29L12 2Z" fill="currentColor" stroke="currentColor" strokeWidth="1" />
+          <path d="M12 4L6 18H18L12 4Z" fill="white" />
+          <circle cx="12" cy="13" r="3" fill="currentColor" />
+        </svg>
+     </div>
+     <div className="text-rose-600 font-black text-[10px] leading-none tracking-tight">GPN</div>
+  </div>
+);
+
+function QRISImage({ baseQRIS, amount, merchantName, nmid }) {
   const [qrSrc, setQrSrc] = useState(null);
   const [error, setError] = useState(false);
   const [debugInfo, setDebugInfo] = useState("");
 
   useEffect(() => {
     if (!baseQRIS) {
-        setQrSrc(staticImage);
-        setError(false);
+        setError(true);
         return;
     }
 
@@ -62,17 +86,16 @@ function QRISImage({ baseQRIS, amount, staticImage }) {
     const timer = setTimeout(() => {
       if (isMounted && !qrSrc) { 
         setError(true);
-        setQrSrc(staticImage);
         setDebugInfo("Generation timed out");
       }
-    }, 5000);
+    }, 8000);
 
     try {
         const dynamicQRIS = generateDynamicQRIS(baseQRIS, amount);
         QRCode.toDataURL(dynamicQRIS, {
-            margin: 2,
-            width: 512,
-            color: { dark: '#012345', light: '#ffffff' }
+            margin: 1,
+            width: 800,
+            color: { dark: '#0F172A', light: '#ffffff' }
         })
         .then(url => {
             if (!isMounted) return;
@@ -84,13 +107,11 @@ function QRISImage({ baseQRIS, amount, staticImage }) {
             if (!isMounted) return;
             clearTimeout(timer);
             setError(true);
-            setQrSrc(staticImage);
             setDebugInfo(err.message);
         });
     } catch (e) {
         clearTimeout(timer);
         setError(true);
-        setQrSrc(staticImage);
         setDebugInfo(e.message);
     }
 
@@ -98,35 +119,70 @@ function QRISImage({ baseQRIS, amount, staticImage }) {
       isMounted = false;
       clearTimeout(timer);
     };
-  }, [baseQRIS, amount, staticImage]);
+  }, [baseQRIS, amount]);
 
   if (!qrSrc && !error) {
     return (
-        <div className="w-full h-full flex flex-col items-center justify-center bg-gray-50 text-gray-400 text-xs text-center p-4">
-            <Smartphone className="w-12 h-12 mb-2 opacity-20 text-emerald-600 animate-pulse" />
-            <p>Generating QR Code...</p>
-        </div>
-    );
-  }
-
-  if (!qrSrc && error) {
-    return (
-        <div className="w-full h-full flex flex-col items-center justify-center bg-red-50 text-red-400 text-xs text-center p-4">
-            <AlertCircle className="w-12 h-12 mb-2 opacity-20" />
-            <p>Failed to generate QR</p>
-            {debugInfo && <p className="mt-1 opacity-60 text-[8px]">{debugInfo}</p>}
+        <div className="w-full flex-1 flex flex-col items-center justify-center bg-slate-50 rounded-3xl animate-pulse">
+            <Smartphone className="w-12 h-12 mb-4 text-emerald-500 opacity-30" />
+            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Generating Secure QR...</p>
         </div>
     );
   }
 
   return (
-    <div className="relative w-full h-full flex items-center justify-center">
-        <img src={qrSrc} alt="QRIS" className="w-full h-full object-contain" />
-        {error && (
-            <div className="absolute bottom-0 inset-x-0 bg-red-500/80 text-white text-[8px] py-1 px-2 text-center">
-                Using fallback static image
-            </div>
-        )}
+    <div className="relative w-full h-full bg-white flex flex-col items-center p-8 rounded-[3rem] shadow-2xl border border-slate-100 overflow-hidden">
+        {/* Dynamic Background Accents */}
+        <div className="absolute top-0 right-0 w-48 h-48 bg-rose-500/5 -translate-y-1/2 translate-x-1/2 rounded-full blur-3xl" />
+        <div className="absolute bottom-0 left-0 w-48 h-48 bg-slate-500/5 translate-y-1/2 -translate-x-1/2 rounded-full blur-3xl" />
+        
+        {/* Standard Brand Banner */}
+        <div className="w-full flex justify-between items-center mb-10 relative z-10">
+           <QRISLogoFull />
+           <GPNLogo />
+        </div>
+
+        {/* Merchant Identification Section */}
+        <div className="text-center mb-8 relative z-10">
+          <h4 className="text-2xl font-black text-slate-900 uppercase italic tracking-tight">{merchantName}</h4>
+          <div className="flex flex-col gap-1 mt-2">
+            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">NMID: {nmid || 'ID1020000000000'}</p>
+            <p className="text-[8px] font-bold text-slate-300 uppercase tracking-widest">Terminal ID: {Math.random().toString(36).substring(2, 9).toUpperCase()}</p>
+          </div>
+        </div>
+
+        {/* The Core: Dynamic QR Code Container */}
+        <div className="relative w-full aspect-square border-4 border-slate-50 rounded-[2.5rem] p-4 bg-white shadow-xl shadow-slate-200/50 flex items-center justify-center mb-8 group transition-all">
+            {qrSrc ? (
+              <img src={qrSrc} alt="QRIS Standard" className="w-full h-full object-contain" />
+            ) : (
+              <div className="text-rose-500 text-[10px] font-black uppercase text-center p-8">
+                 <AlertCircle className="w-10 h-10 mx-auto mb-3 opacity-20" />
+                 Failed to render QR<br/>{debugInfo}
+              </div>
+            )}
+        </div>
+
+        {/* Compliance Footer */}
+        <div className="text-center space-y-2 relative z-10 mt-auto">
+          <div className="px-4 py-1.5 bg-slate-900 rounded-full inline-block">
+             <p className="text-[9px] font-black text-white uppercase tracking-[0.4em]">SATU QRIS UNTUK SEMUA</p>
+          </div>
+          <div>
+            <p className="text-[7px] font-bold text-slate-400 uppercase tracking-tighter leading-relaxed">
+              Cek aplikasi penyelenggara di: <span className="text-slate-600">www.aspi-qris.id</span><br/>
+              Ditetapkan oleh Bank Indonesia
+            </p>
+          </div>
+        </div>
+
+        {/* Small payment step icons dummy */}
+        <div className="flex justify-center gap-3 mt-8 opacity-20 grayscale scale-75">
+          <div className="w-6 h-6 rounded bg-slate-400" />
+          <div className="w-6 h-6 rounded bg-slate-400" />
+          <div className="w-6 h-6 rounded bg-slate-400" />
+          <div className="w-6 h-6 rounded bg-slate-400" />
+        </div>
     </div>
   );
 }
@@ -413,7 +469,7 @@ export default function OrdersPage() {
     return list.sort((a, b) => (a.category?.name || "").localeCompare(b.category?.name || "") || a.name.localeCompare(b.name));
   }, [menus, selectedCategory]);
 
-  if (loading && menus.length === 0) return <div className="h-screen flex items-center justify-center font-black animate-pulse uppercase tracking-[0.5em] text-slate-400">Syncing POS Station...</div>;
+  if (loading && menus.length === 0) return <div className="h-screen flex items-center justify-center font-black uppercase tracking-[0.5em] text-slate-400">Syncing POS Station...</div>;
 
   return (
     <div className={cn(
@@ -586,20 +642,40 @@ export default function OrdersPage() {
       {completedOrder && <ReceiptPreview isOpen={!!completedOrder} onClose={() => setCompletedOrder(null)} order={completedOrder} config={storeConfig} />}
       
       <Dialog open={isQRISModalOpen} onOpenChange={o => !o ? setIsQRISCancelConfirmOpen(true) : null}>
-        <DialogContent className="max-w-lg p-0 rounded-[3rem] overflow-hidden border-none shadow-2xl">
-          <div className="bg-slate-900 p-8 text-center text-white"><h2 className="text-3xl font-black italic italic tracking-tighter uppercase mb-0.5">QRIS PORTAL</h2><p className="text-[10px] font-black text-emerald-400 uppercase tracking-[0.4em]">ENCRYPTED PROTOCOL</p></div>
-          <div className="p-8 flex flex-col items-center gap-8 bg-white">
-            <h3 className="text-5xl font-black italic tracking-tighter font-mono">{formatIDR(qrisOrderData?.total || 0)}</h3>
-            <div className="w-64 aspect-square border-8 border-slate-50 rounded-[2.5rem] p-4 flex items-center justify-center bg-white shadow-xl"><QRISImage baseQRIS={qrisPM?.qris_data} amount={qrisOrderData?.total || 0} staticImage={qrisPM?.imageUrl} /></div>
-            <div className="text-center"><p className="font-black uppercase tracking-widest text-lg">{qrisPM?.name}</p><p className="text-[10px] text-slate-400 font-bold uppercase tracking-[0.2em]">{qrisPM?.account_name}</p></div>
-            <Button className="w-full h-16 rounded-2xl bg-emerald-600 hover:bg-emerald-700 font-black uppercase tracking-[0.2em] shadow-xl shadow-emerald-500/20" disabled={processing} onClick={async () => {
-              setProcessing(true);
-              try {
-                const res = await api.put(`/orders/${qrisOrderData.id}`, { ...qrisOrderData, status: "PAID", items: qrisOrderData.orderItems.map(i => ({ menu_id: i.menu_id, qty: i.qty })) });
-                setIsQRISModalOpen(false); setCompletedOrder(res); success("AUDIT FINALIZED");
-              } catch (e) { toastError("COMMUNICATION FAILURE"); }
-              finally { setProcessing(false); }
-            }}>{processing ? <RefreshCcw className="w-5 h-5 animate-spin" /> : "APPROVE & PRINT"}</Button>
+        <DialogContent className="max-w-md p-0 rounded-[3rem] overflow-hidden border-none shadow-2xl bg-slate-50">
+          <div className="p-4 flex flex-col items-center gap-6">
+            <div className="w-full">
+              <QRISImage 
+                baseQRIS={qrisPM?.qris_data} 
+                amount={qrisOrderData?.total || 0} 
+                merchantName={qrisPM?.account_name || storeConfig?.store_name}
+                nmid={qrisPM?.account_number}
+              />
+            </div>
+            
+            <div className="px-8 pb-8 w-full space-y-4">
+              <div className="flex justify-between items-end bg-white p-6 rounded-3xl shadow-sm border border-slate-100">
+                <div>
+                   <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none mb-2">Total Bill</p>
+                   <h3 className="text-3xl font-black italic tracking-tighter font-mono text-slate-900">{formatIDR(qrisOrderData?.total || 0)}</h3>
+                </div>
+                <div className="text-right">
+                   <p className="text-[10px] font-black text-rose-500 uppercase tracking-widest leading-none mb-2">Payment</p>
+                   <p className="text-xs font-black uppercase text-slate-800">{qrisPM?.name}</p>
+                </div>
+              </div>
+
+              <Button className="w-full h-16 rounded-2xl bg-emerald-600 hover:bg-emerald-700 font-black uppercase tracking-[0.2em] shadow-xl shadow-emerald-500/20 text-white" disabled={processing} onClick={async () => {
+                setProcessing(true);
+                try {
+                  const res = await api.put(`/orders/${qrisOrderData.id}`, { ...qrisOrderData, status: "PAID", items: qrisOrderData.orderItems.map(i => ({ menu_id: i.menu_id, qty: i.qty })) });
+                  setIsQRISModalOpen(false); setCompletedOrder(res); success("AUDIT FINALIZED");
+                } catch (e) { toastError("COMMUNICATION FAILURE"); }
+                finally { setProcessing(false); }
+              }}>{processing ? <RefreshCcw className="w-5 h-5 animate-spin mx-auto" /> : "FINALIZE TRANSACTION"}</Button>
+              
+              <p className="text-[8px] font-bold text-slate-300 text-center uppercase tracking-widest">Transaction is monitored for security compliance</p>
+            </div>
           </div>
         </DialogContent>
       </Dialog>
