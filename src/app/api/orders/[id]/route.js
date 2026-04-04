@@ -7,7 +7,7 @@ import jwt from 'jsonwebtoken';
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
-const JWT_SECRET = process.env.JWT_SECRET;
+const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret';
 // Note: JWT_SECRET validation is already handled by auth.js module initialization
 
 function getUserIdFromAuth(req) {
