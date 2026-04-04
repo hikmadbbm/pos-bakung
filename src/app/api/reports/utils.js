@@ -2,14 +2,23 @@ export function parseDateRange(searchParams) {
   const from = searchParams.get('from');
   const to = searchParams.get('to');
 
-  const fromDate = from ? new Date(from) : null;
-  const toDate = to ? new Date(to) : null;
+  let start, end;
+  
+  if (from) {
+    start = new Date(from);
+    start.setHours(0, 0, 0, 0);
+  } else {
+    start = new Date();
+    start.setHours(0, 0, 0, 0);
+  }
 
-  const start = fromDate && !Number.isNaN(fromDate.getTime()) ? fromDate : new Date();
-  start.setUTCHours(0, 0, 0, 0);
-
-  const end = toDate && !Number.isNaN(toDate.getTime()) ? toDate : new Date();
-  end.setUTCHours(23, 59, 59, 999);
+  if (to) {
+    end = new Date(to);
+    end.setHours(23, 59, 59, 999);
+  } else {
+    end = new Date();
+    end.setHours(23, 59, 59, 999);
+  }
 
   return { start, end };
 }

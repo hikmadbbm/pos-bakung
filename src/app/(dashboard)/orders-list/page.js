@@ -135,44 +135,44 @@ export default function OrderHistoryPage() {
   };
 
   return (
-    <div className="space-y-12 animate-in fade-in duration-700 max-w-[1700px] mx-auto pb-12 px-4">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+    <div className="space-y-6 md:space-y-12 animate-in fade-in duration-700 max-w-[1700px] mx-auto pb-12 px-4">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 md:gap-6">
         <div>
-          <h2 className="text-4xl font-black tracking-tighter text-slate-900 uppercase italic">Order History</h2>
-          <div className="flex items-center gap-2.5 mt-2">
-            <span className="flex h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
-            <p className="text-[10px] text-slate-400 font-black uppercase tracking-[0.2em]">Transaction History</p>
+          <h2 className="text-2xl md:text-4xl font-black tracking-tighter text-slate-900 uppercase italic">Order History</h2>
+          <div className="flex items-center gap-2.5 mt-1 md:mt-2">
+            <span className="flex h-1.5 w-1.5 md:h-2 md:w-2 rounded-full bg-emerald-500 animate-pulse" />
+            <p className="text-[9px] md:text-[10px] text-slate-400 font-black uppercase tracking-[0.2em]">Transaction History</p>
           </div>
         </div>
         <div className="relative w-full md:w-96 group">
           <Search className="absolute left-6 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-emerald-500 transition-colors" />
           <input 
-            placeholder="Search Reference, Store, or Staff..." 
-            className="w-full bg-white/80 border-slate-100 rounded-3xl h-16 pl-14 pr-8 outline-none focus:ring-8 focus:ring-emerald-500/5 focus:border-emerald-500 transition-all font-black text-[10px] uppercase tracking-widest text-slate-900 placeholder:text-slate-400 shadow-xl"
+            placeholder="Search Reference..." 
+            className="w-full bg-white/80 border-slate-100 rounded-2xl md:rounded-3xl h-12 md:h-16 pl-14 pr-8 outline-none focus:ring-8 focus:ring-emerald-500/5 focus:border-emerald-500 transition-all font-black text-[10px] uppercase tracking-widest text-slate-900 placeholder:text-slate-400 shadow-xl"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-10">
+      <div className="grid grid-cols-3 md:grid-cols-3 gap-3 md:gap-10">
         {[
           { label: "Orders", value: pagination.total, icon: ShoppingBag, color: "text-slate-900", sub: "TOTAL TRANSACTIONS" },
           { label: "Total Sales", value: formatIDR(stats.total_gross), icon: DollarSign, color: "text-emerald-600", sub: "REVENUE" },
           { label: "Earnings", value: formatIDR(stats.total_net), icon: TrendingUp, color: "text-violet-600", sub: "NET PROFIT" },
         ].map((stat, i) => (
-          <div key={i} className="glass-card p-10 rounded-[3rem] border-none shadow-[0_40px_80px_-20px_rgba(0,0,0,0.08)] bg-white/50 backdrop-blur-xl group hover:scale-[1.02] transition-all duration-700">
-             <div className="flex items-center justify-between mb-8">
-                <div className="w-16 h-16 rounded-[1.75rem] bg-slate-900 flex items-center justify-center shadow-2xl group-hover:rotate-6 transition-transform">
-                   <stat.icon className="w-8 h-8 text-white" />
+          <div key={i} className="glass-card p-4 md:p-10 rounded-2xl md:rounded-[3rem] border-none shadow-xl md:shadow-[0_40px_80px_-20px_rgba(0,0,0,0.08)] bg-white/50 backdrop-blur-xl group hover:scale-[1.02] transition-all duration-700">
+             <div className="flex items-center justify-between mb-4 md:mb-8">
+                <div className="w-8 h-8 md:w-16 md:h-16 rounded-lg md:rounded-[1.75rem] bg-slate-900 flex items-center justify-center shadow-lg md:shadow-2xl group-hover:rotate-6 transition-transform">
+                   <stat.icon className="w-4 h-4 md:w-8 md:h-8 text-white" />
                 </div>
-                <div className="h-1.5 w-12 rounded-full bg-slate-100" />
+                <div className="h-1 w-6 md:h-1.5 md:w-12 rounded-full bg-slate-100" />
              </div>
-             <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em] mb-2">{stat.label}</p>
-             <h4 className={cn("text-3xl font-black uppercase tracking-tighter tabular-nums", stat.color)}>
-               {loading ? "---" : stat.value?.toLocaleString()}
+             <p className="text-[8px] md:text-[10px] font-black text-slate-400 uppercase tracking-widest md:tracking-[0.3em] mb-1 md:mb-2 truncate">{stat.label}</p>
+             <h4 className={cn("text-xs md:text-3xl font-black uppercase tracking-tight md:tracking-tighter tabular-nums truncate", stat.color)}>
+               {loading ? "---" : (typeof stat.value === 'number' ? stat.value.toLocaleString() : stat.value)}
              </h4>
-             <p className="text-[9px] font-black text-slate-300 uppercase mt-4 tracking-widest">{stat.sub}</p>
+             <p className="hidden md:block text-[9px] font-black text-slate-300 uppercase mt-4 tracking-widest">{stat.sub}</p>
           </div>
         ))}
       </div>

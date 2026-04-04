@@ -2,6 +2,34 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { verifyAuth } from '@/lib/auth';
 
+export async function GET(req, { params }) {
+  try {
+    const { response } = await verifyAuth(req, ['OWNER', 'MANAGER']);
+    if (response) return response;
+
+    const resolvedParams = await params;
+    const id = Number(resolvedParams.id);
+
+    const ingredient = await prisma.ingredient.findUnique({
+      where: { id },
+      include: {
+        price_history: {
+          orderBy: { date: 'asc' }
+        }
+      }
+    });
+
+    if (!ingredient) {
+      return NextResponse.json({ error: 'Not found' }, { status: 404 });
+    }
+
+    return NextResponse.json(ingredient);
+  } catch (error) {
+    console.error('Failed to fetch ingredient:', error);
+    return NextResponse.json({ error: 'Failed' }, { status: 500 });
+  }
+}
+
 // Helper to recalculate HPP for a single recipe
 async function refreshRecipeHpp(recipeId, tx) {
   const recipe = await tx.recipe.findUnique({

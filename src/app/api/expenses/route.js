@@ -7,13 +7,16 @@ export const runtime = 'nodejs';
 
 export async function GET(req) {
   try {
-    const { response } = await verifyAuth(req, ['OWNER', 'MANAGER']);
+    const { response } = await verifyAuth(req, ['OWNER', 'MANAGER', 'CASHIER']);
     if (response) return response;
     const searchParams = req.nextUrl.searchParams;
     const limit = parseInt(searchParams.get('limit') || '200');
     const expenses = await prisma.expense.findMany({
       orderBy: { date: 'desc' },
       take: Number.isFinite(limit) ? limit : 200,
+      include: {
+        user: { select: { name: true } }
+      }
     });
     return NextResponse.json(expenses);
   } catch (error) {
@@ -24,7 +27,7 @@ export async function GET(req) {
 
 export async function POST(req) {
   try {
-    const { response } = await verifyAuth(req, ['OWNER', 'MANAGER']);
+    const { user, response } = await verifyAuth(req, ['OWNER', 'MANAGER', 'CASHIER']);
     if (response) return response;
     const body = await req.json();
     const { item, category, amount, description } = body;
@@ -40,6 +43,12 @@ export async function POST(req) {
       return NextResponse.json({ error: 'amount must be a positive number' }, { status: 400 });
     }
 
+    // Try to find an active shift for this user OR any open shift
+    const activeShift = await prisma.userShift.findFirst({
+      where: { status: 'OPEN' },
+      orderBy: { id: 'desc' }
+    });
+
     const created = await prisma.expense.create({
       data: {
         item,
@@ -47,7 +56,12 @@ export async function POST(req) {
         amount: Math.round(amt),
         description: description || null,
         date: body.date ? new Date(body.date) : new Date(),
+        user_id: user.id,
+        shift_id: activeShift?.id || null
       },
+      include: {
+        user: { select: { name: true } }
+      }
     });
     return NextResponse.json(created, { status: 201 });
   } catch (error) {

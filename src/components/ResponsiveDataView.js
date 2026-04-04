@@ -35,8 +35,8 @@ export function ResponsiveDataView({
 
   if (data.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center p-20 text-slate-400 bg-white/50 rounded-[2rem] border-2 border-dashed border-slate-100">
-        <p className="font-black uppercase tracking-widest text-[10px]">{emptyMessage}</p>
+      <div className="flex flex-col items-center justify-center p-16 text-slate-400 bg-white rounded-2xl border border-dashed border-slate-200">
+        <p className="font-semibold text-sm">{emptyMessage}</p>
       </div>
     );
   }
@@ -50,7 +50,7 @@ export function ResponsiveDataView({
             key={item.id || idx} 
             onClick={() => onRowClick?.(item)}
             className={cn(
-              "glass-card p-6 rounded-[2rem] border-none shadow-xl bg-white/80 active:scale-[0.98] transition-all",
+              "p-5 rounded-2xl border border-slate-100 shadow-sm bg-white active:scale-[0.99] transition-all",
               onRowClick && "cursor-pointer"
             )}
           >
@@ -60,8 +60,8 @@ export function ResponsiveDataView({
               <div className="space-y-3">
                 {columns.map((col, cIdx) => (
                   <div key={cIdx} className="flex justify-between items-center gap-4">
-                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{col.header}</span>
-                    <span className={cn("text-xs font-bold text-slate-900", col.className)}>
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{col.header}</span>
+                    <span className={cn("text-sm font-semibold text-slate-800", col.className)}>
                       {typeof col.accessor === "function" ? col.accessor(item) : item[col.accessor]}
                     </span>
                   </div>
@@ -73,15 +73,15 @@ export function ResponsiveDataView({
       </div>
 
       {/* Desktop/Tablet Table View (hidden on mobile) */}
-      <div className="hidden lg:block glass-card rounded-[2.5rem] border-none shadow-2xl bg-white/60 overflow-x-auto custom-scrollbar relative">
-        <Table className="min-w-[1100px]">
-          <TableHeader className="bg-slate-50/50 [&>tr>th:first-child]:rounded-tl-[2.5rem] [&>tr>th:last-child]:rounded-tr-[2.5rem]">
+      <div className="hidden lg:block bg-white rounded-2xl border border-slate-100 shadow-sm overflow-x-auto custom-scrollbar relative">
+        <Table className="min-w-[1000px]">
+          <TableHeader className="bg-slate-50/50">
             <TableRow className="hover:bg-transparent border-slate-100">
               {columns.map((col, idx) => (
                 <TableHead 
                   key={idx} 
                   className={cn(
-                    "text-[10px] font-black uppercase tracking-widest py-6 px-10 text-slate-400",
+                    "text-[10px] font-bold uppercase tracking-wider py-4 px-8 text-slate-500",
                     col.align === "right" && "text-right",
                     col.align === "center" && "text-center",
                     col.className
@@ -92,7 +92,7 @@ export function ResponsiveDataView({
               ))}
             </TableRow>
           </TableHeader>
-          <TableBody className="[&_tr:last-child_td:first-child]:rounded-bl-[2.5rem] [&_tr:last-child_td:last-child]:rounded-br-[2.5rem]">
+          <TableBody>
             {data.map((item, idx) => (
               <TableRow 
                 key={item.id || idx}
@@ -106,7 +106,7 @@ export function ResponsiveDataView({
                   <TableCell 
                     key={cIdx} 
                     className={cn(
-                      "py-6 px-10 text-sm font-medium text-slate-600 transition-colors group-hover:text-slate-900",
+                      "py-4 px-8 text-sm font-medium text-slate-600 transition-colors group-hover:text-slate-900",
                       col.align === "right" && "text-right",
                       col.align === "center" && "text-center",
                       col.className

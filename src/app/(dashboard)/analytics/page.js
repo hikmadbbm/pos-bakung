@@ -73,23 +73,23 @@ export default function AnalyticsPage() {
   );
 
   return (
-    <div className="space-y-10 animate-fade-in pb-20">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 print:hidden">
+    <div className="space-y-8 animate-fade-in pb-20">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 print:hidden">
         <div>
-          <h2 className="text-2xl font-black tracking-tight text-slate-900 uppercase">AI Analytics</h2>
-          <p className="text-sm font-medium text-slate-500 mt-1 flex items-center gap-2">
+          <h2 className="text-2xl font-bold text-slate-800 tracking-tight">AI Insights</h2>
+          <p className="text-xs text-slate-500 font-medium mt-1 flex items-center gap-2">
             Data-driven intelligence and predictive insights
-            <span className="inline-block w-1 h-1 bg-emerald-600 rounded-full" />
+            <span className="inline-block w-1 h-1 bg-emerald-500 rounded-full" />
           </p>
         </div>
         
-        <div className="flex flex-wrap items-center gap-6">
+        <div className="flex flex-wrap items-center gap-3">
           {activeTab === "intelligence" && (
-            <div className="flex items-center gap-3 bg-white/50 backdrop-blur-md p-1.5 rounded-2xl border border-slate-200/50 shadow-sm">
+            <div className="flex items-center gap-2 bg-white p-1 rounded-xl border border-slate-100 shadow-sm">
               <select 
                 value={range} 
                 onChange={(e) => setRange(e.target.value)}
-                className="text-[10px] font-black uppercase tracking-widest border-none rounded-xl px-4 py-2 bg-slate-900 text-white shadow-lg focus:ring-0 cursor-pointer"
+                className="text-[10px] font-bold uppercase tracking-wider border-none rounded-lg px-3 py-1.5 bg-slate-50 text-slate-700 focus:ring-0 cursor-pointer"
               >
                 <option value="today">Today</option>
                 <option value="last7">Last 7 Days</option>
@@ -99,43 +99,43 @@ export default function AnalyticsPage() {
               </select>
 
               {range === "custom" && (
-                <div className="flex items-center gap-3 px-4 animate-in slide-in-from-right-4 duration-300">
+                <div className="flex items-center gap-2 px-2 border-l border-slate-100 ml-1">
                   <input 
                     type="date" 
                     value={from} 
                     onChange={(e) => setFrom(e.target.value)}
-                    className="text-xs font-bold border-none bg-transparent p-0 focus:ring-0"
+                    className="text-[10px] font-bold border-none bg-transparent p-0 focus:ring-0"
                   />
-                  <div className="w-1 h-1 bg-slate-300 rounded-full" />
+                  <span className="text-slate-300 text-[10px]">-</span>
                   <input 
                     type="date" 
                     value={to} 
                     onChange={(e) => setTo(e.target.value)}
-                    className="text-xs font-bold border-none bg-transparent p-0 focus:ring-0"
+                    className="text-[10px] font-bold border-none bg-transparent p-0 focus:ring-0"
                   />
                 </div>
               )}
             </div>
           )}
 
-          <div className="flex bg-slate-100/50 backdrop-blur-sm rounded-[1.25rem] p-1.5 border border-slate-200/50 shadow-inner">
+          <div className="flex bg-slate-100 rounded-xl p-1 border border-slate-200/50 shadow-inner">
             <button
               onClick={() => setActiveTab("intelligence")}
               className={cn(
-                "px-6 py-2.5 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all flex items-center gap-2",
-                activeTab === "intelligence" ? "bg-white text-slate-900 shadow-xl shadow-slate-200/50" : "text-slate-400 hover:text-slate-600"
+                "px-5 py-2 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all flex items-center gap-2",
+                activeTab === "intelligence" ? "bg-white text-emerald-700 shadow-md translate-y-[-1px]" : "text-slate-500 hover:text-slate-700 hover:bg-white/50"
               )}
             >
-              <PieChartIcon className="w-3.5 h-3.5" /> Intelligence
+              Intelligence
             </button>
             <button
               onClick={() => setActiveTab("forecast")}
               className={cn(
-                "px-6 py-2.5 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all flex items-center gap-2",
-                activeTab === "forecast" ? "bg-white text-slate-900 shadow-xl shadow-slate-200/50" : "text-slate-400 hover:text-slate-600"
+                "px-5 py-2 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all flex items-center gap-2",
+                activeTab === "forecast" ? "bg-white text-emerald-700 shadow-md translate-y-[-1px]" : "text-slate-500 hover:text-slate-700 hover:bg-white/50"
               )}
             >
-              <TrendingUp className="w-3.5 h-3.5" /> Forecast
+              Forecast
             </button>
           </div>
         </div>
@@ -155,11 +155,11 @@ function MenuIntelligence({ data }) {
 
   const getStatusColor = (status) => {
     switch (status) {
-      case "STAR MENU": return "bg-emerald-100 text-emerald-800 border-emerald-200";
-      case "PROFITABLE MENU": return "bg-emerald-100 text-emerald-800 border-emerald-200";
-      case "LOW MARGIN MENU": return "bg-orange-100 text-orange-800 border-orange-200";
-      case "UNDERPERFORMING MENU": return "bg-rose-100 text-rose-800 border-rose-200";
-      default: return "bg-slate-100 text-slate-800 border-slate-200";
+      case "STAR MENU": return "bg-emerald-50 text-emerald-700 border-emerald-100 shadow-sm shadow-emerald-100/50";
+      case "PROFITABLE MENU": return "bg-indigo-50 text-indigo-700 border-indigo-100";
+      case "LOW MARGIN MENU": return "bg-amber-50 text-amber-700 border-amber-100";
+      case "UNDERPERFORMING MENU": return "bg-rose-50 text-rose-700 border-rose-100";
+      default: return "bg-slate-50 text-slate-700 border-slate-100";
     }
   };
 
@@ -167,78 +167,88 @@ function MenuIntelligence({ data }) {
     name: m.name,
     profit: m.net_profit,
     qty: m.total_qty
-  })).sort((a, b) => b.profit - a.profit);
+  })).sort((a, b) => b.profit - a.profit).slice(0, 8);
 
   return (
-    <div className="space-y-10 animate-fade-in">
-      {/* Top Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-        <div className="glass-card rounded-[2.5rem] p-8 shadow-2xl border-none relative overflow-hidden group">
-          <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-600/5 rounded-full -translate-y-1/2 translate-x-1/2 group-hover:scale-110 transition-transform duration-700" />
-          <div className="flex items-center justify-between mb-4">
-             <div className="w-12 h-12 rounded-2xl bg-emerald-50 flex items-center justify-center">
-                <TrendingUp className="w-6 h-6 text-emerald-600" />
+    <div className="space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-700">
+      {/* Top Cards - Polished */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        {[
+          { 
+            label: "Top Performer", 
+            value: data.insights.topProfitable[0]?.name || "N/A", 
+            icon: TrendingUp, 
+            color: "text-emerald-600",
+            bg: "bg-emerald-50/50",
+            sub: `NET PROFIT: ${formatIDR(data.insights.topProfitable[0]?.net_profit || 0)}`
+          },
+          { 
+            label: "Performance Index", 
+            value: `${data.thresholds.avgQty.toFixed(1)} UNITS`, 
+            icon: PieChartIcon, 
+            color: "text-slate-900",
+            bg: "bg-slate-50/50",
+            sub: "AVG SALES PER ITEM"
+          },
+          { 
+            label: "Risk Alerts", 
+            value: `${data.insights.lowMargin.length + data.insights.lowSelling.length} ITEMS`, 
+            icon: AlertTriangle, 
+            color: "text-rose-600",
+            bg: "bg-rose-50/50",
+            sub: "REVIEW RECOMMENDED"
+          },
+        ].map((stat, i) => (
+          <div key={i} className="glass-card p-6 rounded-[2rem] border-none shadow-[0_20px_40px_-10px_rgba(0,0,0,0.05)] bg-white/70 backdrop-blur-3xl group hover:-translate-y-1 transition-all duration-300">
+             <div className="flex items-center justify-between mb-6">
+                <div className={cn("w-12 h-12 rounded-xl flex items-center justify-center shadow-md group-hover:rotate-6 transition-transform overflow-hidden relative", i === 0 ? "bg-slate-900 shadow-slate-200" : "bg-white border border-slate-100 shadow-slate-100")}>
+                   <stat.icon className={cn("w-5 h-5", i === 0 ? "text-white" : stat.color)} />
+                </div>
              </div>
-             <span className="text-[10px] font-black text-emerald-600/60 uppercase tracking-widest">Highest Profit</span>
+             <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">{stat.label}</p>
+             <h4 className={cn("text-xl font-black uppercase tracking-tight truncate", stat.color)}>
+               {stat.value}
+             </h4>
+             <p className="text-[8px] font-bold text-slate-400 uppercase mt-2 tracking-widest">{stat.sub}</p>
           </div>
-          <div className="text-2xl font-black text-slate-900 tracking-tight uppercase truncate">{data.insights.topProfitable[0]?.name}</div>
-          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-2">
-            Net Monthly: <span className="text-emerald-600 font-black">{formatIDR(data.insights.topProfitable[0]?.net_profit)}</span>
-          </p>
-        </div>
-
-        <div className="glass-card rounded-[2.5rem] p-8 shadow-2xl border-none relative overflow-hidden group">
-          <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-600/5 rounded-full -translate-y-1/2 translate-x-1/2 group-hover:scale-110 transition-transform duration-700" />
-          <div className="flex items-center justify-between mb-4">
-             <div className="w-12 h-12 rounded-2xl bg-emerald-50 flex items-center justify-center">
-                <PieChartIcon className="w-6 h-6 text-emerald-600" />
-             </div>
-             <span className="text-[10px] font-black text-emerald-600/60 uppercase tracking-widest">Benchmarking</span>
-          </div>
-          <div className="text-2xl font-black text-slate-900 tracking-tight uppercase">{data.thresholds.avgQty.toFixed(1)} Portions</div>
-          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-2">Average Sales Per Item</p>
-        </div>
-
-        <div className="glass-card rounded-[2.5rem] p-8 shadow-2xl border-none relative overflow-hidden group">
-          <div className="absolute top-0 right-0 w-32 h-32 bg-rose-600/5 rounded-full -translate-y-1/2 translate-x-1/2 group-hover:scale-110 transition-transform duration-700" />
-          <div className="flex items-center justify-between mb-4">
-             <div className="w-12 h-12 rounded-2xl bg-rose-50 flex items-center justify-center">
-                <AlertTriangle className="w-6 h-6 text-rose-600" />
-             </div>
-             <span className="text-[10px] font-black text-rose-600/60 uppercase tracking-widest">Risk Alerts</span>
-          </div>
-          <div className="text-2xl font-black text-slate-900 tracking-tight uppercase">{data.insights.lowMargin.length + data.insights.lowSelling.length} items</div>
-          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-2">Operational Review Required</p>
-        </div>
+        ))}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+      <div className="grid grid-cols-1 lg:grid-cols-5 gap-8">
         {/* Profitability Chart */}
-        <div className="glass-card rounded-[2.5rem] p-8 shadow-2xl border-none">
-          <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-8 flex items-center gap-2">
-             <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full" />
-             Profitability Sensitivity Analysis
-          </h3>
-          <div className="h-[350px]">
+        <div className="lg:col-span-3 glass-card p-6 rounded-[2rem] border-none shadow-xl bg-white/50 backdrop-blur-xl group">
+          <div className="flex items-center justify-between mb-8">
+             <h3 className="text-[10px] font-black text-slate-900 uppercase tracking-widest flex items-center gap-3">
+                <div className="w-8 h-px bg-slate-200" />
+                Contribution Matrix
+             </h3>
+             <div className="px-3 py-1 rounded-full bg-emerald-50 border border-emerald-100 text-[8px] font-black text-emerald-600 uppercase tracking-widest">
+                Active Intelligence
+             </div>
+          </div>
+          <div className="h-[300px]">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={chartData}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} strokeOpacity={0.1} />
+                <CartesianGrid strokeDasharray="3 3" vertical={false} strokeOpacity={0.03} />
                 <XAxis dataKey="name" hide />
-                <YAxis tickFormatter={(val) => `Rp${val / 1000}k`} axisLine={false} tickLine={false} className="text-[10px] font-black text-slate-400" />
+                <YAxis tickFormatter={(val) => `Rp${val / 1000}k`} axisLine={false} tickLine={false} className="text-[9px] font-black text-slate-400 uppercase" />
                 <Tooltip 
+                  cursor={{ fill: 'rgba(5, 150, 105, 0.05)' }}
                   contentStyle={{ 
-                    backgroundColor: 'rgba(255, 255, 255, 0.9)', 
-                    backdropFilter: 'blur(8px)',
-                    border: 'none',
+                    backgroundColor: 'rgba(255,255,255,0.95)', 
+                    backdropFilter: 'blur(10px)',
+                    border: '1px solid #f1f5f9',
                     borderRadius: '16px',
-                    boxShadow: '0 10px 30px rgba(0,0,0,0.1)'
+                    boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1)',
+                    padding: '12px'
                   }}
-                  itemStyle={{ fontWeight: '900', color: '#0f172a', fontSize: '12px' }}
+                  itemStyle={{ fontWeight: '900', color: '#0f172a', fontSize: '11px', textTransform: 'uppercase' }}
+                  labelStyle={{ fontWeight: '900', color: '#64748b', fontSize: '9px', marginBottom: '4px', letterSpacing: '0.1em' }}
                   formatter={(val) => formatIDR(val)}
                 />
-                <Bar dataKey="profit" name="Net Profit" radius={[10, 10, 0, 0]}>
+                <Bar dataKey="profit" name="Net Profit" radius={[8, 8, 8, 8]}>
                   {chartData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.profit > data.thresholds.avgProfit ? '#0f172a' : '#cbd5e1'} />
+                    <Cell key={`cell-${index}`} fill={entry.profit > data.thresholds.avgProfit ? '#059669' : '#0f172a'} />
                   ))}
                 </Bar>
               </BarChart>
@@ -246,110 +256,134 @@ function MenuIntelligence({ data }) {
           </div>
         </div>
 
-        {/* AI Insights Panel */}
-        <div className="glass-card rounded-[2.5rem] p-10 shadow-2xl border-none bg-slate-900 text-white relative overflow-hidden">
-          <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-600/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
-          <h3 className="text-[10px] font-black text-emerald-400 uppercase tracking-[0.3em] mb-8 flex items-center gap-3">
-             <Lightbulb className="w-4 h-4" /> Smart Recommendations
-          </h3>
-          
-          <div className="space-y-10 relative z-10">
-            <div className="space-y-4">
-              <h4 className="text-xs font-black uppercase tracking-widest text-slate-500">Star Performers</h4>
-              <div className="grid grid-cols-1 gap-3">
-                {data.insights.topProfitable.map(m => (
-                  <div key={m.id} className="flex justify-between items-center bg-white/5 backdrop-blur-md p-4 rounded-2xl border border-white/10 group hover:bg-white/10 transition-all cursor-default">
-                    <span className="text-sm font-black uppercase tracking-tight">{m.name}</span>
-                    <span className="text-xs font-black text-emerald-400">{formatIDR(m.net_profit)}</span>
-                  </div>
-                ))}
+        {/* AI Recommendations */}
+        <div className="lg:col-span-2 glass-card p-8 rounded-[2rem] border-none shadow-2xl bg-slate-900 text-white relative overflow-hidden flex flex-col justify-between">
+           <div className="absolute top-0 right-0 w-[20rem] h-[20rem] bg-emerald-500/10 rounded-full blur-[80px] -translate-y-1/2 translate-x-1/2" />
+           <div className="relative z-10">
+              <h3 className="text-[10px] font-black text-emerald-400 uppercase tracking-widest mb-8 flex items-center gap-3">
+                 <div className="w-8 h-8 rounded-lg bg-emerald-500/20 flex items-center justify-center">
+                    <Sparkles className="w-4 h-4 text-emerald-400" />
+                 </div>
+                 AI Observation Engine
+              </h3>
+              
+              <div className="space-y-8">
+                <div className="space-y-3">
+                   <p className="text-[8px] font-black text-white/30 uppercase tracking-widest">Growth Leaders</p>
+                   {data.insights.topProfitable.slice(0, 2).map((m, idx) => (
+                     <div key={idx} className="bg-white/5 border border-white/5 p-4 rounded-xl hover:bg-white/10 transition-all group">
+                        <div className="flex justify-between items-center mb-1">
+                           <span className="text-[11px] font-black uppercase tracking-tight group-hover:text-emerald-400 transition-colors">{m.name}</span>
+                           <TrendingUp className="w-3 h-3 text-emerald-500" />
+                        </div>
+                        <p className="text-[8px] font-medium text-white/40 uppercase tracking-widest">{formatIDR(m.net_profit)} Profit Contribution</p>
+                     </div>
+                   ))}
+                </div>
+
+                <div className="space-y-4">
+                   {data.insights.lowMargin.length > 0 && (
+                     <div className="space-y-2">
+                        <div className="flex items-center gap-2 text-amber-400">
+                           <AlertTriangle className="w-3.5 h-3.5" />
+                           <h4 className="text-[9px] font-black uppercase tracking-widest">HPP Efficiency Alert</h4>
+                        </div>
+                        <p className="text-[9px] text-white/30 font-medium leading-relaxed italic">High volume but margin friction detected:</p>
+                        <div className="flex flex-wrap gap-1.5">
+                           {data.insights.lowMargin.map(m => (
+                             <span key={m.id} className="px-2 py-1 bg-amber-500/10 text-amber-500 rounded text-[8px] font-black uppercase border border-amber-500/10">
+                                {m.name}
+                             </span>
+                           ))}
+                        </div>
+                     </div>
+                   )}
+                </div>
               </div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-               {data.insights.lowMargin.length > 0 && (
-                 <div className="space-y-3">
-                    <h4 className="text-[10px] font-black uppercase tracking-widest text-amber-400 flex items-center gap-2">
-                       <div className="w-1.5 h-1.5 bg-amber-400 rounded-full" />
-                       Margin Optimization
-                    </h4>
-                    <p className="text-[10px] text-slate-400 font-bold leading-relaxed uppercase tracking-widest">High volume but compressed margins. Review COGS immediately.</p>
-                    <div className="flex flex-wrap gap-2">
-                      {data.insights.lowMargin.map(m => (
-                        <span key={m.id} className="px-3 py-1 bg-amber-400/10 text-amber-400 rounded-lg text-[9px] font-black uppercase tracking-widest border border-amber-400/20">
-                          {m.name}
-                        </span>
-                      ))}
-                    </div>
-                 </div>
-               )}
-
-               {data.insights.lowSelling.length > 0 && (
-                 <div className="space-y-3">
-                    <h4 className="text-[10px] font-black uppercase tracking-widest text-rose-400 flex items-center gap-2">
-                       <div className="w-1.5 h-1.5 bg-rose-400 rounded-full" />
-                       Efficiency Risk
-                    </h4>
-                    <p className="text-[10px] text-slate-400 font-bold leading-relaxed uppercase tracking-widest">Dead inventory candidates. Consider menu consolidation.</p>
-                    <div className="flex flex-wrap gap-2">
-                      {data.insights.lowSelling.map(m => (
-                        <span key={m.id} className="px-3 py-1 bg-rose-400/10 text-rose-400 rounded-lg text-[9px] font-black uppercase tracking-widest border border-rose-400/20">
-                          {m.name}
-                        </span>
-                      ))}
-                    </div>
-                 </div>
-               )}
-            </div>
-          </div>
+           </div>
+           
+           <div className="relative z-10 mt-8 pt-6 border-t border-white/5 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                 <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                 <p className="text-[8px] font-black text-emerald-400 uppercase tracking-widest">Active Intelligence</p>
+              </div>
+              <p className="text-[8px] font-bold text-white/20 uppercase tracking-tighter">V.1.0-NEURAL</p>
+           </div>
         </div>
       </div>
 
-      {/* Main Table */}
-      <div className="glass-card rounded-[2.5rem] overflow-hidden shadow-2xl border-none p-0">
-        <div className="p-10 border-b border-slate-100 bg-white shadow-sm flex items-center justify-between">
-            <h3 className="text-xl font-black text-slate-900 uppercase tracking-tight flex items-center gap-5">
-               <div className="w-14 h-14 rounded-2xl bg-slate-900 flex items-center justify-center shadow-xl shadow-slate-200">
-                 <ClipboardList className="w-7 h-7 text-white" />
-               </div>
-               Intelligence Deep-Dive
+      {/* Main Analysis Table */}
+      <div className="glass-card rounded-[2rem] border-none shadow-[0_40px_80px_-20px_rgba(0,0,0,0.08)] bg-white/70 backdrop-blur-3xl overflow-hidden p-0 px-2 mt-4">
+        <div className="px-8 py-6 border-b border-slate-100 flex items-center justify-between bg-white/50">
+            <h3 className="text-xs font-black text-slate-900 uppercase tracking-widest flex items-center gap-3">
+                 <ClipboardList className="w-4 h-4 text-emerald-600" />
+                 Intelligence Deep-Dive
             </h3>
+            <div className="flex items-center gap-2">
+               <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+               <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Neural Matrix Calculation</span>
+            </div>
         </div>
-        <div className="overflow-x-auto custom-scrollbar">
+        <div className="overflow-x-auto">
           <Table>
             <TableHeader className="bg-slate-50/50">
-            <TableRow>
-              <TableHead className="text-[10px] font-black uppercase text-slate-500 py-8 px-10">Menu Item</TableHead>
-              <TableHead className="text-[10px] font-black uppercase text-slate-500 py-8 text-right">Qty</TableHead>
-              <TableHead className="text-[10px] font-black uppercase text-slate-500 py-8 text-right">Net Profit</TableHead>
-              <TableHead className="text-right text-rose-400 text-[10px] font-black uppercase py-8">Overhead</TableHead>
-              <TableHead className="text-right font-black text-slate-900 text-[10px] uppercase py-8">True Profit</TableHead>
-              <TableHead className="text-center text-[10px] font-black uppercase py-8 px-10">Classification</TableHead>
+            <TableRow className="border-none">
+              <TableHead className="text-[9px] font-black uppercase text-slate-400 py-4 px-8 tracking-widest">Menu Item</TableHead>
+              <TableHead className="text-[9px] font-black uppercase text-slate-400 py-4 text-right tracking-widest">Units Sold</TableHead>
+              <TableHead className="text-[9px] font-black uppercase text-slate-900/40 py-4 text-right tracking-widest">Revenue</TableHead>
+              <TableHead className="text-[9px] font-black uppercase text-rose-600 bg-rose-50/50 py-4 text-right tracking-widest">Production Cost (HPP)</TableHead>
+              <TableHead className="text-[9px] font-black uppercase text-emerald-700 py-4 text-right tracking-widest">Net Profit</TableHead>
+              <TableHead className="text-[9px] font-black uppercase text-emerald-700/60 py-4 text-right tracking-widest">Margin %</TableHead>
+              <TableHead className="text-[9px] font-black uppercase text-slate-400 py-4 text-center px-8 tracking-widest">Efficiency Status</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {data.data.map((m) => (
-              <TableRow key={m.id} className="hover:bg-slate-50/50 border-slate-100 transition-colors group">
-                <TableCell className="px-10 py-8">
-                   <p className="font-black text-slate-900 uppercase tracking-tight leading-none text-base group-hover:text-emerald-600 transition-colors">{m.name}</p>
-                   <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mt-2">{m.category}</p>
+            {data.data.map((m) => {
+              const marginPercent = m.total_revenue > 0 ? ((m.net_profit / m.total_revenue) * 100).toFixed(1) : "0";
+              return (
+              <TableRow key={m.id} className="hover:bg-white/80 border-slate-50/50 transition-all duration-300 group">
+                <TableCell className="px-8 py-5">
+                   <p className="font-black text-slate-900 uppercase text-[11px] group-hover:text-emerald-700 transition-colors tracking-tight">{m.name}</p>
+                   <div className="flex items-center gap-2 mt-0.5">
+                      <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest">{m.category}</p>
+                   </div>
                 </TableCell>
-                <TableCell className="text-right font-black text-slate-400">{m.total_qty}</TableCell>
-                <TableCell className="text-right font-black text-emerald-600">{formatIDR(m.net_profit)}</TableCell>
-                <TableCell className="text-right text-rose-400 text-sm font-black italic">{formatIDR(m.allocatedOverhead)}</TableCell>
-                <TableCell className="text-right font-black text-slate-900 text-lg">{formatIDR(m.profitAfterOverhead)}</TableCell>
-                <TableCell className="text-center px-10">
+                <TableCell className="text-right tabular-nums">
+                   <span className="px-2 py-1 bg-slate-100 rounded-md font-black text-slate-900 text-[10px]">
+                     {m.total_qty}
+                   </span>
+                </TableCell>
+                <TableCell className="text-right font-bold text-slate-400 text-[10px] tabular-nums">{formatIDR(m.total_revenue || 0)}</TableCell>
+                <TableCell className="text-right text-rose-700 text-[10px] font-black tabular-nums bg-rose-50/20">{formatIDR(m.hpp || 0)}</TableCell>
+                <TableCell className="text-right font-black text-emerald-700 text-[11px] tabular-nums drop-shadow-sm">{formatIDR(m.net_profit)}</TableCell>
+                <TableCell className="text-right font-black text-emerald-700/50 text-[10px] tabular-nums">{marginPercent}%</TableCell>
+                <TableCell className="text-center px-8">
                   <span className={cn(
-                    "px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest border shadow-sm",
+                    "px-3 py-1 rounded-lg text-[7.5px] font-black uppercase tracking-widest border transition-all",
                     getStatusColor(m.status)
                   )}>
                     {m.status}
                   </span>
                 </TableCell>
               </TableRow>
-            ))}
+            )})}
           </TableBody>
         </Table>
+        </div>
+        <div className="p-8 bg-slate-50/50 flex items-center justify-between">
+           <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+             Total analyzed items: {data.data.length}
+           </p>
+           <div className="flex gap-4">
+              <div className="flex items-center gap-2">
+                 <div className="w-3 h-3 bg-[#0f172a] rounded-sm" />
+                 <span className="text-[9px] font-black text-slate-400 uppercase">Above Average</span>
+              </div>
+              <div className="flex items-center gap-2">
+                 <div className="w-3 h-3 bg-[#94a3b8] rounded-sm opacity-40" />
+                 <span className="text-[9px] font-black text-slate-400 uppercase">Below Average</span>
+              </div>
+           </div>
         </div>
       </div>
     </div>
@@ -366,98 +400,84 @@ function DemandForecast({ data }) {
   })).sort((a, b) => b.tomorrow - a.tomorrow).slice(0, 10);
 
   return (
-    <div className="space-y-10 animate-fade-in">
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        <div className="lg:col-span-2 glass-card rounded-[2.5rem] p-10 shadow-2xl border-none">
-          <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em] mb-10 flex items-center gap-4">
+    <div className="space-y-8 animate-fade-in">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="lg:col-span-2 bg-white rounded-2xl p-8 border border-slate-100 shadow-sm">
+          <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-8 flex items-center gap-4">
              <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse" />
-             Dynamic Demand Trajectory (Next 24 Hours)
+             Demand Trajectory (Next 24 Hours)
           </h3>
-          <div className="h-[450px]">
+          <div className="h-[400px]">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={chartData} layout="vertical">
-                <CartesianGrid strokeDasharray="3 3" horizontal={false} strokeOpacity={0.1} />
+                <CartesianGrid strokeDasharray="3 3" horizontal={false} strokeOpacity={0.05} />
                 <XAxis type="number" hide />
-                <YAxis dataKey="name" type="category" width={140} axisLine={false} tickLine={false} className="text-[10px] font-black text-slate-900 uppercase tracking-tight" />
+                <YAxis dataKey="name" type="category" width={100} axisLine={false} tickLine={false} className="text-[10px] font-bold text-slate-800 uppercase tracking-tight" />
                 <Tooltip 
                    contentStyle={{ 
-                    backgroundColor: 'rgba(255, 255, 255, 0.9)', 
-                    backdropFilter: 'blur(8px)',
-                    border: 'none',
-                    borderRadius: '24px',
-                    boxShadow: '0 20px 40px rgba(0,0,0,0.1)'
+                    backgroundColor: '#fff', 
+                    border: '1px solid #f1f5f9',
+                    borderRadius: '12px',
+                    boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)'
                   }}
-                  itemStyle={{ fontWeight: '900', color: '#0f172a', fontSize: '12px' }}
+                  itemStyle={{ fontWeight: '700', color: '#1e293b', fontSize: '11px' }}
                 />
-                <Bar dataKey="tomorrow" name="Predicted Demand" fill="#0f172a" radius={[0, 12, 12, 0]} barSize={20} />
-                <Bar dataKey="avg" name="7D Historical Avg" fill="#cbd5e1" radius={[0, 12, 12, 0]} barSize={12} />
+                <Bar dataKey="tomorrow" name="Predicted" fill="#0f172a" radius={[0, 4, 4, 0]} barSize={16} />
+                <Bar dataKey="avg" name="7D Avg" fill="#e2e8f0" radius={[0, 4, 4, 0]} barSize={10} />
               </BarChart>
             </ResponsiveContainer>
           </div>
         </div>
 
-        <div className="lg:col-span-1 glass-card rounded-[2.5rem] p-12 shadow-2xl border-none bg-emerald-900 text-white relative overflow-hidden">
-          <div className="absolute top-0 right-0 w-96 h-96 bg-white/5 rounded-full blur-[100px] -translate-y-1/2 translate-x-1/2" />
-          <h3 className="text-[10px] font-black text-emerald-400 uppercase tracking-[0.4em] mb-10 flex items-center gap-4">
-             <Calendar className="w-5 h-5" /> Production Strategy Advice
+        <div className="lg:col-span-1 bg-emerald-900 rounded-2xl p-8 shadow-sm text-white relative overflow-hidden">
+          <h3 className="text-[10px] font-bold text-emerald-400 uppercase tracking-widest mb-8 flex items-center gap-2">
+             <Calendar className="w-4 h-4" /> Prep Recommendations
           </h3>
           
-          <div className="space-y-10 relative z-10">
-            <p className="text-[10px] text-emerald-100/40 font-black leading-relaxed uppercase tracking-[0.2em]">Calculated with 10% operational safety buffer based on neural trajectory.</p>
-            <div className="space-y-5">
-              {data.sort((a, b) => b.predictedTomorrow - a.predictedTomorrow).slice(0, 8).map(m => (
-                <div key={m.id} className="flex justify-between items-center bg-white/5 backdrop-blur-md p-5 rounded-3xl border border-white/10 group hover:bg-white/10 transition-all">
-                  <div className="flex flex-col gap-1.5">
-                    <span className="text-sm font-black uppercase tracking-tight leading-none group-hover:text-emerald-400 transition-colors">{m.name}</span>
-                    <span className="text-[10px] font-black text-white/20 uppercase tracking-widest">7D Avg: {m.avgDailySales}</span>
+          <div className="space-y-6 relative z-10">
+            <div className="space-y-4">
+              {data.sort((a, b) => b.predictedTomorrow - a.predictedTomorrow).slice(0, 6).map(m => (
+                <div key={m.id} className="flex justify-between items-center bg-white/10 p-4 rounded-xl border border-white/5 group transition-all">
+                  <div className="flex flex-col">
+                    <span className="text-xs font-bold uppercase tracking-tight leading-none group-hover:text-emerald-400 transition-colors">{m.name}</span>
+                    <span className="text-[9px] font-medium text-white/40 uppercase mt-1">7D Avg: {m.avgDailySales}</span>
                   </div>
-                  <div className="bg-emerald-400 text-emerald-950 px-6 py-3 rounded-2xl font-black text-2xl shadow-xl shadow-emerald-400/20">
+                  <div className="bg-emerald-400 text-emerald-950 px-4 py-2 rounded-lg font-bold text-xl shadow-lg shadow-emerald-400/10">
                     {m.recommendedPrep}
                   </div>
                 </div>
               ))}
             </div>
-            
-            <div className="mt-10 p-6 bg-black/20 rounded-3xl border border-white/5 backdrop-blur-sm">
-                <h5 className="text-[10px] font-black text-emerald-300 uppercase tracking-[0.3em] mb-3 flex items-center gap-3">
-                  <Lightbulb className="w-4 h-4" /> Predictive Logic
-                </h5>
-                <p className="text-[10px] text-emerald-100/40 leading-relaxed font-black uppercase tracking-widest">
-                  Neural Moving Average + Volatility Buffer (1.1x Sigma)
-                </p>
-            </div>
           </div>
         </div>
       </div>
 
-      <div className="glass-card rounded-[2.5rem] overflow-hidden shadow-2xl border-none p-0">
-        <div className="p-10 border-b border-slate-100 bg-white shadow-sm flex items-center justify-between">
-            <h3 className="text-xl font-black text-slate-900 uppercase tracking-tight flex items-center gap-5">
-               <div className="w-14 h-14 rounded-2xl bg-emerald-50 flex items-center justify-center shadow-xl shadow-emerald-100/50">
-                 <Calendar className="w-7 h-7 text-emerald-600" />
-               </div>
-               Forecast Matrix (Next 7 Cycles)
+      <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden p-0">
+        <div className="px-6 py-4 border-b border-slate-50 flex items-center justify-between">
+            <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2">
+                 <Calendar className="w-4 h-4 text-emerald-500" />
+                 Forecast Matrix (7-Cycle)
             </h3>
         </div>
         <div className="overflow-x-auto custom-scrollbar">
           <Table>
             <TableHeader className="bg-slate-50/50">
             <TableRow>
-              <TableHead className="text-[10px] font-black uppercase text-slate-500 py-8 px-10">Menu Item</TableHead>
-              <TableHead className="text-[10px] font-black uppercase text-slate-500 py-8 text-right">7D Avg Index</TableHead>
-              <TableHead className="text-[10px] font-black uppercase text-emerald-600 py-8 text-right">Tomorrow Pred.</TableHead>
-              <TableHead className="text-right text-emerald-600 text-[10px] font-black uppercase py-8">Target Prep Vol.</TableHead>
-              <TableHead className="text-right font-black text-slate-900 text-[10px] uppercase py-8 px-10">Weekly Cumulative</TableHead>
+              <TableHead className="text-[9px] font-bold uppercase text-slate-400 py-3 px-6">Menu Item</TableHead>
+              <TableHead className="text-[9px] font-bold uppercase text-slate-400 py-3 text-right">7D Normal</TableHead>
+              <TableHead className="text-[9px] font-bold uppercase text-emerald-600 py-3 text-right">Tomorrow</TableHead>
+              <TableHead className="text-right text-emerald-600 text-[9px] font-bold uppercase py-3">Suggested</TableHead>
+              <TableHead className="text-right font-bold text-slate-800 text-[9px] uppercase py-3 px-6">Weekly Total</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {data.map((m) => (
-              <TableRow key={m.id} className="hover:bg-slate-50/50 border-slate-100 transition-colors group">
-                <TableCell className="px-10 py-8 font-black text-slate-900 uppercase tracking-tight leading-none text-base group-hover:text-emerald-600 transition-colors">{m.name}</TableCell>
-                <TableCell className="text-right font-black text-slate-400">{m.avgDailySales}</TableCell>
-                <TableCell className="text-right font-black text-emerald-600 text-lg">{m.predictedTomorrow}</TableCell>
-                <TableCell className="text-right font-black text-emerald-600 text-lg">{m.recommendedPrep}</TableCell>
-                <TableCell className="text-right font-black text-slate-900 px-10 text-lg">{m.predictedNext7Days}</TableCell>
+              <TableRow key={m.id} className="hover:bg-slate-50/50 border-slate-50 transition-colors group">
+                <TableCell className="px-6 py-3 font-bold text-slate-800 uppercase text-xs group-hover:text-emerald-600 transition-colors">{m.name}</TableCell>
+                <TableCell className="text-right font-semibold text-slate-400 text-xs">{m.avgDailySales}</TableCell>
+                <TableCell className="text-right font-bold text-emerald-600 text-sm">{m.predictedTomorrow}</TableCell>
+                <TableCell className="text-right font-bold text-emerald-600 text-sm">{m.recommendedPrep}</TableCell>
+                <TableCell className="text-right font-bold text-slate-800 px-6 text-sm tabular-nums">{m.predictedNext7Days}</TableCell>
               </TableRow>
             ))}
           </TableBody>

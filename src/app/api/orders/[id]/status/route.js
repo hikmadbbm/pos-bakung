@@ -24,23 +24,20 @@ export async function PATCH(req, { params }) {
       return NextResponse.json({ error: 'status is required' }, { status: 400 });
     }
 
-    // PIN check logic:
-    // OWNER/MANAGER never need PIN if authenticated via token
-    // KITCHEN never needs PIN for production updates
-    // CASHIER might need PIN if the specific status change is sensitive (e.g. COMPLETED -> PROCESSING)
-    // For now, let's simplify: only require PIN if user is CASHIER and not provided.
-    // Actually, let's just allow KITCHEN to skip PIN since they are locked to the kitchen view.
+    // PIN check:
+    // OWNER/MANAGER/KITCHEN can perform status changes without PIN
+    // CASHIER requires a Manager/Owner PIN for sensitive destructive actions
     if (user.role !== 'KITCHEN' && user.role !== 'MANAGER' && user.role !== 'OWNER') {
-       if (!pin) {
-         return NextResponse.json({ error: 'PIN is required for this action' }, { status: 403 });
-       }
-       const approver = await prisma.user.findFirst({
-         where: { pin, status: 'ACTIVE', role: { in: ['MANAGER', 'OWNER'] } },
-         select: { id: true },
-       });
-       if (!approver) {
-         return NextResponse.json({ error: 'Invalid PIN' }, { status: 403 });
-       }
+      if (!pin) {
+        return NextResponse.json({ error: 'PIN is required for this action' }, { status: 403 });
+      }
+      const approver = await prisma.user.findFirst({
+        where: { pin, status: 'ACTIVE', role: { in: ['MANAGER', 'OWNER'] } },
+        select: { id: true },
+      });
+      if (!approver) {
+        return NextResponse.json({ error: 'Invalid PIN' }, { status: 403 });
+      }
     }
 
     const updated = await prisma.$transaction(async (tx) => {
@@ -51,34 +48,60 @@ export async function PATCH(req, { params }) {
 
       if (!oldOrder) throw new Error('Order not found');
 
+      // Build update data
+      const updateData = { status };
+
+      // Record who processed the payment when confirming a PENDING order
+      if ((status === 'PAID' || status === 'COMPLETED') && oldOrder.status === 'PENDING') {
+        updateData.processed_by_user_id = user.id;
+      }
+
       const updatedOrder = await tx.order.update({
         where: { id },
-        data: { status },
-        include: { orderItems: { include: { menu: true } }, platform: true },
+        data: updateData,
+        include: {
+          orderItems: {
+            include: {
+              menu: {
+                include: { recipe: true }
+              }
+            }
+          },
+          platform: true
+        },
       });
 
-      // Trigger stock deduction ONLY if moving to COMPLETED and it wasn't already COMPLETED
-      if (status === 'COMPLETED' && oldOrder.status !== 'COMPLETED') {
-        await deductStockForOrder(id, tx);
+      // Trigger stock deduction when transitioning INTO a paid state.
+      // Covers:
+      //   1. PENDING -> PAID  (QRIS confirmation flow)
+      //   2. PENDING -> COMPLETED  (direct kitchen completion)
+      //   3. Any -> COMPLETED (kitchen marks done — was not yet deducted)
+      // Guard: if order was ALREADY PAID or COMPLETED, skip to prevent double-deduction.
+      const wasAlreadyPaidOrCompleted = oldOrder.status === 'PAID' || oldOrder.status === 'COMPLETED';
+      const isNowPayable = status === 'PAID' || status === 'COMPLETED';
+
+      if (isNowPayable && !wasAlreadyPaidOrCompleted) {
+        await deductStockForOrder(id, tx, updatedOrder);
       }
 
       return updatedOrder;
+    }, {
+      maxWait: 15000,
+      timeout: 20000
     });
 
     return NextResponse.json(updated);
   } catch (error) {
     console.error('Failed to update order status:', error);
-    const message = error.message.includes('Insufficient Stock') 
-      ? error.message 
+    const message = error.message.includes('Insufficient Stock')
+      ? error.message
       : 'Failed to update order status';
     return NextResponse.json(
-      { 
-        error: message, 
+      {
+        error: message,
         detail: error.message,
-        stack: error.stack
-      }, 
+      },
       { status: error.message.includes('Insufficient') ? 400 : 500 }
     );
   }
 }
-

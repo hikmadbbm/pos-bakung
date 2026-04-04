@@ -35,18 +35,64 @@ export async function POST(req) {
     const discrepancy =
       body.discrepancy === undefined || body.discrepancy === null ? null : Number(body.discrepancy);
 
+    const { reconciliation_data } = body;
+    const d = new Date();
+    d.setUTCHours(0,0,0,0); // Standard date key (day at midnight UTC)
+
     const updated = await prisma.$transaction(async (tx) => {
       // 1. Mark all kitchen orders as finished for this shift
-      // This clears the kitchen view for the next shift
       await tx.order.updateMany({
         where: {
           status: { in: ['PAID', 'PROCESSING'] },
-          // We could also filter by shift.start_time, but usually we want to clear everything
         },
         data: { status: 'COMPLETED' }
       });
 
-      // 2. Close the shift
+      // 2. Perform Cashier Reconciliation Roll-up
+      if (reconciliation_data && Array.isArray(reconciliation_data.methodBreakdown)) {
+        const existingRecon = await tx.cashierReconciliation.findUnique({
+          where: { date: d }
+        });
+
+        const newDetails = (existingRecon?.details && typeof existingRecon.details === 'object') 
+          ? { ...existingRecon.details } 
+          : {};
+
+        // Merge shift data into daily recon
+        reconciliation_data.methodBreakdown.forEach(m => {
+          const prev = newDetails[m.name] || { system: 0, actual: 0 };
+          newDetails[m.name] = {
+            system: (prev.system || 0) + (m.system || 0),
+            actual: (prev.actual || 0) + (m.actual || 0)
+          };
+        });
+
+        const total_system = Object.values(newDetails).reduce((acc, v) => acc + (v.system || 0), 0);
+        const total_actual = Object.values(newDetails).reduce((acc, v) => acc + (v.actual || 0), 0);
+
+        await tx.cashierReconciliation.upsert({
+          where: { date: d },
+          update: {
+            details: newDetails,
+            total_system: Math.round(total_system),
+            total_actual: Math.round(total_actual),
+            discrepancy: Math.round(total_actual - total_system),
+            updated_at: new Date(),
+            submitted_by: 'Auto-Shift-System'
+          },
+          create: {
+            date: d,
+            details: newDetails,
+            total_system: Math.round(total_system),
+            total_actual: Math.round(total_actual),
+            discrepancy: Math.round(total_actual - total_system),
+            submitted_by: 'Auto-Shift-System',
+            status: 'SUBMITTED'
+          }
+        });
+      }
+
+      // 3. Close the shift
       return await tx.userShift.update({
         where: { id: shift.id },
         data: {

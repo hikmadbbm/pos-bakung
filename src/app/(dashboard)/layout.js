@@ -2,21 +2,37 @@
 import React, { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { motion } from "framer-motion";
 import { LayoutDashboard, ShoppingCart, Utensils, DollarSign, BarChart, LogOut, Settings, Activity, Calendar, ClipboardList, Menu, X, Wallet, Smartphone, Users, Clock, Maximize2, Minimize2, RefreshCw } from "lucide-react";
 import { setAuth, api } from "../../lib/api";
 import { useRouter } from "next/navigation";
 import { cn } from "../../lib/utils";
 import UserMenu from "../../components/UserMenu";
 import StopShiftButton from "../../components/StopShiftButton";
+import GeminiChat from "../../components/dashboard/GeminiChat";
 import { FocusModeProvider, useFocusMode } from "../../lib/focus-mode-context";
 import { useToast } from "../../components/ui/use-toast";
-
 import { useTranslation } from "../../lib/language-context";
 
 export function DashboardContent({ children }) {
   const { t } = useTranslation();
   const pathname = usePathname();
   const router = useRouter();
+  const [aiContext, setAiContext] = useState(null);
+
+  useEffect(() => {
+    const fetchAiContext = async () => {
+      try {
+        const res = await api.get("/dashboard/insights");
+        setAiContext(res.summary);
+      } catch (err) {
+        console.error("AI Context Sync Failed", err);
+      }
+    };
+    fetchAiContext();
+    const interval = setInterval(fetchAiContext, 300000); // Sync every 5 mins
+    return () => clearInterval(interval);
+  }, []);
 
   const navGroups = useMemo(() => [
     {
@@ -117,7 +133,7 @@ export function DashboardContent({ children }) {
         return allowedPaths.some(path => item.href.startsWith(path));
       })
     })).filter(group => group.items.length > 0);
-  }, [mounted, user]);
+  }, [mounted, user, navGroups]);
 
   // Auto-exit Focus Mode if navigating away from the POS page
   useEffect(() => {
@@ -128,8 +144,7 @@ export function DashboardContent({ children }) {
 
   const handleLogout = async () => {
     try {
-      if (user?.id) { // Optional chaining for user.id
-        // Only attempt to check shift if authenticated
+      if (user?.id) { 
         try {
           const shift = await api.get(`/shifts/current/${user.id}`);
           if (shift) {
@@ -137,7 +152,6 @@ export function DashboardContent({ children }) {
             return;
           }
         } catch (apiErr) {
-          // If 401 occurs here, just proceed with logout
           console.warn("Auth check failed during logout, proceeding anyway", apiErr);
         }
       }
@@ -148,28 +162,15 @@ export function DashboardContent({ children }) {
     router.push("/login");
   };
 
-  // Prevent Hydration Mismatch by only rendering dashboard shell after mount
   if (!mounted) {
-    return <div className="flex items-center justify-center h-screen bg-gray-100">Loading system...</div>;
+    return <div className="flex items-center justify-center h-screen bg-slate-50">Loading Bakmie You-Tje...</div>;
   }
 
   const token = localStorage.getItem("token");
-  if (!token) {
-    return <div className="flex items-center justify-center h-screen bg-gray-100">Redirecting to login...</div>;
-  }
-
-  // Basic Page Authorization Redirect
-  if (user && mounted) {
-    const allowedPaths = rolePermissions[user.role] || [];
-    const isAllowed = allowedPaths.some(path => pathname.startsWith(path));
-    if (!isAllowed && pathname !== "/dashboard") { 
-       // Basic protection
-    }
-  }
+  if (!token) return null;
 
   return (
     <div className="flex h-screen bg-slate-50/50 font-sans overflow-hidden antialiased">
-      {/* Mobile Sidebar Overlay */}
       {isSidebarOpen && !isFocusMode && (
         <div 
           className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-20 lg:hidden animate-fade-in"
@@ -177,7 +178,6 @@ export function DashboardContent({ children }) {
         />
       )}
 
-      {/* Sidebar */}
       {!isFocusMode && (
         <aside 
           className={cn(
@@ -213,13 +213,7 @@ export function DashboardContent({ children }) {
           </div>
 
           <nav className="flex-1 p-4 space-y-8 overflow-y-auto scrollbar-hide py-8">
-            {!mounted ? (
-              <div className="space-y-4 px-4">
-                {[1,2,3,4,5].map(i => (
-                  <div key={i} className="h-10 bg-slate-100 rounded-xl animate-pulse"></div>
-                ))}
-              </div>
-            ) : filteredNavGroups.map((group, gIdx) => (
+            {filteredNavGroups.map((group, gIdx) => (
               <div key={gIdx} className="space-y-2">
                 {group.group && !isCollapsed && (
                   <div className="px-4 py-1 text-[10px] font-semibold text-slate-400 tracking-tight">
@@ -258,15 +252,12 @@ export function DashboardContent({ children }) {
           </nav>
 
           <div className="p-4 border-t border-slate-100 mt-auto">
-
-            
             <button
               onClick={handleLogout}
               className={cn(
                 "flex items-center w-full rounded-2xl text-xs font-semibold text-slate-400 hover:bg-rose-50 hover:text-rose-600 transition-all duration-300 tracking-tight",
                 isCollapsed ? "justify-center px-2 py-4" : "px-5 py-4"
               )}
-              title={isCollapsed ? "Logout" : ""}
             >
               <LogOut className={cn("w-4 h-4 flex-shrink-0", !isCollapsed && "mr-3")} />
               {!isCollapsed && t('logout')}
@@ -275,76 +266,50 @@ export function DashboardContent({ children }) {
         </aside>
       )}
 
-      {/* Main Content */}
       <main className="flex-1 flex flex-col min-w-0 overflow-hidden relative">
-        {/* Focus Mode Exit Button - Adjusted for Mobile */}
         {isFocusMode && (
-          <button
+          <motion.button 
+            drag
             onClick={() => setIsFocusMode(false)}
-            className="absolute top-2 right-2 lg:top-4 lg:right-4 z-50 p-2.5 bg-white/90 backdrop-blur-md hover:bg-white shadow-xl rounded-full border border-slate-200 text-slate-700 transition-all hover:scale-110 active:scale-90"
-            title="Exit Focus Mode"
+            whileHover={{ scale: 1.1, backgroundColor: "rgba(15, 23, 42, 0.6)" }}
+            className="fixed bottom-8 right-8 z-[100] w-10 h-10 bg-slate-900/30 backdrop-blur-md text-white border border-white/20 rounded-full flex items-center justify-center shadow-2xl transition-shadow group"
           >
-            <Minimize2 className="w-5 h-5" />
-          </button>
+            <Minimize2 className="w-4 h-4" />
+          </motion.button>
         )}
 
-        {/* Header */}
         {!isFocusMode && (
           <header className="h-16 lg:h-20 bg-white/80 backdrop-blur-md border-b border-slate-100 flex items-center justify-between px-4 lg:px-10 z-10 shrink-0 sticky top-0">
             <div className="flex items-center gap-4 lg:gap-6">
-              <button 
-                onClick={() => setIsSidebarOpen(true)}
-                className="lg:hidden p-2.5 rounded-xl bg-slate-50 text-slate-600 active:scale-90 transition-all"
-              >
-                <Menu className="w-5 h-5" />
-              </button>
-              <button 
-                onClick={() => setIsCollapsed(!isCollapsed)}
-                className="hidden lg:block p-2.5 -ml-2.5 rounded-2xl hover:bg-slate-50 text-slate-500 transition-all active:scale-90 border border-transparent hover:border-slate-100 shadow-sm"
-              >
-                <Menu className="w-5 h-5" />
-              </button>
+              <button onClick={() => setIsSidebarOpen(true)} className="lg:hidden p-2.5 rounded-xl bg-slate-50 text-slate-600"><Menu className="w-5 h-5" /></button>
+              <button onClick={() => setIsCollapsed(!isCollapsed)} className="hidden lg:block p-2.5 -ml-2.5 rounded-2xl hover:bg-slate-50 text-slate-500 border border-transparent hover:border-slate-100 shadow-sm"><Menu className="w-5 h-5" /></button>
               <div className="flex items-center gap-2">
-                <div className="lg:hidden w-8 h-8 rounded-lg overflow-hidden border border-slate-100 shadow-sm shrink-0">
-                  <img src="/favicon-96x96.png" alt="Logo" className="w-full h-full object-cover" />
+                <div className="flex lg:hidden w-8 h-8 rounded-lg overflow-hidden border border-slate-100 shadow-sm shrink-0 items-center justify-center bg-emerald-50">
+                   <img src="/favicon-96x96.png" alt="Logo" className="w-5 h-5 object-contain" />
                 </div>
-                <h2 className="text-sm lg:text-xl font-black text-slate-900 tracking-tight flex items-center gap-2">
-                  <span className="hidden sm:inline">{navGroups.flatMap(g => g.items).find((n) => pathname.startsWith(n.href))?.label || "Dashboard"}</span>
-                  <span className="sm:hidden text-xs">{navGroups.flatMap(g => g.items).find((n) => pathname.startsWith(n.href))?.label || "Dashboard"}</span>
-                  <div className="w-1.5 h-1.5 bg-emerald-600 rounded-full shadow-[0_0_8px_rgba(5,150,105,0.4)]" />
+                <h2 className="flex text-sm lg:text-xl font-black text-slate-900 tracking-tight items-center gap-2">
+                  <span className="inline">{navGroups.flatMap(g => g.items).find((n) => pathname.startsWith(n.href))?.label || "Bakmie You-Tje"}</span>
+                  <div className="w-1.5 h-1.5 bg-emerald-600 rounded-full" />
                 </h2>
               </div>
             </div>
             
             <div className="flex items-center space-x-2 lg:space-x-6">
-              <div className="hidden sm:block">
-                <StopShiftButton />
-              </div>
-              {pathname === "/orders" && (
-                <button
-                  onClick={() => setIsFocusMode(true)} 
-                  className="p-2.5 lg:p-3 text-slate-400 hover:bg-emerald-50 hover:text-emerald-700 rounded-xl lg:rounded-2xl transition-all active:scale-95 border border-transparent hover:border-emerald-100 shadow-sm"
-                  title="Enter Focus Mode"
-                >
-                   <Maximize2 className="w-5 h-5" />
-                </button>
-              )}
+              <StopShiftButton mode="header" />
               <div className="h-6 lg:h-8 w-px bg-slate-100 mx-0.5 lg:mx-1" />
               <UserMenu />
             </div>
           </header>
         )}
 
-        {/* Page Content */}
-        <div className={cn("flex-1 overflow-auto bg-slate-50/30", !isFocusMode && "p-3 lg:p-10 pb-24 lg:pb-10")}>
-          <div className="max-w-[1600px] mx-auto animate-fade-in relative">
+        <div className={cn("flex-1 overflow-auto bg-slate-50/30", !isFocusMode && "p-3 lg:p-6 pb-24 lg:pb-6")}>
+          <div className="max-w-[1800px] mx-auto animate-fade-in relative">
             {children}
           </div>
         </div>
 
-        {/* Mobile Bottom Navigation (Visible on mobile/tablet) */}
         {!isFocusMode && (
-          <div className="lg:hidden fixed bottom-6 left-1/2 -translate-x-1/2 w-[90vw] h-16 bg-white/90 backdrop-blur-xl border border-slate-100 rounded-[2rem] shadow-[0_20px_50px_rgba(0,0,0,0.1)] flex items-center justify-around px-4 z-40">
+          <div className="lg:hidden fixed bottom-6 left-1/2 -translate-x-1/2 w-[92vw] h-20 bg-white/95 backdrop-blur-2xl border border-slate-200 rounded-[2.5rem] shadow-xl flex items-center justify-around px-4 z-40">
             {[
               { href: "/dashboard", label: "Home", icon: LayoutDashboard },
               { href: "/orders", label: "Sales", icon: ShoppingCart },
@@ -358,19 +323,16 @@ export function DashboardContent({ children }) {
                 <Link 
                   key={item.href} 
                   href={item.href}
-                  className={cn(
-                    "flex flex-col items-center justify-center gap-1 transition-all",
-                    isActive ? "text-emerald-600 scale-110" : "text-slate-400"
-                  )}
+                  className={cn("flex flex-col items-center gap-1 transition-all", isActive ? "text-emerald-600 scale-110" : "text-slate-400")}
                 >
-                  <Icon className="w-5 h-5" />
-                  <span className="text-[8px] font-black uppercase tracking-widest">{item.label}</span>
-                  {isActive && <div className="w-1 h-1 bg-emerald-600 rounded-full mt-0.5" />}
+                  <Icon className="w-6 h-6" />
+                  <span className="text-[10px] font-black uppercase tracking-[0.1em]">{item.label}</span>
                 </Link>
               );
             })}
           </div>
         )}
+        <GeminiChat contextData={aiContext} />
       </main>
     </div>
   );

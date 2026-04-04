@@ -1,4 +1,3 @@
-
 "use client";
 import { useState, useEffect } from "react";
 import { api } from "../../../lib/api";
@@ -12,18 +11,23 @@ import { useToast } from "../../../components/ui/use-toast";
 import { Clock, DollarSign, LogOut, CheckCircle2, Users, Settings, Calendar, ClipboardList, Activity } from "lucide-react";
 import { cn } from "../../../lib/utils";
 import StopShiftModal from "../../../components/StopShiftModal";
+import ShiftReportModal from "../../../components/ShiftReportModal";
+import { useRouter } from "next/navigation";
 
 export default function ShiftPage() {
   const { success, error } = useToast();
   const [currentShift, setCurrentShift] = useState(null);
   const [shiftHistory, setShiftHistory] = useState([]);
   const [loading, setLoading] = useState(true);
+  const router = useRouter();
   
   // For Start Shift
   const [startCash, setStartCash] = useState("");
   
   // For End Shift
   const [isStopModalOpen, setIsStopModalOpen] = useState(false);
+  const [isReportOpen, setIsReportOpen] = useState(false);
+  const [reportShiftId, setReportShiftId] = useState(null);
 
   // Ideally get this from Auth Context
   const [mounted, setMounted] = useState(false);
@@ -102,13 +106,21 @@ export default function ShiftPage() {
     }
   };
 
-  const handleStopShiftSuccess = () => {
+  const handleStopShiftSuccess = (shiftId) => {
     setCurrentShift(null);
     if (currentUser) {
       loadHistory(currentUser.id);
+      loadCurrentShift(currentUser.id);
     }
-    // Refresh current shift to ensure we catch any global changes
-    loadCurrentShift(currentUser.id);
+    
+    // Trigger Report Flow
+    if (shiftId) {
+      setReportShiftId(shiftId);
+      setIsReportOpen(true);
+    }
+    
+    // Dispatch global event
+    window.dispatchEvent(new Event('shift-status-changed'));
   };
 
   if (!currentUser) {
@@ -132,7 +144,7 @@ export default function ShiftPage() {
           </p>
         </div>
         {currentShift && (
-          <div className="bg-emerald-50 text-emerald-700 px-6 py-2.5 rounded-2xl text-[10px] font-black uppercase tracking-widest flex items-center gap-3 border border-emerald-100 shadow-sm shadow-emerald-100 animate-pulse">
+          <div className="bg-emerald-50 text-emerald-700 px-6 py-2.5 rounded-2xl text-[10px] font-black uppercase tracking-widest flex items-center gap-3 border border-emerald-100 shadow-sm shadow-emerald-100">
             <div className="w-2 h-2 rounded-full bg-emerald-500" />
             {isOwnShift ? 'Your Shift ' : `Shift by ${currentShift.user?.name || 'Someone'} `}
             Active Since {new Date(currentShift.start_time).toLocaleTimeString()}
@@ -142,9 +154,9 @@ export default function ShiftPage() {
 
       <div className="grid gap-8 md:grid-cols-2">
         {/* Active Shift Control */}
-        <div className="glass-card rounded-[2.5rem] p-8 space-y-6 shadow-2xl relative overflow-hidden border-none">
+        <div className="glass-card rounded-[2.5rem] p-8 space-y-6 shadow-2xl relative overflow-hidden border-none text-slate-900">
           <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-600/5 rounded-full -translate-y-1/2 translate-x-1/2" />
-          <h3 className="text-lg font-black text-slate-900 uppercase tracking-tight flex items-center gap-3">
+          <h3 className="text-lg font-black uppercase tracking-tight flex items-center gap-3">
              <div className="w-10 h-10 rounded-2xl bg-slate-900 flex items-center justify-center shadow-lg">
                <Clock className="w-5 h-5 text-white" />
              </div>
@@ -155,14 +167,14 @@ export default function ShiftPage() {
                 <div className="space-y-4">
                   <div className="flex justify-between items-end px-2">
                     <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Initial Drawer Fund</Label>
-                    <p className="text-[9px] font-black text-emerald-500 uppercase tracking-widest">Security Lock Active</p>
+                    <p className="text-[9px] font-black text-emerald-500 uppercase tracking-widest text-emerald-600">Security Lock Active</p>
                   </div>
                   <div className="relative group">
                     <div className="absolute left-8 top-1/2 -translate-y-1/2 text-slate-300 font-black text-2xl group-focus-within:text-emerald-500 transition-colors">Rp</div>
                     <Input 
                       type="number"
                       placeholder="0"
-                      className="h-24 pl-20 pr-8 text-4xl font-black bg-slate-50 border-none focus:ring-0 rounded-[2rem] transition-all font-mono"
+                      className="h-24 pl-20 pr-8 text-4xl font-black bg-slate-50 border-none focus:ring-0 rounded-[2rem] transition-all font-mono text-slate-900"
                       value={startCash}
                       onChange={(e) => setStartCash(e.target.value)}
                       required
@@ -195,7 +207,7 @@ export default function ShiftPage() {
                       <Clock className="w-10 h-10 text-emerald-600 animate-pulse-slow" />
                     </div>
                     <div className="flex-1">
-                      <p className="text-emerald-500 text-[10px] font-black uppercase tracking-[0.4em] mb-2">Operational Link Active</p>
+                      <p className="text-emerald-500 text-[10px] font-black uppercase tracking-[0.4em] mb-2 text-emerald-600">Operational Link Active</p>
                       <h4 className="text-3xl font-black text-slate-900 tracking-tighter uppercase leading-none italic">
                         {isOwnShift ? 'OPERATOR: ONLINE' : `BY: ${currentShift.user?.name || 'SYSTEM'}`}
                       </h4>
@@ -240,8 +252,8 @@ export default function ShiftPage() {
         </div>
 
         {/* Quick Stats or Info */}
-        <div className="glass-card rounded-[2.5rem] p-8 space-y-6 shadow-2xl border-none">
-          <h3 className="text-lg font-black text-slate-900 uppercase tracking-tight flex items-center gap-3">
+        <div className="glass-card rounded-[2.5rem] p-8 space-y-6 shadow-2xl border-none text-slate-900">
+          <h3 className="text-lg font-black uppercase tracking-tight flex items-center gap-3">
              <div className="w-10 h-10 rounded-2xl bg-emerald-50 flex items-center justify-center">
                <Activity className="w-5 h-5 text-emerald-600" />
              </div>
@@ -266,9 +278,9 @@ export default function ShiftPage() {
       </div>
 
       {/* History Table */}
-      <div className="glass-card rounded-[2.5rem] overflow-hidden shadow-2xl border-none p-0">
+      <div className="glass-card rounded-[2.5rem] overflow-hidden shadow-2xl border-none p-0 text-slate-900">
         <div className="p-8 border-b border-slate-100 flex items-center justify-between">
-            <h3 className="text-lg font-black text-slate-900 uppercase tracking-tight flex items-center gap-3">
+            <h3 className="text-lg font-black uppercase tracking-tight flex items-center gap-3">
                <div className="w-10 h-10 rounded-2xl bg-emerald-50 flex items-center justify-center">
                  <ClipboardList className="w-5 h-5 text-emerald-600" />
                </div>
@@ -291,7 +303,7 @@ export default function ShiftPage() {
               <TableRow>
                 <TableCell colSpan={5} className="text-center py-20">
                    <div className="flex flex-col items-center gap-3 opacity-20">
-                      <Clock className="w-12 h-12" />
+                      <Clock className="w-12 h-12 text-slate-400" />
                       <p className="font-black uppercase tracking-widest text-xs">No records found</p>
                    </div>
                 </TableCell>
@@ -325,7 +337,15 @@ export default function ShiftPage() {
         onSuccess={handleStopShiftSuccess}
         currentUserId={currentUser?.id}
       />
+
+      <ShiftReportModal 
+        isOpen={isReportOpen}
+        shiftId={reportShiftId}
+        onFinish={() => {
+          setIsReportOpen(false);
+          router.push("/");
+        }}
+      />
     </div>
   );
 }
-

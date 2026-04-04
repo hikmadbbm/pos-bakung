@@ -159,6 +159,15 @@ export default function DailyExpenses() {
               align: "right"
             },
             {
+              header: "Staff",
+              accessor: (ex) => (
+                <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest pl-4 pr-10 border-l border-slate-100 italic">
+                  {ex.user?.name || "System"}
+                </span>
+              ),
+              align: "right"
+            },
+            {
               header: "Actions",
               accessor: (ex) => (
                 confirmDeleteId === ex.id ? (

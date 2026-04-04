@@ -145,7 +145,6 @@ export default function DashboardPage() {
            </section>
         </div>
       </div>
-      <GeminiChat contextData={data} />
     </div>
   );
 }

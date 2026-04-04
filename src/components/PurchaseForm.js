@@ -41,7 +41,7 @@ export default function PurchaseForm({ onClose, onSuccess, initialData }) {
     brand: "",
     supplier: "",
     notes: "",
-    purchase_date: new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16)
+    purchase_date: new Date().toISOString().split('T')[0]
   });
 
   const { success, error } = useToast();
@@ -65,7 +65,7 @@ export default function PurchaseForm({ onClose, onSuccess, initialData }) {
              volume: initialData.volume || "1",
              supplier: initialData.supplier || "",
              notes: initialData.notes || "",
-             purchase_date: new Date(new Date(initialData.purchase_date).getTime() - new Date(initialData.purchase_date).getTimezoneOffset() * 60000).toISOString().slice(0, 16),
+             purchase_date: new Date(initialData.purchase_date).toISOString().split('T')[0],
              category: initialData.ingredient.category,
              brand: initialData.ingredient.brand || ""
         });
@@ -185,10 +185,15 @@ export default function PurchaseForm({ onClose, onSuccess, initialData }) {
 
     setIsSaving(true);
     try {
+      // Merge selected date with current time
+      const finalDate = new Date(formData.purchase_date);
+      const now = new Date();
+      finalDate.setHours(now.getHours(), now.getMinutes(), now.getSeconds());
+
       if (isEditing) {
         await api.put(`/purchases/${initialData.id}`, {
           ...formData,
-          purchase_date: formData.purchase_date ? new Date(formData.purchase_date).toISOString() : new Date().toISOString(),
+          purchase_date: finalDate.toISOString(),
           quantity: parseFloat(formData.quantity),
           volume: parseFloat(formData.volume) || 1,
           unit_price: parseInt(formData.unit_price)
@@ -197,7 +202,7 @@ export default function PurchaseForm({ onClose, onSuccess, initialData }) {
       } else {
         await api.post("/purchases", {
           ...formData,
-          purchase_date: formData.purchase_date ? new Date(formData.purchase_date).toISOString() : new Date().toISOString(),
+          purchase_date: finalDate.toISOString(),
           quantity: parseFloat(formData.quantity),
           volume: parseFloat(formData.volume) || 1,
           unit_price: parseInt(formData.unit_price)
@@ -224,26 +229,25 @@ export default function PurchaseForm({ onClose, onSuccess, initialData }) {
     <form onSubmit={handleSubmit} className="space-y-12 pb-10">
       {/* 1. Item Selection Section (Hide if editing) */}
       {!initialData && (
-        <div className="space-y-6">
-          <div className="flex items-center gap-4">
-            <div className="w-1.5 h-6 bg-emerald-500 rounded-full" />
-            <h3 className="text-xs font-black uppercase tracking-[0.3em] text-slate-400">Search & Select</h3>
+        <div className="space-y-4">
+          <div className="flex items-center gap-3">
+            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400">Search Material</h3>
           </div>
           
-          <div className="flex gap-4">
+          <div className="flex gap-2">
             <div className="relative group flex-1">
-              <Search className="absolute left-6 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-emerald-500 transition-colors" />
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 group-focus-within:text-emerald-500 transition-colors" />
               <Input
-                placeholder="Search for material or add new..."
+                placeholder="Search or add new..."
                 value={searchTerm}
                 onFocus={() => setSearchFocused(true)}
                 onBlur={() => setTimeout(() => setSearchFocused(false), 200)}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-14 h-16 bg-white border-slate-100 rounded-[1.5rem] font-black text-slate-900 focus-visible:ring-emerald-500 transition-all shadow-sm group-hover:shadow-md"
+                className="pl-10 h-12 bg-white border-slate-100 rounded-xl font-semibold text-slate-900 focus-visible:ring-emerald-500/10 transition-all shadow-sm"
               />
               
               {searchFocused && (
-                <div className="absolute z-[100] w-full mt-4 bg-white border border-slate-100 rounded-[2rem] shadow-[0_30px_60px_-15px_rgba(0,0,0,0.25)] max-h-80 overflow-y-auto animate-in fade-in slide-in-from-top-2">
+                <div className="absolute z-[100] w-full mt-2 bg-white border border-slate-100 rounded-2xl shadow-xl max-h-72 overflow-y-auto animate-in fade-in slide-in-from-top-1">
                      <button
                       type="button"
                       onClick={() => {
@@ -260,14 +264,14 @@ export default function PurchaseForm({ onClose, onSuccess, initialData }) {
                         });
                         setSearchTerm("");
                       }}
-                      className="w-full flex items-center gap-4 p-4 border-b border-slate-50 hover:bg-slate-900 group transition-all text-left"
+                      className="w-full flex items-center gap-3 p-3 border-b border-slate-50 hover:bg-slate-50 transition-all text-left"
                     >
-                      <div className="w-10 h-10 rounded-xl bg-emerald-50 flex items-center justify-center group-hover:bg-emerald-500 transition-colors">
-                         <Plus className="w-4 h-4 text-emerald-600 group-hover:text-white" />
+                      <div className="w-8 h-8 rounded-lg bg-emerald-50 flex items-center justify-center text-emerald-600">
+                         <Plus className="w-3.5 h-3.5" />
                       </div>
                       <div>
-                        <div className="font-bold text-slate-900 group-hover:text-white uppercase tracking-tight text-sm">Create New: "{searchTerm || 'Type Name...'}"</div>
-                        <div className="text-[9px] font-bold text-slate-400 group-hover:text-emerald-400 uppercase tracking-widest mt-0.5">Add missing item to system</div>
+                        <div className="font-bold text-slate-800 text-sm">Create "{searchTerm || 'New Material'}"</div>
+                        <div className="text-[9px] font-medium text-slate-400 uppercase tracking-tight mt-0.5">Add to inventory</div>
                       </div>
                     </button>
 
@@ -282,20 +286,20 @@ export default function PurchaseForm({ onClose, onSuccess, initialData }) {
                         key={i.id}
                         type="button"
                         onClick={() => handleSelectIngredient(i)}
-                        className="w-full flex items-center justify-between p-4 border-b border-slate-50 last:border-0 hover:bg-slate-50 transition-all text-left group"
+                        className="w-full flex items-center justify-between p-3 border-b border-slate-50 last:border-0 hover:bg-slate-50 transition-all text-left group"
                       >
-                        <div className="flex items-center gap-4">
-                          <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center text-slate-400 font-bold text-[9px]">
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 rounded-lg bg-slate-50 flex items-center justify-center text-slate-400 text-[9px] font-bold">
                              {i.unit}
                           </div>
                           <div>
-                             <div className="font-bold text-slate-900 uppercase tracking-tight text-sm group-hover:text-emerald-600 transition-colors">{i.item_name}</div>
-                             <div className="text-[8px] text-slate-300 font-bold uppercase tracking-widest mt-0.5">{i.brand || "UNBRANDED"} • {i.category}</div>
+                             <div className="font-bold text-slate-800 text-sm group-hover:text-emerald-600 transition-colors uppercase tracking-tight">{i.item_name}</div>
+                             <div className="text-[9px] text-slate-400 font-medium uppercase tracking-tight mt-0.5">{i.brand || "UNBRANDED"} • {i.category}</div>
                           </div>
                         </div>
                         <div className="text-right">
-                           <div className="text-sm font-bold text-emerald-600">{formatIDR(i.price)}</div>
-                           <div className="text-[8px] text-slate-300 font-bold uppercase tracking-widest mt-0.5">Last Rate</div>
+                           <div className="text-xs font-bold text-emerald-600">{formatIDR(i.price)}</div>
+                           <div className="text-[8px] text-slate-300 font-medium uppercase tracking-tight mt-0.5">Last Rate</div>
                         </div>
                       </button>
                     ))}
@@ -306,10 +310,10 @@ export default function PurchaseForm({ onClose, onSuccess, initialData }) {
               <Button
                 type="button"
                 onClick={() => setShowOCR(true)}
-                className="h-14 w-14 md:w-auto md:px-6 rounded-[1.25rem] bg-emerald-600 hover:bg-emerald-700 text-white shadow-xl shadow-emerald-500/10 active:scale-95 transition-all"
+                className="h-12 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm active:scale-95 transition-all"
               >
                 <Sparkles className="w-4 h-4 md:mr-2" />
-                <span className="hidden md:inline font-bold uppercase text-[10px] tracking-widest">Scan</span>
+                <span className="hidden md:inline font-bold text-xs">Scan Receipt</span>
               </Button>
             )}
           </div>
@@ -317,18 +321,17 @@ export default function PurchaseForm({ onClose, onSuccess, initialData }) {
       )}
 
       {/* 2. Basic Info */}
-      <div className="space-y-8">
-        <div className="flex items-center gap-6">
-           <div className="h-px bg-slate-100 flex-1" />
-           <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.4em] whitespace-nowrap">Basic Info</span>
-           <div className="h-px bg-slate-100 flex-1" />
+      <div className="space-y-6">
+        <div className="flex items-center gap-4">
+           <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider whitespace-nowrap">Material Information</h4>
+           <div className="h-px bg-slate-50 flex-1" />
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-          <div className="space-y-3">
-             <Label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Category</Label>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+          <div className="space-y-1.5">
+             <Label className="text-xs font-semibold text-slate-600 ml-1">Category</Label>
              <select 
-                className="w-full h-14 bg-white border border-slate-100 rounded-2xl px-6 text-sm font-black text-slate-900 outline-none focus:ring-4 focus:ring-emerald-500/10 transition-all shadow-sm"
+                className="w-full h-11 bg-slate-50 border border-slate-100 rounded-xl px-4 text-sm font-bold text-slate-800 outline-none focus:ring-2 focus:ring-emerald-500/10 transition-all"
                 value={formData.category}
                 onChange={(e) => setFormData({...formData, category: e.target.value})}
                 disabled={(!isNewIngredient && !!selectedIngredient) || !!initialData}
@@ -339,134 +342,132 @@ export default function PurchaseForm({ onClose, onSuccess, initialData }) {
              </select>
           </div>
 
-          <div className="space-y-3">
-             <Label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Material Name</Label>
+          <div className="space-y-1.5">
+             <Label className="text-xs font-semibold text-slate-600 ml-1">Material Name</Label>
              <Input
                 placeholder="E.G. GARLIC"
                 value={isNewIngredient ? formData.new_ingredient_name : (selectedIngredient?.item_name || "")}
                 onChange={(e) => setFormData({...formData, new_ingredient_name: e.target.value})}
                 readOnly={!isNewIngredient && (!!selectedIngredient || !!initialData)}
-                className="h-14 bg-white border-slate-100 rounded-2xl font-black uppercase text-sm px-6 shadow-sm"
+                className="h-11 bg-slate-50 border-slate-100 rounded-xl font-bold uppercase text-[11px] px-4"
              />
           </div>
 
-          <div className="space-y-3">
-             <Label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Brand</Label>
+          <div className="space-y-1.5">
+             <Label className="text-xs font-semibold text-slate-600 ml-1">Brand</Label>
              <Input
                 placeholder="E.G. INDOFOOD"
                 value={isNewIngredient ? (formData.brand || "") : (formData.brand || selectedIngredient?.brand || "")}
                 onChange={(e) => setFormData({...formData, brand: e.target.value})}
                 readOnly={!isNewIngredient && (!!selectedIngredient || !!initialData)}
-                className="h-14 bg-white border-slate-100 rounded-2xl font-black uppercase text-sm px-6 shadow-sm"
+                className="h-11 bg-slate-50 border-slate-100 rounded-xl font-bold uppercase text-[11px] px-4"
              />
           </div>
         </div>
       </div>
 
       {/* 3. Pricing & Unit */}
-      <div className="space-y-8">
-        <div className="flex items-center gap-6">
-           <div className="h-px bg-slate-100 flex-1" />
-           <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.4em] whitespace-nowrap">Pricing & Unit</span>
-           <div className="h-px bg-slate-100 flex-1" />
+      <div className="space-y-6">
+        <div className="flex items-center gap-4">
+           <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider whitespace-nowrap">Pricing & Measurements</h4>
+           <div className="h-px bg-slate-50 flex-1" />
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-          <div className="space-y-3">
-             <Label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Qty (pcs/packs)</Label>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+          <div className="space-y-1.5">
+             <Label className="text-xs font-semibold text-slate-600 ml-1">Buy Quantity (Pcs/Packs)</Label>
              <Input
                 type="number"
                 placeholder="0"
                 value={formData.quantity}
                 onChange={(e) => setFormData({...formData, quantity: e.target.value})}
-                className="h-14 bg-white border-slate-100 rounded-2xl font-black text-sm px-6 shadow-sm focus:border-emerald-500"
+                className="h-11 bg-slate-50 border-slate-100 rounded-xl font-bold text-xs px-4 focus:border-emerald-500"
              />
           </div>
 
-          <div className="space-y-3">
-             <Label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Unit Weight/Size (Multiplier)</Label>
+          <div className="space-y-1.5">
+             <Label className="text-xs font-semibold text-slate-600 ml-1">Volume per Unit (Multiplier)</Label>
              <Input
                 type="number"
-                placeholder="E.G. 1.0"
+                placeholder="e.g. 1.0"
                 value={formData.volume}
                 onChange={(e) => setFormData({...formData, volume: e.target.value})}
-                className="h-14 bg-white border-slate-100 rounded-2xl font-black text-sm px-6 shadow-sm focus:border-emerald-500"
+                className="h-11 bg-slate-50 border-slate-100 rounded-xl font-bold text-xs px-4 focus:border-emerald-500"
              />
           </div>
 
-          <div className="space-y-3">
-             <Label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Buy Price (total for this qty)</Label>
+          <div className="space-y-1.5">
+             <Label className="text-xs font-semibold text-slate-600 ml-1">Total Purchase Price (IDR)</Label>
              <div className="relative group">
-                <div className="absolute left-6 top-1/2 -translate-y-1/2 text-[9px] font-black text-emerald-500 uppercase">IDR</div>
                 <Input
                   type="number"
                   placeholder="0"
                   value={formData.unit_price}
                   onChange={(e) => setFormData({...formData, unit_price: e.target.value})}
-                  className="h-14 pl-14 pr-6 bg-emerald-50/20 border-emerald-100/50 rounded-2xl font-black text-slate-900 text-lg shadow-sm focus:border-emerald-500 transition-all"
+                  className="h-11 pl-4 pr-12 bg-emerald-50 border-emerald-100 rounded-xl font-bold text-emerald-800 text-sm focus:border-emerald-500"
                 />
+                <div className="absolute right-4 top-1/2 -translate-y-1/2 text-[9px] font-bold text-emerald-600 uppercase">Total</div>
              </div>
           </div>
         </div>
       </div>
 
       {/* 4. Footer & Store Info */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-12 pt-8">
-        <div className="space-y-8">
-           <div className="grid grid-cols-2 gap-6">
-              <div className="space-y-2">
-                 <Label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1 flex items-center gap-2">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-8 pt-4">
+        <div className="space-y-6">
+           <div className="grid grid-cols-2 gap-2">
+              <div className="space-y-1.5 flex-1">
+                 <Label className="text-[9px] font-black text-slate-400 uppercase tracking-[0.15em] flex items-center gap-1">
                     <Calendar className="w-3 h-3" /> Date
                  </Label>
                  <Input
-                    type="datetime-local"
+                    id="purchase_date_input"
+                    type="date"
                     value={formData.purchase_date}
+                    onClick={(e) => e.currentTarget.showPicker && e.currentTarget.showPicker()}
                     onChange={(e) => setFormData({...formData, purchase_date: e.target.value})}
-                    className="h-12 bg-white border-slate-100 rounded-xl font-bold text-xs shadow-sm"
+                    className="h-10 bg-slate-50 border-slate-100 rounded-xl text-[9px] font-bold text-slate-700 focus:bg-white focus:border-emerald-500 transition-all px-2 md:px-4"
                  />
               </div>
-              <div className="space-y-2">
-                 <Label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1 flex items-center gap-2">
+              <div className="space-y-1.5 flex-1">
+                 <Label className="text-[9px] font-black text-slate-400 uppercase tracking-[0.15em] flex items-center gap-1">
                     <User className="w-3 h-3" /> Supplier
                  </Label>
                  <Input
-                    placeholder="STORE NAME"
+                    placeholder="STORE..."
                     value={formData.supplier}
                     onChange={(e) => setFormData({...formData, supplier: e.target.value})}
-                    className="h-12 bg-white border-slate-100 rounded-xl font-black uppercase text-[10px] shadow-sm"
+                    className="h-10 bg-slate-50 border-slate-100 rounded-xl font-bold uppercase text-[9px] text-slate-700 focus:bg-white focus:border-emerald-500 transition-all px-2 md:px-4"
                  />
               </div>
            </div>
            
-           <div className="p-6 bg-slate-900 rounded-[2rem] flex items-center justify-between shadow-2xl relative overflow-hidden group">
-              <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:rotate-12 transition-transform">
-                 <TrendingUp className="w-12 h-12 text-white" />
-              </div>
+           <div className="p-5 bg-slate-900 rounded-2xl flex items-center justify-between shadow-sm relative overflow-hidden group">
               <div className="relative z-10">
-                 <div className="text-[9px] font-black text-emerald-400 uppercase tracking-[0.2em] mb-1.5">Grand Total Update</div>
-                 <div className="text-2xl font-black text-white tracking-tighter tabular-nums">
+                 <div className="text-[9px] font-bold text-emerald-400 uppercase tracking-wider mb-0.5">Total Transaction</div>
+                 <div className="text-xl font-bold text-white tabular-nums">
                     {formatIDR((Number(formData.quantity) || 0) * (Number(formData.unit_price) || 0))}
                  </div>
               </div>
               <div className="text-right relative z-10">
-                 <div className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1">Total Impact</div>
-                 <div className="text-xs font-black text-emerald-500">
+                 <div className="text-[9px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">Stock Impact</div>
+                 <div className="text-xs font-bold text-emerald-500">
                     + {(parseFloat(formData.quantity) || 0) * (parseFloat(formData.volume) || 1)} {selectedIngredient?.unit || "Units"}
                  </div>
               </div>
            </div>
         </div>
 
-        <div className="flex flex-col justify-end gap-6">
-           <p className="text-[10px] font-bold text-slate-300 italic text-center md:text-right">
-              {initialData ? "Editing will automatically sync stock net-differences." : "Stock will be auto-updated upon confirmation."}
+        <div className="flex flex-col justify-end gap-5">
+           <p className="text-[10px] font-medium text-slate-400 italic text-center md:text-right">
+              {initialData ? "Editing will automatically sync stock differences." : "Stock levels update instantly upon confirmation."}
            </p>
-           <div className="flex gap-4">
+           <div className="flex gap-3">
               <Button 
                 type="button" 
                 variant="ghost" 
                 onClick={onClose} 
-                className="flex-1 h-16 rounded-[1.25rem] font-black text-[10px] uppercase tracking-widest text-slate-400 border border-slate-100 hover:bg-slate-50"
+                className="flex-1 h-12 rounded-xl font-bold text-[11px] uppercase tracking-wider text-slate-400 border border-slate-100 hover:bg-slate-50"
               >
                 Cancel
               </Button>
@@ -474,8 +475,8 @@ export default function PurchaseForm({ onClose, onSuccess, initialData }) {
                 type="submit" 
                 disabled={isSaving} 
                 className={cn(
-                  "flex-[2] h-16 rounded-[1.25rem] text-white shadow-2xl font-black text-[11px] uppercase tracking-widest active:scale-95 transition-all",
-                  initialData ? "bg-emerald-600 hover:bg-emerald-700 shadow-emerald-200" : "bg-slate-900 hover:bg-black shadow-slate-200"
+                  "flex-[2] h-12 rounded-xl text-white shadow-sm font-bold text-[11px] uppercase tracking-wider active:scale-95 transition-all outline-none",
+                  initialData ? "bg-emerald-600 hover:bg-emerald-700" : "bg-slate-900 hover:bg-black"
                 )}
               >
                 {isSaving ? "Saving..." : initialData ? "Confirm Update" : "Confirm Purchase"}

@@ -8,6 +8,7 @@ export const runtime = 'nodejs';
 
 function startOfToday() {
   const d = new Date();
+  // Ensure we use the local morning hours for 'Today' label
   d.setHours(0, 0, 0, 0);
   return d;
 }
@@ -156,25 +157,53 @@ export async function GET(req) {
       });
     }
 
+    // 6. Fetch Payment methods and recently active shift
+    const [payments, shift, categories] = await Promise.all([
+      prisma.order.groupBy({
+        by: ['payment_method'],
+        where: { date: { gte: start, lte: end }, status: 'COMPLETED' },
+        _count: { id: true },
+        _sum: { total: true }
+      }),
+      prisma.userShift.findFirst({
+        where: { status: 'OPEN' },
+        include: { user: { select: { name: true } } },
+        orderBy: { start_time: 'desc' }
+      }),
+      prisma.menuCategory.findMany({
+        include: { _count: { select: { menus: true } } }
+      })
+    ]);
+
     const responseData = {
       summary: {
         grossRevenue,
         netRevenue,
-        revenue: netRevenue, // Maintain compatibility
+        revenue: netRevenue,
         cogs,
         expenses: totalExpenses,
         netProfit,
         dailyOverhead: Math.round(totalOverhead),
         topMenus,
-        lowStockItems: finalLowStock
+        lowStockItems: finalLowStock,
+        totalOrders,
+        paymentDistribution: payments,
+        activeShift: shift ? { user: shift.user.name, started: shift.start_time } : null,
+        categoriesCount: categories.length,
+        systemStatus: "Neural Sync Complete"
       },
       insights,
     };
 
-    // 7. Set cache for 30 seconds
+    // 7. Set in-process cache (fallback for same-instance hits)
     setCache(CACHE_KEY, responseData, 30);
 
-    return NextResponse.json(responseData);
+    const res = NextResponse.json(responseData);
+    // Add HTTP-level caching so Vercel Edge/CDN can serve repeated requests without
+    // hitting the database — this is effective even in serverless where in-memory
+    // caches are per-instance and frequently cold-started.
+    res.headers.set('Cache-Control', 'public, s-maxage=30, stale-while-revalidate=10');
+    return res;
   } catch (error) {
     console.error('Failed to fetch dashboard insights:', error);
     return NextResponse.json({ error: 'Failed to fetch dashboard insights' }, { status: 500 });

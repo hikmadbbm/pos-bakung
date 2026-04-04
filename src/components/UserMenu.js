@@ -1,13 +1,16 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { LogOut, User, ChevronDown, Lock } from "lucide-react";
+import { LogOut, User, ChevronDown, Lock, StopCircle } from "lucide-react";
 import { api, getAuth, setAuth } from "../lib/api";
 import { cn } from "../lib/utils";
 import { useToast } from "./ui/use-toast";
 import { useTranslation } from "../lib/language-context";
+import StopShiftButton from "./StopShiftButton";
+import { useFocusMode } from "../lib/focus-mode-context";
 
 export default function UserMenu() {
+  const { setIsFocusMode } = useFocusMode();
   const router = useRouter();
   const { error } = useToast();
   const { t } = useTranslation();
@@ -126,14 +129,41 @@ export default function UserMenu() {
               <User className="mr-3 h-4 w-4 text-gray-400" />
               {t('profile')}
             </button>
-            
+
+            {/* Focus Mode Toggle */}
             <button
-              className="flex items-center w-full px-4 py-2 text-sm text-red-600 hover:bg-red-50"
+              className="flex items-center w-full px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 transition-colors"
+              role="menuitem"
+              onClick={() => {
+                  setIsOpen(false);
+                  setIsFocusMode(true);
+              }}
+            >
+              <Lock className="mr-3 h-4 w-4 text-slate-400" />
+              Focus Mode
+            </button>
+            
+            {/* Shift Actions */}
+            <div className="border-t border-slate-50 my-1" />
+            <button
+                className="flex items-center w-full px-4 py-2 text-sm text-rose-600 hover:bg-rose-50 transition-colors"
+                role="menuitem"
+                onClick={() => {
+                   setIsOpen(false);
+                   window.dispatchEvent(new Event('trigger-stop-shift'));
+                }}
+            >
+                <StopCircle className="mr-3 h-4 w-4 text-red-500" />
+                <span className="font-bold">{t('stop_shift')}</span>
+            </button>
+
+            <button
+              className="flex items-center w-full px-4 py-2 text-sm text-red-600 hover:bg-rose-50 transition-colors"
               role="menuitem"
               onClick={handleLogout}
               data-testid="logout-button"
             >
-              <LogOut className="mr-3 h-4 w-4 text-red-500" />
+              <LogOut className="mr-3 h-4 w-4 text-rose-500" />
               {t('logout')}
             </button>
           </div>

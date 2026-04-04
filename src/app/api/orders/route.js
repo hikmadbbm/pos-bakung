@@ -8,7 +8,8 @@ import { deductStockForOrder } from '@/lib/stock-deduction';
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret';
+const JWT_SECRET = process.env.JWT_SECRET;
+// Note: JWT_SECRET validation is handled by auth.js module initialization
 
 function getUserIdFromAuth(req) {
   const auth = req.headers.get('authorization') || '';
@@ -218,30 +219,12 @@ export async function POST(req) {
       const receivedNum = Number(money_received) || 0;
       const change_amount = receivedNum ? receivedNum - netSubtotal : 0;
 
-      // 3. Calculate Daily Sequence Number
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      const tomorrow = new Date(today);
-      tomorrow.setDate(tomorrow.getDate() + 1);
-
-      const dailyCount = await tx.order.count({
-        where: {
-          date: {
-            gte: today,
-            lt: tomorrow
-          }
-        }
-      });
-
-      const mm = String(today.getMonth() + 1).padStart(2, '0');
-      const dd = String(today.getDate()).padStart(2, '0');
-      const nextNum = String(dailyCount + 1).padStart(3, '0');
-      const orderNumber = `TRX-${mm}${dd}-${nextNum}`;
-
-      // 4. Create the order
+      // 3. Create the order WITHOUT order_number first (avoids race condition)
+      //    The order_number is generated post-insert using the auto-incremented DB ID
+      //    which is guaranteed atomic by PostgreSQL — no two orders can have the same ID.
       const newOrder = await tx.order.create({
         data: {
-          order_number: orderNumber,
+          order_number: null, // Will be set right below using the new DB ID
           total: subtotal,
           discount: appliedDiscount,
           discount_type: finalDiscountType,
@@ -272,12 +255,30 @@ export async function POST(req) {
         },
       });
 
-      // 5. Auto-Stock Deduction for immediate PAID/COMPLETED orders
-      if (newOrder.status === 'PAID' || newOrder.status === 'COMPLETED') {
-        await deductStockForOrder(newOrder.id, tx, newOrder);
+      // 4. Generate order number from DB ID (atomic — no race condition possible)
+      //    Format: TRX-MMDD-XXXXX (ID zero-padded to 5 digits for future scale)
+      const orderDate = newOrder.date;
+      const mm = String(orderDate.getMonth() + 1).padStart(2, '0');
+      const dd = String(orderDate.getDate()).padStart(2, '0');
+      const seqNum = String(newOrder.id).padStart(5, '0');
+      const orderNumber = `TRX-${mm}${dd}-${seqNum}`;
+
+      // 5. Update with the generated order number
+      const finalOrder = await tx.order.update({
+        where: { id: newOrder.id },
+        data: { order_number: orderNumber },
+        include: {
+          orderItems: { include: { menu: true } },
+          platform: true,
+        },
+      });
+
+      // 6. Auto-Stock Deduction for immediate PAID/COMPLETED orders
+      if (finalOrder.status === 'PAID' || finalOrder.status === 'COMPLETED') {
+        await deductStockForOrder(finalOrder.id, tx, finalOrder);
       }
 
-      return newOrder;
+      return finalOrder;
     }, {
       timeout: 20000 // Increase timeout to 20s to handle recursion
     });

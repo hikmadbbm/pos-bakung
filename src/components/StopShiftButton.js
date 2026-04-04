@@ -2,13 +2,15 @@
 import { useState, useEffect, useCallback } from "react";
 import { api } from "../lib/api";
 import { Button } from "./ui/button";
-import { LogOut, Clock } from "lucide-react";
+import { LogOut, Clock, StopCircle } from "lucide-react";
 import StopShiftModal from "./StopShiftModal";
 import PinVerificationModal from "./PinVerificationModal";
 import { useToast } from "./ui/use-toast";
 import { useTranslation } from "../lib/language-context";
+import ShiftReportModal from "./ShiftReportModal";
+import { useRouter } from "next/navigation";
 
-export default function StopShiftButton() {
+export default function StopShiftButton({ mode = "full" }) {
   const [isOpen, setIsOpen] = useState(false);
   const [hasActiveShift, setHasActiveShift] = useState(false);
   const [currentUserId, setCurrentUserId] = useState(null);
@@ -19,6 +21,11 @@ export default function StopShiftButton() {
   const [elapsed, setElapsed] = useState("00:00:00");
   const { error } = useToast();
   const { t } = useTranslation();
+  const router = useRouter();
+  const [reportShiftId, setReportShiftId] = useState(null);
+  const [isReportOpen, setIsReportOpen] = useState(false);
+
+  const isOwnShift = activeShift?.user_id === currentUserId;
 
   const checkShiftStatus = async () => {
     const userStr = localStorage.getItem("user");
@@ -57,11 +64,17 @@ export default function StopShiftButton() {
     const handleShiftChange = () => checkShiftStatus();
     window.addEventListener('shift-status-changed', handleShiftChange);
 
+    const handleRemoteTrigger = () => {
+       setIsAuthOpen(true);
+    };
+    window.addEventListener('trigger-stop-shift', handleRemoteTrigger);
+
     // Poll every minute to keep status updated
     const interval = setInterval(checkShiftStatus, 60000);
     
     return () => {
       window.removeEventListener('shift-status-changed', handleShiftChange);
+      window.removeEventListener('trigger-stop-shift', handleRemoteTrigger);
       clearInterval(interval);
     };
   }, []);
@@ -86,11 +99,17 @@ export default function StopShiftButton() {
     return () => clearInterval(timer);
   }, [startTime]);
 
-  const handleStopShiftSuccess = useCallback(() => {
+  const handleStopShiftSuccess = useCallback((shiftId) => {
     setHasActiveShift(false);
     setActiveShift(null);
     setStartTime(null);
     window.dispatchEvent(new Event('shift-status-changed'));
+    
+    // Trigger Report Flow
+    if (shiftId) {
+      setReportShiftId(shiftId);
+      setIsReportOpen(true);
+    }
   }, []);
 
   const handleCloseModal = useCallback(() => {
@@ -108,47 +127,49 @@ export default function StopShiftButton() {
     }
   }, []);
 
-  if (!hasActiveShift) return null;
-
-  const isOwnShift = activeShift?.user_id === currentUserId;
-
   return (
-    <div className="flex items-center gap-3">
-      {/* Timer Display */}
-      <div 
-        className="flex items-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-1 sm:py-1.5 bg-emerald-50 text-emerald-700 rounded-md border border-emerald-100 shadow-sm"
-        title={!isOwnShift ? `Active Shift: ${activeShift?.user?.name || 'Personnel'}` : 'Your Active Shift'}
-      >
-        <Clock className="w-3.5 h-3.5 sm:w-4 h-4 animate-pulse" />
-        <span className="font-mono font-bold text-[10px] sm:text-sm tracking-widest">{elapsed}</span>
-      </div>
+    <>
+      {hasActiveShift && mode !== "action" && (
+        <div className="flex items-center gap-2 sm:gap-3">
+          {/* Timer Display */}
+          <div 
+            className="flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-1 sm:py-1.5 bg-emerald-50 text-emerald-700 rounded-lg border border-emerald-100 shadow-sm transition-all"
+            title={!isOwnShift ? `Active Shift: ${activeShift?.user?.name || 'Personnel'}` : 'Your Active Shift'}
+          >
+            <Clock className="w-3.5 h-3.5 sm:w-4 h-4 animate-pulse" />
+            <span className="font-mono font-black text-[11px] sm:text-sm tracking-widest">{elapsed}</span>
+          </div>
 
-      <Button 
-        variant="destructive" 
-        size="sm" 
-        className="hidden sm:flex lg:flex gap-2 font-bold shadow-sm animate-in fade-in zoom-in duration-300"
-        onClick={() => setIsAuthOpen(true)}
-      >
-        <LogOut className="w-4 h-4" />
-        <span className="hidden lg:inline">{isOwnShift ? t('stop_shift') : t('end_external_shift')}</span>
-        <span className="lg:hidden">{t('stop')}</span>
-      </Button>
-      
-      {/* Mobile Icon Only */}
-      <Button 
-        variant="destructive" 
-        size="icon" 
-        className="sm:hidden w-8 h-8 rounded-full shadow-sm"
-        onClick={() => setIsAuthOpen(true)}
-      >
-        <LogOut className="w-4 h-4" />
-      </Button>
+          {mode === "full" && (
+            <Button 
+              variant="destructive" 
+              size="icon" 
+              className="p-2.5 lg:p-3 h-auto w-auto aspect-square rounded-xl lg:rounded-2xl shadow-lg shadow-rose-500/20 animate-in fade-in zoom-in duration-300 transition-all hover:scale-110 active:scale-90 bg-rose-600 hover:bg-rose-700 border-none shrink-0"
+              onClick={() => setIsAuthOpen(true)}
+            >
+              <LogOut className="w-5 h-5" />
+            </Button>
+          )}
+        </div>
+      )}
+
+      {hasActiveShift && mode === "action" && (
+          <button
+              className="flex items-center w-full px-4 py-2 text-sm text-rose-600 hover:bg-rose-50 transition-colors"
+              role="menuitem"
+              onClick={() => setIsAuthOpen(true)}
+          >
+              <StopCircle className="mr-3 h-4 w-4 text-red-500" />
+              <span className="font-bold">{isOwnShift ? t('stop_shift') : t('end_external_shift')}</span>
+          </button>
+      )}
 
       <StopShiftModal 
         isOpen={isOpen} 
         onClose={handleCloseModal}
         onSuccess={handleStopShiftSuccess}
-        currentUserId={activeShift?.user_id}
+        onReauthorize={() => setIsAuthOpen(true)}
+        currentUserId={activeShift?.user_id || currentUserId}
         authorizedManager={manager}
       />
 
@@ -159,6 +180,15 @@ export default function StopShiftButton() {
         title={isOwnShift ? t('stop_shift_security') : t('admin_shift_override')}
         subtitle={isOwnShift ? t('verification_required') : `${t('ending_shift_for')} ${activeShift?.user?.name || 'Personnel'}`}
       />
-    </div>
+
+      <ShiftReportModal 
+        isOpen={isReportOpen}
+        shiftId={reportShiftId}
+        onFinish={() => {
+          setIsReportOpen(false);
+          router.push("/");
+        }}
+      />
+    </>
   );
 }

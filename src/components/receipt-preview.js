@@ -8,6 +8,7 @@ import { useToast } from "./ui/use-toast";
 import { usePrinter } from "../lib/printer-context";
 import { api } from "../lib/api";
 import { ESC_POS } from "../lib/printer-commands";
+import { processLogo } from "../lib/escpos-image";
 import { cn } from "../lib/utils";
 
 export function ReceiptPreview({ isOpen, onClose, order, config: propConfig }) {
@@ -78,69 +79,25 @@ export function ReceiptPreview({ isOpen, onClose, order, config: propConfig }) {
       
       if (storeConfig.show_logo && storeConfig.logo_url) {
          try {
-           const imgData = await new Promise((resolve) => {
-             const img = new Image();
-             img.crossOrigin = "Anonymous";
-             img.onload = () => {
-               const canvas = document.createElement("canvas");
-               const ctx = canvas.getContext("2d");
-               
-               // LO-RES OPTIMIZATION: Reduce width to ~240-300px to speed up serial transmission!
-               // For 58mm, 240px is about 60% width.
-               const maxWidth = storeConfig.paper_width === 80 ? 448 : 240; 
-               let w = img.width;
-               let h = img.height;
-               
-               if (w > maxWidth) {
-                 h = Math.round((h * maxWidth) / w);
-                 w = maxWidth;
-               }
-               
-               w = Math.floor(w / 8) * 8; 
-               canvas.width = w;
-               canvas.height = h;
-               
-               // Fill background white
-               ctx.fillStyle = "white";
-               ctx.fillRect(0, 0, w, h);
-               
-               // Draw image with high contrast
-               ctx.drawImage(img, 0, 0, w, h);
-               
-               const pixels = ctx.getImageData(0, 0, w, h).data;
-               let str = '\x1D\x76\x30\x00' + String.fromCharCode((w/8)%256, Math.floor((w/8)/256), h%256, Math.floor(h/256));
-               
-               for (let y = 0; y < h; y++) {
-                 for (let x = 0; x < w / 8; x++) {
-                   let byte = 0;
-                   for (let b = 0; b < 8; b++) {
-                     const idx = (y * w + (x * 8 + b)) * 4;
-                     const r = pixels[idx];
-                     const g = pixels[idx+1];
-                     const bval = pixels[idx+2];
-                     const alpha = pixels[idx+3];
-                     
-                     // Sharp Threshold for Flat B&W (128 is pure middle)
-                     const lum = 0.299 * r + 0.587 * g + 0.114 * bval;
-                     if (alpha > 128 && lum < 128) { 
-                        byte |= (1 << (7 - b));
-                     }
-                   }
-                   str += String.fromCharCode(byte);
-                 }
-               }
-               resolve(str);
-             };
-             img.onerror = () => resolve("");
-             img.src = storeConfig.logo_url;
-           });
+           // 1. Fetch logo as blob
+           const res = await fetch(storeConfig.logo_url);
+           const blob = await res.blob();
            
-           if (imgData) {
-              data += ESC_POS.ALIGN_CENTER;
-              data += imgData;
-              data += ESC_POS.FEED_PAPER(1);
-           }
-         } catch(e) { console.warn("Logo failed", e); }
+           // 2. Process using optimized helper (GS v 0 1-bit format)
+           const logoBinary = await processLogo(blob, 128);
+           
+           // 3. Print Header + Logo
+           await print(ESC_POS.INIT + ESC_POS.ALIGN_CENTER);
+           await print(logoBinary);
+           await print(ESC_POS.FEED_PAPER(1));
+           
+           // Start building the text data after the logo
+           data = ""; 
+         } catch(e) { 
+           console.warn("Logo processing or printing failed", e);
+           // Fallback: reset data if logo failed so text still prints
+           data = ESC_POS.INIT;
+         }
       }
       
       if (storeConfig.show_name !== false) {

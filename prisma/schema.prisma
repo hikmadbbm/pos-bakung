@@ -27,6 +27,7 @@ model User {
   ordersProcessed Order[]           @relation("OrderProcessedBy")
   activityLogs    UserActivityLog[]
   shifts          UserShift[]
+  expenses        Expense[]
 
   @@map("user")
 }
@@ -58,6 +59,7 @@ model UserShift {
   status              String    @default("OPEN")
   reconciliation_data Json?
   user                User      @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  expenses            Expense[]
 
   @@index([user_id])
   @@index([status])
@@ -227,6 +229,10 @@ model Expense {
   category    String
   amount      Int
   description String?
+  user_id     Int?
+  shift_id    Int?
+  user        User?      @relation(fields: [user_id], references: [id])
+  shift       UserShift? @relation(fields: [shift_id], references: [id])
 
   @@map("expense")
 }

@@ -158,43 +158,43 @@ export default function PurchasePage() {
           </div>
         </div>
       )}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 print:hidden">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 print:hidden">
         <div>
-          <h2 className="text-3xl font-black text-slate-900 tracking-tight uppercase italic">Purchase History</h2>
-          <p className="text-[11px] text-slate-400 font-bold uppercase tracking-[0.2em] mt-1 flex items-center gap-2">
-            Manage your stock purchases
-            <span className="inline-block w-1.5 h-1.5 bg-emerald-600 rounded-full animate-pulse" />
+          <h2 className="text-2xl font-bold text-slate-800 tracking-tight">Purchase History</h2>
+          <p className="text-xs text-slate-500 font-medium mt-1 flex items-center gap-2">
+            Manage your stock acquisitions
+            <span className="inline-block w-1.5 h-1.5 bg-emerald-500 rounded-full" />
           </p>
         </div>
         <Button 
           onClick={() => setShowForm(true)} 
-          className="w-full md:w-auto bg-slate-900 hover:bg-black text-white shadow-2xl shadow-slate-200 rounded-[1.25rem] h-14 px-10 font-black text-[11px] uppercase tracking-[0.2em] active:scale-95 transition-all"
+          className="w-full md:w-auto bg-slate-900 hover:bg-black text-white shadow-sm rounded-xl h-11 px-6 font-bold text-xs transition-all active:scale-95"
         >
-          <Plus className="w-5 h-5 mr-3" /> New Purchase
+          <Plus className="w-4 h-4 mr-2" /> New Purchase
         </Button>
       </div>
 
-      <div className="glass-card rounded-[2.5rem] overflow-visible relative shadow-2xl border-none p-0 animate-in fade-in duration-700">
-        <div className="p-6 md:p-10 border-b border-slate-100 bg-white/50 backdrop-blur-xl flex flex-col md:flex-row md:items-center justify-between gap-8 rounded-t-[2.5rem]">
-            <div className="flex items-center gap-5">
-               <div className="w-16 h-16 bg-slate-900 rounded-[1.5rem] flex items-center justify-center shadow-xl shadow-slate-200">
-                  <Clock className="w-8 h-8 text-white" />
+      <div className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden animate-in fade-in duration-700">
+        <div className="p-5 border-b border-slate-50 flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div className="flex items-center gap-4">
+               <div className="w-10 h-10 bg-slate-50 border border-slate-100 rounded-xl flex items-center justify-center">
+                  <Clock className="w-5 h-5 text-slate-700" />
                </div>
                <div>
-                  <h3 className="text-xl font-black text-slate-900 uppercase tracking-tight">Purchase Log</h3>
-                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">View all stock acquisitions</p>
+                  <h3 className="text-sm font-bold text-slate-800">Purchase Log</h3>
+                  <p className="text-[10px] font-medium text-slate-500 mt-0.5">View all stock acquisitions</p>
                </div>
             </div>
-            <div className="flex items-center gap-4 w-full md:w-auto">
+            <div className="flex items-center gap-2 w-full md:w-auto">
                <div className="relative group flex-1">
-                  <Search className="absolute left-6 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-hover:text-emerald-500 transition-colors" />
+                  <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 group-focus-within:text-emerald-500 transition-colors" />
                   <Input 
                     placeholder="Search records..." 
-                    className="pl-14 pr-8 h-14 w-full md:w-80 bg-white border border-slate-200 rounded-[1.25rem] text-[11px] font-black uppercase tracking-widest focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 transition-all shadow-sm"
+                    className="pl-9 pr-6 h-10 w-full md:w-64 bg-slate-50 border-none rounded-xl text-xs font-semibold focus-visible:ring-emerald-500/10 transition-all"
                   />
                </div>
-               <Button variant="outline" size="icon" className="h-14 w-14 rounded-[1.25rem] border-slate-200 hover:bg-slate-50 transition-all shrink-0">
-                  <Filter className="w-5 h-5 text-slate-500" />
+               <Button variant="ghost" size="icon" className="h-10 w-10 rounded-xl border border-slate-100 hover:bg-slate-50">
+                  <Filter className="w-4 h-4 text-slate-500" />
                </Button>
             </div>
         </div>
@@ -207,26 +207,26 @@ export default function PurchasePage() {
             {
               header: "Date",
               accessor: (p) => (
-                <div>
-                  <div className="text-[11px] font-black text-slate-900 uppercase tracking-widest">{new Date(p.purchase_date).toLocaleDateString("en-GB", { day: '2-digit', month: 'short', year: 'numeric' })}</div>
-                  <div className="text-[9px] text-slate-400 font-black uppercase tracking-widest mt-1.5">{new Date(p.purchase_date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
+                <div className="py-1">
+                  <div className="text-[11px] font-bold text-slate-700">{new Date(p.purchase_date).toLocaleDateString("en-GB", { day: '2-digit', month: 'short', year: 'numeric' })}</div>
+                  <div className="text-[9px] text-slate-400 font-medium mt-0.5">{new Date(p.purchase_date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
                 </div>
               ),
-              className: "pl-10"
+              className: "pl-8"
             },
             {
               header: "Material",
               accessor: (p) => (
                 <div>
-                  <div className="text-base font-black text-slate-900 uppercase tracking-tight group-hover:text-emerald-600 transition-colors uppercase truncate max-w-[220px]">{p.ingredient?.item_name}</div>
-                  <div className="text-[9px] text-slate-300 font-black uppercase tracking-[0.2em] mt-2 group-hover:text-emerald-400 transition-colors">{p.ingredient?.brand || "Generic"}</div>
+                  <div className="text-sm font-bold text-slate-800 leading-none">{p.ingredient?.item_name}</div>
+                  <div className="text-[10px] text-slate-400 font-medium uppercase tracking-tight mt-1">{p.ingredient?.brand || "Generic"}</div>
                 </div>
               )
             },
             {
               header: "Qty",
               accessor: (p) => (
-                <div className="inline-flex items-center gap-3 px-6 py-2 bg-slate-50 rounded-[1rem] text-sm font-black text-slate-700 border border-slate-200/50 min-w-16 justify-center">
+                <div className="inline-flex items-center gap-2 px-3 py-1 bg-slate-50 rounded-lg text-xs font-bold text-slate-600 border border-slate-100">
                   {p.quantity} 
                 </div>
               )
@@ -234,19 +234,19 @@ export default function PurchasePage() {
             {
               header: "Price/Unit",
               accessor: (p) => (
-                <span className="text-sm font-bold text-slate-400 tabular-nums">{formatIDR(p.unit_price)}</span>
+                <span className="text-xs font-semibold text-slate-400 tabular-nums">{formatIDR(p.unit_price)}</span>
               )
             },
             {
               header: "Total",
               accessor: (p) => (
-                <span className="text-xl font-black text-slate-900 tracking-tighter tabular-nums">{formatIDR(p.total_price)}</span>
+                <span className="text-base font-bold text-slate-800 tabular-nums">{formatIDR(p.total_price)}</span>
               )
             },
             {
               header: "Supplier",
               accessor: (p) => (
-                <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">{p.supplier || "-"}</span>
+                <span className="text-[10px] font-semibold text-slate-500 uppercase">{p.supplier || "-"}</span>
               )
             },
             {
@@ -254,100 +254,100 @@ export default function PurchasePage() {
               accessor: (p) => (
                 <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon" className="h-12 w-12 rounded-2xl hover:bg-slate-50 transition-all">
-                             <MoreHorizontal className="w-5 h-5 text-slate-400 group-hover:text-emerald-600 transition-all" />
+                        <Button variant="ghost" size="icon" className="h-9 w-9 rounded-lg hover:bg-slate-50">
+                             <MoreHorizontal className="w-4 h-4 text-slate-400" />
                         </Button>
                     </DropdownMenuTrigger>
-                    <DropdownMenuContent className="min-w-[180px] bg-white border-slate-100 shadow-2xl p-2 rounded-2xl">
+                    <DropdownMenuContent align="end" className="min-w-[160px] bg-white border-slate-100 shadow-xl p-1 rounded-xl">
                         <DropdownMenuItem 
                             onClick={() => setEditData(p)}
-                            className="text-slate-700 hover:bg-slate-50 font-black uppercase text-[10px] tracking-widest px-4 py-3 rounded-xl gap-3 mb-1"
+                            className="text-slate-600 hover:bg-slate-50 font-semibold text-[11px] px-3 py-2 rounded-lg gap-2 cursor-pointer"
                         >
-                            <FileText className="w-4 h-4 text-slate-400" /> Edit Purchase
+                            <FileText className="w-3.5 h-3.5 text-slate-400" /> Edit Record
                         </DropdownMenuItem>
                         <DropdownMenuItem 
                             onClick={() => setDeleteData(p)}
-                            className="bg-red-50 text-red-600 hover:bg-red-100 font-black uppercase text-[10px] tracking-widest px-4 py-3 rounded-xl gap-3"
+                            className="text-rose-600 hover:bg-rose-50 font-semibold text-[11px] px-3 py-2 rounded-lg gap-2 cursor-pointer"
                         >
-                            <Trash2 className="w-4 h-4" /> Cancel Purchase
+                            <Trash2 className="w-3.5 h-3.5" /> Cancel Entry
                         </DropdownMenuItem>
                     </DropdownMenuContent>
                 </DropdownMenu>
               ),
               align: "right",
-              className: "pr-10"
+              className: "pr-8"
             }
           ]}
           renderCard={(p) => (
             <div className="space-y-4">
               <div className="flex justify-between items-start">
                 <div>
-                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">
-                    {new Date(p.purchase_date).toLocaleDateString("en-GB", { day: '2-digit', month: 'short' })}
+                  <p className="text-[10px] font-bold text-slate-400 mb-1">
+                    {new Date(p.purchase_date).toLocaleDateString("en-GB", { day: '2-digit', month: 'short', year: 'numeric' })}
                   </p>
-                  <p className="font-black text-slate-900 uppercase tracking-tight text-lg leading-tight">{p.ingredient?.item_name}</p>
-                  <p className="text-[9px] font-bold text-slate-400 uppercase mt-1">{p.ingredient?.brand || "Generic"}</p>
+                  <p className="font-bold text-slate-800 text-base leading-tight">{p.ingredient?.item_name}</p>
+                  <p className="text-[10px] font-medium text-slate-400 uppercase tracking-tight mt-0.5">{p.ingredient?.brand || "Generic"}</p>
                 </div>
                 <div className="text-right">
-                   <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1">Total</p>
-                   <p className="font-black text-slate-900 text-xl tracking-tighter tabular-nums">{formatIDR(p.total_price)}</p>
+                   <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">Total</p>
+                   <p className="font-bold text-slate-800 text-lg tabular-nums tracking-tight">{formatIDR(p.total_price)}</p>
                 </div>
               </div>
 
               <div className="flex justify-between items-center bg-slate-50/50 p-4 rounded-xl border border-slate-100">
                 <div className="flex flex-col">
-                  <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1">Qty</p>
-                  <p className="font-black text-slate-700 text-sm">{p.quantity}</p>
+                  <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-0.5">Qty</p>
+                  <p className="font-bold text-slate-700 text-sm tabular-nums">{p.quantity}</p>
                 </div>
-                <div className="h-6 w-px bg-slate-200" />
+                <div className="h-6 w-px bg-slate-100" />
                 <div className="flex flex-col">
-                  <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1">Price/Unit</p>
-                  <p className="font-black text-slate-700 text-sm">{formatIDR(p.unit_price)}</p>
+                  <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-0.5">Rate</p>
+                  <p className="font-bold text-slate-700 text-sm tabular-nums">{formatIDR(p.unit_price)}</p>
                 </div>
-                <div className="h-6 w-px bg-slate-200" />
+                <div className="h-6 w-px bg-slate-100" />
                 <div className="text-right">
-                  <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1">Action</p>
-                  <div className="flex gap-2">
-                    <Button 
-                      variant="ghost" 
-                      size="sm" 
-                      onClick={() => setEditData(p)}
-                      className="h-8 px-3 rounded-lg text-[9px] font-black text-slate-500 uppercase hover:bg-slate-100"
-                    >
-                      Edit
-                    </Button>
-                    <Button 
-                      variant="ghost" 
-                      size="sm" 
-                      onClick={() => setDeleteData(p)}
-                      className="h-8 px-3 rounded-lg text-[9px] font-black text-red-500 uppercase hover:bg-red-50"
-                    >
-                      Cancel
-                    </Button>
-                  </div>
+                   <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-0.5">Supplier</p>
+                   <p className="font-bold text-slate-700 text-[10px] uppercase">{p.supplier || "-"}</p>
                 </div>
+              </div>
+
+              <div className="flex items-center gap-2 pt-1">
+                <Button 
+                  variant="ghost" 
+                  onClick={() => setEditData(p)}
+                  className="flex-1 h-9 rounded-lg text-xs font-bold text-slate-500 bg-slate-50 hover:bg-slate-100"
+                >
+                  Edit
+                </Button>
+                <Button 
+                  variant="ghost"
+                  onClick={() => setDeleteData(p)}
+                  className="flex-1 h-9 rounded-lg text-xs font-bold text-rose-500 hover:bg-rose-50"
+                >
+                  Cancel
+                </Button>
               </div>
             </div>
           )}
         />
         
         {pagination.totalPages > 1 && (
-           <div className="px-6 md:px-10 py-8 bg-slate-50/50 border-t border-slate-100 flex flex-col md:flex-row items-center justify-between gap-6 rounded-b-[2.5rem]">
-              <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Page {pagination.page} of {pagination.totalPages}</p>
-              <div className="flex gap-4 w-full md:w-auto">
+           <div className="px-6 md:px-8 py-5 bg-slate-50/50 border-t border-slate-100 flex flex-col md:flex-row items-center justify-between gap-4">
+              <p className="text-[11px] font-bold text-slate-400">Page {pagination.page} of {pagination.totalPages}</p>
+              <div className="flex gap-2 w-full md:w-auto">
                  <Button 
                   variant="outline" 
                   size="sm" 
                   disabled={pagination.page <= 1}
                   onClick={() => setFilters({...filters, page: pagination.page - 1})}
-                  className="flex-1 h-11 px-8 rounded-xl text-[10px] uppercase font-black tracking-widest border-slate-200 hover:bg-white transition-all"
+                  className="flex-1 h-9 px-6 rounded-lg text-xs font-bold text-slate-500 hover:bg-white"
                  >Previous</Button>
                  <Button 
                   variant="outline" 
                   size="sm" 
                   disabled={pagination.page >= pagination.totalPages}
                   onClick={() => setFilters({...filters, page: pagination.page + 1})}
-                  className="flex-1 h-11 px-8 rounded-xl text-[10px] uppercase font-black tracking-widest border-slate-200 hover:bg-white transition-all"
+                  className="flex-1 h-9 px-6 rounded-lg text-xs font-bold text-slate-500 hover:bg-white"
                  >Next</Button>
               </div>
            </div>

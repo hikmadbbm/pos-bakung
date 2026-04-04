@@ -6,11 +6,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "../../../components/ui
 import { Button } from "../../../components/ui/button";
 import { Input } from "../../../components/ui/input";
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "../../../components/ui/table";
-import { RefreshCw, Printer, Save, CheckCircle, AlertCircle, Activity, BarChart, X, DollarSign, Wallet, Clock, Calendar } from "lucide-react";
+import { RefreshCw, Printer, Save, CheckCircle, AlertCircle, Activity, BarChart, X, DollarSign, Wallet, Clock, Calendar, FileText } from "lucide-react";
 import { cn } from "../../../lib/utils";
 import { useToast } from "../../../components/ui/use-toast";
 import { Textarea } from "../../../components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "../../../components/ui/dialog";
+import ShiftReportModal from "../../../components/ShiftReportModal";
 
 export default function CashierReportPage() {
   const { success, error } = useToast();
@@ -30,6 +31,9 @@ export default function CashierReportPage() {
   const [reconHistory, setReconHistory] = useState([]);
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
   const [selectedRecon, setSelectedRecon] = useState(null);
+  const [shiftsForDate, setShiftsForDate] = useState([]);
+  const [reportShiftId, setReportShiftId] = useState(null);
+  const [isShiftReportOpen, setIsShiftReportOpen] = useState(false);
 
   const loadReport = useCallback(async () => {
     if (!date) return;
@@ -73,6 +77,17 @@ export default function CashierReportPage() {
       loadReconHistory();
     }
   }, [date, loadReport, loadReconHistory]);
+
+  // Load shifts for a specific recon date
+  const loadShiftsForDate = useCallback(async (dateStr) => {
+    try {
+      const res = await api.get(`/shifts/history?date=${dateStr}`);
+      setShiftsForDate(Array.isArray(res) ? res : []);
+    } catch (e) {
+      console.error(e);
+      setShiftsForDate([]);
+    }
+  }, []);
 
   const handlePrint = () => {
     window.print();
@@ -126,34 +141,33 @@ export default function CashierReportPage() {
 
   return (
     <div className="space-y-8 animate-fade-in">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 print:hidden">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 print:hidden">
         <div>
-          <h2 className="text-2xl font-black tracking-tight text-slate-900 uppercase">Cashier Reconciliation</h2>
-          <p className="text-sm font-medium text-slate-500 mt-1 flex items-center gap-2">
+          <h2 className="text-2xl font-bold text-slate-800 tracking-tight">Cashier Reconciliation</h2>
+          <p className="text-xs text-slate-500 font-medium mt-1 flex items-center gap-2">
             Daily sales validation and financial handover
-            <span className="inline-block w-1 h-1 bg-emerald-600 rounded-full" />
+            <span className="inline-block w-1 h-1 bg-emerald-500 rounded-full" />
           </p>
         </div>
-        <div className="flex flex-wrap items-center gap-3 w-full md:w-auto bg-white/80 backdrop-blur-md p-1.5 rounded-2xl border border-slate-200/60 shadow-sm">
+        <div className="flex items-center gap-2 bg-white p-1 rounded-xl border border-slate-100 shadow-sm">
           <Input 
             type="date" 
             value={date} 
             onChange={(e) => setDate(e.target.value)}
-            className="w-full md:w-40 h-9 text-xs font-bold border-none bg-transparent focus:ring-0"
+            className="w-36 h-9 text-xs font-bold border-none bg-transparent focus:ring-0 cursor-pointer"
           />
-          <div className="flex gap-2 w-full md:w-auto pl-2 border-l border-slate-200">
-            <Button variant="ghost" size="sm" onClick={loadReport} className="h-9 w-9 p-0 rounded-xl hover:bg-slate-100">
-              <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin text-emerald-600" : "text-slate-400"}`} />
-            </Button>
-            <Button onClick={handlePrint} variant="ghost" size="sm" className="h-9 px-4 rounded-xl font-bold text-xs bg-slate-900 text-white hover:bg-slate-800 transition-all active:scale-95">
-              <Printer className="w-4 h-4 mr-2" /> PRINT
-            </Button>
-          </div>
+          <div className="h-4 w-px bg-slate-100 mx-1" />
+          <Button variant="ghost" size="sm" onClick={loadReport} className="h-8 w-8 p-0 rounded-lg">
+            <RefreshCw className={cn("w-3.5 h-3.5", loading ? "animate-spin text-emerald-600" : "text-slate-400")} />
+          </Button>
+          <Button onClick={handlePrint} className="h-8 px-4 rounded-lg bg-slate-900 text-white hover:bg-black font-bold text-[10px] transition-all">
+            <Printer className="w-3.5 h-3.5 mr-2" /> PRINT
+          </Button>
         </div>
       </div>
 
       {/* Reconciliation Status Quick List */}
-      <div className="flex gap-3 overflow-x-auto pb-4 scrollbar-hide print:hidden">
+      <div className="flex gap-2 overflow-x-auto pb-4 no-scrollbar print:hidden">
         {(Array.isArray(reconHistory) ? reconHistory : []).map((r) => {
           const isSubmitted = r?.status === "SUBMITTED";
           const rDate = r?.date ? new Date(r.date).toISOString().split('T')[0] : "";
@@ -163,16 +177,16 @@ export default function CashierReportPage() {
               key={r.id}
               onClick={() => setDate(rDate)}
               className={cn(
-                "flex items-center gap-2 px-4 py-2 rounded-2xl text-[10px] font-black uppercase tracking-wider border transition-all whitespace-nowrap shadow-sm active:scale-95",
+                "flex items-center gap-2 px-3 py-1.5 rounded-xl text-[10px] font-bold border transition-all whitespace-nowrap active:scale-95",
                 isCurrent 
-                  ? 'ring-2 ring-emerald-600 ring-offset-2 border-emerald-200' 
-                  : 'border-slate-200 hover:border-slate-300',
+                  ? 'border-emerald-200 bg-emerald-50 text-emerald-700 ring-2 ring-emerald-500/10' 
+                  : 'border-slate-100 bg-white text-slate-500 hover:border-slate-200',
                 isSubmitted 
-                  ? 'bg-emerald-50 text-emerald-700 border-emerald-100/50' 
-                  : 'bg-amber-50 text-amber-700 border-amber-100/50'
+                  ? '' 
+                  : 'bg-amber-50/50 text-amber-700 border-amber-100/30'
               )}
             >
-              {isSubmitted ? <CheckCircle className="w-3 h-3" /> : <AlertCircle className="w-3 h-3" />}
+              <div className={cn("w-1.5 h-1.5 rounded-full", isSubmitted ? "bg-emerald-500" : "bg-amber-500")} />
               <span>{new Date(r.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</span>
             </button>
           );
@@ -195,66 +209,54 @@ export default function CashierReportPage() {
       ) : (
         <div className="space-y-10 animate-fade-in">
           {/* Summary Cards */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-            <div className="glass-card p-6 rounded-3xl relative overflow-hidden group">
-              <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:scale-110 transition-transform">
-                <BarChart className="w-12 h-12 text-slate-900" />
-              </div>
-              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none mb-3">Gross Sales</p>
-              <div className="text-2xl font-black text-slate-900">{formatIDR(report.summary.grossSales)}</div>
-              <p className="text-[10px] font-bold text-slate-500 mt-2 bg-slate-100 inline-block px-2 py-0.5 rounded-full">{report.summary.totalOrders} TXNS</p>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm relative overflow-hidden group">
+              <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider mb-2">Gross Sales</p>
+              <div className="text-lg sm:text-xl font-bold text-slate-800 tabular-nums truncate whitespace-nowrap">{formatIDR(report.summary.grossSales)}</div>
+              <p className="text-[8px] font-semibold text-slate-400 mt-2 bg-slate-50 w-fit px-2 py-0.5 rounded-full">{report.summary.totalOrders} Trans.</p>
             </div>
 
-            <div className="glass-card p-6 rounded-3xl relative overflow-hidden group">
-              <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:scale-110 transition-transform text-emerald-600">
-                <DollarSign className="w-12 h-12 text-emerald-600" />
-              </div>
-              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none mb-3">Net Revenue</p>
-              <div className="text-2xl font-black text-emerald-600">{formatIDR(report.summary.netSales)}</div>
-              <p className="text-[10px] font-bold text-emerald-600/60 mt-2 bg-emerald-50 inline-block px-2 py-0.5 rounded-full uppercase">AFTER DISCOUNTS</p>
+            <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm relative overflow-hidden group">
+              <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider mb-2">Net Revenue</p>
+              <div className="text-lg sm:text-xl font-bold text-emerald-600 tabular-nums truncate whitespace-nowrap">{formatIDR(report.summary.netSales)}</div>
+              <p className="text-[8px] font-semibold text-emerald-600/60 mt-2 bg-emerald-50 w-fit px-2 py-0.5 rounded-full uppercase">Net Disc.</p>
             </div>
 
-            <div className="glass-card p-6 rounded-3xl relative overflow-hidden group">
-              <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:scale-110 transition-transform text-emerald-600">
-                <Wallet className="w-12 h-12" />
-              </div>
-              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none mb-3">Expected Cash</p>
-              <div className="text-2xl font-black text-emerald-600">{formatIDR(report.cashInDrawer)}</div>
-              <p className="text-[10px] font-bold text-emerald-600/60 mt-2 bg-emerald-50 inline-block px-2 py-0.5 rounded-full uppercase">DRAWER TARGET</p>
+            <div className="bg-emerald-900 p-5 rounded-2xl shadow-sm relative overflow-hidden group">
+              <p className="text-[9px] font-bold text-emerald-300 uppercase tracking-wider mb-2">Expected Cash</p>
+              <div className="text-lg sm:text-xl font-bold text-white tabular-nums truncate whitespace-nowrap">{formatIDR(report.cashInDrawer)}</div>
+              <p className="text-[8px] font-semibold text-emerald-300/60 mt-2 bg-white/10 w-fit px-2 py-0.5 rounded-full uppercase">Drawer</p>
             </div>
 
-            <div className="glass-card p-6 rounded-3xl relative overflow-hidden group">
-              <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:scale-110 transition-transform text-indigo-600">
-                <Activity className="w-12 h-12" />
-              </div>
-              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none mb-3">Final Revenue</p>
-              <div className="text-2xl font-black text-indigo-600">{formatIDR(report.summary.finalRevenue)}</div>
-              <p className="text-[10px] font-bold text-indigo-600/60 mt-2 bg-indigo-50 inline-block px-2 py-0.5 rounded-full uppercase">NET - COMM</p>
+            <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm relative overflow-hidden group">
+              <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider mb-2">Final Revenue</p>
+              <div className="text-lg sm:text-xl font-bold text-slate-800 tabular-nums truncate whitespace-nowrap">{formatIDR(report.summary.finalRevenue)}</div>
+              <p className="text-[8px] font-semibold text-slate-400/60 mt-2 bg-slate-50 w-fit px-2 py-0.5 rounded-full uppercase">Net - Comm</p>
             </div>
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
             <div className="lg:col-span-2 space-y-10">
               {/* Payment Method Breakdown */}
-              <div className="glass-card rounded-3xl overflow-hidden shadow-xl border-none">
-                <div className="p-6 border-b border-slate-100 flex items-center justify-between bg-slate-50/30">
+              <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+                <div className="px-6 py-4 border-b border-slate-50 flex items-center justify-between bg-slate-50/10">
                   <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-xl bg-slate-900 flex items-center justify-center">
+                    <div className="w-8 h-8 rounded-lg bg-slate-900 flex items-center justify-center">
                        <Wallet className="w-4 h-4 text-white" />
                     </div>
-                    <h3 className="text-sm font-black text-slate-900 uppercase tracking-tight">Payment Reconciliation</h3>
+                    <h3 className="text-sm font-bold text-slate-800">Payment Validation</h3>
                   </div>
-                  <span className="text-[10px] font-bold text-slate-400 uppercase">SYSTEM vs ACTUAL</span>
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">SYSTEM vs ACTUAL</span>
                 </div>
-                <div className="p-0 overflow-x-auto custom-scrollbar">
+                <div className="p-0 overflow-x-auto">
                   <Table>
-                    <TableHeader className="bg-slate-50/50">
+                    <TableHeader className="bg-slate-50/30">
                       <TableRow>
-                        <TableHead className="text-[10px] font-black uppercase text-slate-500 py-4 px-6">Method</TableHead>
-                        <TableHead className="text-right text-[10px] font-black uppercase text-slate-500 py-4">Count</TableHead>
-                        <TableHead className="text-right text-[10px] font-black uppercase text-slate-500 py-4">System Total</TableHead>
-                        <TableHead className="text-right text-[10px] font-black uppercase text-slate-500 py-4">Actual Count</TableHead>
-                        <TableHead className="text-right text-[10px] font-black uppercase text-slate-500 py-4 px-6">Diff</TableHead>
+                        <TableHead className="text-[9px] font-bold uppercase text-slate-400 py-3 px-6">Method</TableHead>
+                        <TableHead className="text-right text-[9px] font-bold uppercase text-slate-400 py-3">Count</TableHead>
+                        <TableHead className="text-right text-[9px] font-bold uppercase text-slate-400 py-3">System</TableHead>
+                        <TableHead className="text-right text-[9px] font-bold uppercase text-slate-400 py-3">Actual</TableHead>
+                        <TableHead className="text-right text-[9px] font-bold uppercase text-slate-400 py-3 px-6">Gap</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -264,16 +266,16 @@ export default function CashierReportPage() {
                           const actual = parseInt(actualCounts[method]) || 0;
                           const diff = actual - data.amount;
                           return (
-                            <TableRow key={method} className="hover:bg-slate-50/50 transition-colors border-slate-100">
-                              <TableCell className="font-bold text-slate-900 px-6 py-4 italic">{method}</TableCell>
-                              <TableCell className="text-right font-medium text-slate-500">{data.count}</TableCell>
-                              <TableCell className="text-right font-black text-slate-900">{formatIDR(data.amount)}</TableCell>
+                            <TableRow key={method} className="hover:bg-slate-50/30 transition-colors border-slate-50">
+                              <TableCell className="font-bold text-slate-800 px-6 py-3 text-xs italic">{method}</TableCell>
+                              <TableCell className="text-right font-medium text-slate-400 text-xs">{data.count}</TableCell>
+                              <TableCell className="text-right font-bold text-slate-800 text-xs">{formatIDR(data.amount)}</TableCell>
                               <TableCell className="text-right print:hidden">
                                 <div className="flex justify-end items-center gap-2">
                                   <div className="relative" >
-                                    <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[9px] font-black text-slate-300">Rp</span>
+                                    <span className="absolute left-2 top-1/2 -translate-y-1/2 text-[8px] font-bold text-slate-400">Rp</span>
                                     <Input 
-                                      className="w-32 h-9 text-right font-black text-emerald-600 bg-slate-50 border-slate-200/60 rounded-xl focus:ring-emerald-600/20 pl-7" 
+                                      className="w-28 h-8 text-right font-bold text-emerald-600 bg-slate-50 border-slate-100 rounded-lg focus:ring-emerald-500/10 pl-6 text-xs" 
                                       placeholder="0"
                                       type="number"
                                       value={actualCounts[method] || ""}
@@ -282,7 +284,7 @@ export default function CashierReportPage() {
                                   </div>
                                 </div>
                               </TableCell>
-                              <TableCell className={cn("text-right font-black px-6", diff === 0 ? "text-emerald-600" : "text-rose-600")}>
+                              <TableCell className={cn("text-right font-bold px-6 text-xs", diff === 0 ? "text-emerald-600" : "text-rose-500")}>
                                 {diff > 0 ? "+" : ""}{formatIDR(diff)}
                               </TableCell>
                             </TableRow>
@@ -294,25 +296,25 @@ export default function CashierReportPage() {
               </div>
 
               {/* Shift History Section */}
-              <div className="glass-card rounded-3xl overflow-hidden shadow-xl border-none">
-                <div className="p-6 border-b border-slate-100 flex items-center justify-between bg-slate-50/30">
+              <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+                <div className="px-6 py-4 border-b border-slate-50 flex items-center justify-between bg-slate-50/10">
                   <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-xl bg-emerald-600 flex items-center justify-center">
+                    <div className="w-8 h-8 rounded-lg bg-emerald-600 flex items-center justify-center">
                        <Clock className="w-4 h-4 text-white" />
                     </div>
-                    <h3 className="text-sm font-black text-slate-900 uppercase tracking-tight">Closed Shift Records</h3>
+                    <h3 className="text-sm font-bold text-slate-800">Shift Records</h3>
                   </div>
-                  <span className="text-[10px] font-bold text-slate-400 uppercase">CASHIER LOGS</span>
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">CASHIER LOGS</span>
                 </div>
-                <div className="p-0 overflow-x-auto custom-scrollbar">
+                <div className="p-0 overflow-x-auto">
                   <Table>
-                    <TableHeader className="bg-slate-50/50">
+                    <TableHeader className="bg-slate-50/30">
                       <TableRow>
-                        <TableHead className="text-[10px] font-black uppercase text-slate-500 py-4 px-6">Cashier</TableHead>
-                        <TableHead className="text-[10px] font-black uppercase text-slate-500 py-4">Timeline</TableHead>
-                        <TableHead className="text-right text-[10px] font-black uppercase text-slate-500 py-4">Sales</TableHead>
-                        <TableHead className="text-right text-[10px] font-black uppercase text-slate-500 py-4">Discrepancy</TableHead>
-                        <TableHead className="text-right text-[10px] font-black uppercase text-slate-500 py-4 px-6">Action</TableHead>
+                        <TableHead className="text-[9px] font-bold uppercase text-slate-400 py-3 px-6">Cashier</TableHead>
+                        <TableHead className="text-[9px] font-bold uppercase text-slate-400 py-3">Timeline</TableHead>
+                        <TableHead className="text-right text-[9px] font-bold uppercase text-slate-400 py-3">Sales</TableHead>
+                        <TableHead className="text-right text-[9px] font-bold uppercase text-slate-400 py-3">Delta</TableHead>
+                        <TableHead className="text-right text-[9px] font-bold uppercase text-slate-400 py-3 px-6">Review</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -324,30 +326,30 @@ export default function CashierReportPage() {
                         </TableRow>
                       ) : (
                         report.shifts.map((s) => (
-                          <TableRow key={s.id} className="hover:bg-slate-50/50 transition-colors border-slate-100">
-                            <TableCell className="font-bold text-slate-900 px-6 py-4 uppercase">
+                          <TableRow key={s.id} className="hover:bg-slate-50/30 transition-colors border-slate-50">
+                            <TableCell className="font-bold text-slate-800 px-6 py-3 uppercase text-[10px]">
                               {s.user?.name || s.user?.username || "Unknown"}
                             </TableCell>
                             <TableCell>
                               <div className="flex flex-col">
-                                <span className="text-xs font-bold text-slate-700">
+                                <span className="text-[10px] font-bold text-slate-700">
                                   {new Date(s.start_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} - 
                                   {s.end_time ? new Date(s.end_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : "Active"}
                                 </span>
-                                <span className="text-[9px] font-bold text-slate-400">{new Date(s.start_time).toLocaleDateString()}</span>
+                                <span className="text-[8px] font-medium text-slate-400">{new Date(s.start_time).toLocaleDateString()}</span>
                               </div>
                             </TableCell>
-                            <TableCell className="text-right font-black text-slate-900">
+                            <TableCell className="text-right font-bold text-slate-800 text-xs">
                               {formatIDR(s.total_sales || 0)}
                             </TableCell>
-                            <TableCell className={cn("text-right font-black", (s.discrepancy || 0) === 0 ? "text-emerald-600 font-medium opacity-50" : "text-rose-600")}>
+                            <TableCell className={cn("text-right font-bold text-xs", (s.discrepancy || 0) === 0 ? "text-emerald-600 opacity-50" : "text-rose-500")}>
                               {s.discrepancy > 0 ? "+" : ""}{formatIDR(s.discrepancy || 0)}
                             </TableCell>
                             <TableCell className="text-right px-6">
                               <Button 
                                 variant="ghost" 
                                 size="sm" 
-                                className="h-8 rounded-xl font-black text-[10px] hover:bg-slate-100"
+                                className="h-7 px-3 rounded-lg font-bold text-[9px] hover:bg-slate-50 border border-slate-100"
                                 onClick={() => setSelectedRecon({
                                   ...s.reconciliation_data,
                                   date: s.end_time,
@@ -359,7 +361,7 @@ export default function CashierReportPage() {
                                   updated_at: s.end_time
                                 })}
                               >
-                                REVIEW
+                                VIEW
                               </Button>
                             </TableCell>
                           </TableRow>
@@ -371,14 +373,14 @@ export default function CashierReportPage() {
               </div>
 
               {/* Notes & Submission */}
-              <div className="glass-card p-6 rounded-3xl space-y-4 print:hidden">
+              <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm space-y-4 print:hidden">
                 <div className="flex items-center gap-2">
                    <div className="w-1.5 h-1.5 bg-amber-500 rounded-full" />
-                   <h3 className="text-xs font-black text-slate-900 uppercase tracking-widest">End of Day Notes</h3>
+                   <h3 className="text-xs font-bold text-slate-600 uppercase tracking-widest">Handover Notes</h3>
                 </div>
                 <Textarea 
                   placeholder="Enter any notes about discrepancies, special orders, or cashier handovers..."
-                  className="min-h-[120px] rounded-2xl border-slate-200/60 bg-slate-50/50 focus:ring-emerald-600/10 transition-all font-medium text-sm"
+                  className="min-h-[100px] rounded-xl border-slate-100 bg-slate-50/50 focus:ring-emerald-500/10 transition-all font-medium text-xs"
                   value={reconNotes}
                   onChange={(e) => setReconNotes(e.target.value)}
                 />
@@ -386,14 +388,9 @@ export default function CashierReportPage() {
                   <Button 
                     onClick={handleSubmitReconciliation} 
                     disabled={submittingRecon}
-                    className="w-full md:w-auto gap-3 py-6 px-8 rounded-2xl font-black uppercase tracking-wider bg-emerald-600 hover:bg-emerald-700 shadow-xl shadow-emerald-200 active:scale-95 transition-all text-sm"
+                    className="w-full md:w-auto h-11 px-8 rounded-xl font-bold uppercase tracking-wider bg-slate-900 text-white hover:bg-black transition-all text-xs"
                   >
-                    {submittingRecon ? (
-                      <RefreshCw className="w-4 h-4 animate-spin" />
-                    ) : (
-                      <Save className="w-4 h-4" />
-                    )}
-                    {submittingRecon ? "Finalizing..." : "Submit Reconciled Report"}
+                    {submittingRecon ? "Processing..." : "Finalize Reconciliation"}
                   </Button>
                 </div>
               </div>
@@ -504,7 +501,11 @@ export default function CashierReportPage() {
                             variant="ghost" 
                             size="sm" 
                             className="h-9 px-4 rounded-xl font-black text-[10px] hover:bg-slate-100"
-                            onClick={() => setSelectedRecon(report)}
+                            onClick={() => {
+                              setSelectedRecon(report);
+                              const rDate = report.date ? new Date(report.date).toISOString().split('T')[0] : "";
+                              if (rDate) loadShiftsForDate(rDate);
+                            }}
                           >
                             DETAILS
                           </Button>
@@ -549,58 +550,59 @@ export default function CashierReportPage() {
       {/* Reconciliation Detail Dialog */}
       <Dialog
         open={!!selectedRecon}
-        onOpenChange={(open) => { if (!open) setSelectedRecon(null); }}
+        onOpenChange={(open) => { if (!open) { setSelectedRecon(null); setShiftsForDate([]); } }}
       >
-        <DialogContent className="max-w-3xl rounded-[2.5rem] border-none shadow-2xl p-0 overflow-hidden flex flex-col max-h-[90dvh]">
-          <div className="p-8 space-y-8 flex-1 overflow-y-auto scrollbar-hide min-h-0">
+        <DialogContent className="max-w-3xl rounded-[2rem] sm:rounded-[2.5rem] border-none shadow-2xl p-0 overflow-hidden flex flex-col max-h-[90dvh]">
+          <div className="p-5 sm:p-8 space-y-6 sm:space-y-8 flex-1 overflow-y-auto scrollbar-hide min-h-0">
             <div className="flex justify-between items-start">
               <div>
                 <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1">ARCHIVE RECORD</p>
-                <h2 className="text-3xl font-black text-slate-900 tracking-tighter uppercase">
+                <h2 className="text-xl sm:text-3xl font-black text-slate-900 tracking-tighter uppercase">
                   {selectedRecon ? new Date(selectedRecon.date).toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' }) : ""}
                 </h2>
               </div>
-              <button onClick={() => setSelectedRecon(null)} className="p-2 rounded-xl bg-slate-100 text-slate-500 hover:bg-slate-200 transition-colors">
+              <button onClick={() => { setSelectedRecon(null); setShiftsForDate([]); }} className="p-2 rounded-xl bg-slate-100 text-slate-500 hover:bg-slate-200 transition-colors">
                 <X className="w-5 h-5" />
               </button>
             </div>
 
             {selectedRecon && (
               <div className="space-y-10">
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-                  <div className="p-6 bg-slate-50 rounded-[2rem] border border-slate-100">
-                    <p className="text-[10px] text-slate-400 uppercase font-black tracking-widest leading-none mb-3">System Total</p>
-                    <p className="font-black text-xl text-slate-900">{formatIDR(selectedRecon.total_system)}</p>
+                <div className="grid grid-cols-3 gap-2 sm:gap-3">
+                  <div className="p-2 sm:p-4 bg-slate-50 rounded-xl sm:rounded-2xl border border-slate-100 text-center">
+                    <p className="text-[7px] sm:text-[9px] text-slate-400 uppercase font-bold tracking-wide mb-1">System</p>
+                    <p className="font-black text-[10px] sm:text-sm text-slate-900 break-all leading-tight">{formatIDR(selectedRecon.total_system)}</p>
                   </div>
-                  <div className="p-6 bg-emerald-50/50 rounded-[2rem] border border-emerald-100">
-                    <p className="text-[10px] text-emerald-600/60 uppercase font-black tracking-widest leading-none mb-3">Actual Count</p>
-                    <p className="font-black text-xl text-emerald-600">{formatIDR(selectedRecon.total_actual)}</p>
+                  <div className="p-2 sm:p-4 bg-emerald-50/50 rounded-xl sm:rounded-2xl border border-emerald-100 text-center">
+                    <p className="text-[7px] sm:text-[9px] text-emerald-600/60 uppercase font-bold tracking-wide mb-1">Actual</p>
+                    <p className="font-black text-[10px] sm:text-sm text-emerald-600 break-all leading-tight">{formatIDR(selectedRecon.total_actual)}</p>
                   </div>
-                  <div className={cn("p-6 rounded-[2rem] border transition-colors shadow-lg shadow-inner", selectedRecon.discrepancy === 0 ? 'bg-emerald-50 border-emerald-100 text-emerald-700' : 'bg-rose-50 border-rose-100 text-rose-700')}>
-                    <p className="text-[10px] uppercase font-black tracking-widest leading-none mb-3 opacity-60 italic">Gap</p>
-                    <p className="font-black text-xl">{selectedRecon.discrepancy > 0 ? "+" : ""}{formatIDR(selectedRecon.discrepancy)}</p>
+                  <div className={cn("p-2 sm:p-4 rounded-xl sm:rounded-2xl border text-center", selectedRecon.discrepancy === 0 ? 'bg-emerald-50 border-emerald-100 text-emerald-700' : 'bg-rose-50 border-rose-100 text-rose-700')}>
+                    <p className="text-[7px] sm:text-[9px] uppercase font-bold tracking-wide mb-1 opacity-60">Gap</p>
+                    <p className="font-black text-[10px] sm:text-sm break-all leading-tight">{selectedRecon.discrepancy > 0 ? "+" : ""}{formatIDR(selectedRecon.discrepancy)}</p>
                   </div>
                 </div>
 
-                <div className="rounded-[2rem] overflow-hidden border border-slate-100 overflow-x-auto custom-scrollbar">
+                {selectedRecon.details && Object.keys(selectedRecon.details).length > 0 && (
+                <div className="rounded-xl sm:rounded-2xl overflow-hidden border border-slate-100 overflow-x-auto custom-scrollbar">
                   <Table>
                     <TableHeader className="bg-slate-50/80 backdrop-blur-sm">
                       <TableRow>
-                        <TableHead className="py-4 px-6 text-[10px] font-black uppercase text-slate-500">Payment Channel</TableHead>
-                        <TableHead className="text-right py-4 text-[10px] font-black uppercase text-slate-500">Expected</TableHead>
-                        <TableHead className="text-right py-4 text-[10px] font-black uppercase text-slate-500">Captured</TableHead>
-                        <TableHead className="text-right py-4 px-6 text-[10px] font-black uppercase text-slate-500">Variance</TableHead>
+                        <TableHead className="py-3 px-3 sm:px-6 text-[9px] font-black uppercase text-slate-500">Channel</TableHead>
+                        <TableHead className="text-right py-3 px-2 text-[9px] font-black uppercase text-slate-500">Expected</TableHead>
+                        <TableHead className="text-right py-3 px-2 text-[9px] font-black uppercase text-slate-500">Captured</TableHead>
+                        <TableHead className="text-right py-3 px-3 sm:px-6 text-[9px] font-black uppercase text-slate-500">Variance</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {selectedRecon.details && Object.entries(selectedRecon.details).map(([method, data]) => {
-                        const diff = data.actual - data.system;
+                      {Object.entries(selectedRecon.details).map(([method, data]) => {
+                        const diff = (data.actual || 0) - (data.system || 0);
                         return (
                           <TableRow key={method} className="border-slate-50 hover:bg-slate-50 transition-colors">
-                            <TableCell className="py-4 px-6 font-bold text-slate-900 italic">{method}</TableCell>
-                            <TableCell className="text-right py-4 font-medium text-slate-400 text-sm">{formatIDR(data.system)}</TableCell>
-                            <TableCell className="text-right py-4 font-black text-slate-900 text-sm">{formatIDR(data.actual)}</TableCell>
-                            <TableCell className={cn("text-right py-4 px-6 font-black text-sm", diff === 0 ? "text-emerald-600/40" : "text-rose-600 font-black")}>
+                            <TableCell className="py-3 px-3 sm:px-6 font-bold text-slate-900 uppercase text-xs">{method}</TableCell>
+                            <TableCell className="text-right py-3 px-2 font-medium text-slate-400 text-xs">{formatIDR(data.system || 0)}</TableCell>
+                            <TableCell className="text-right py-3 px-2 font-black text-slate-900 text-xs">{formatIDR(data.actual || 0)}</TableCell>
+                            <TableCell className={cn("text-right py-3 px-3 sm:px-6 font-black text-xs", diff === 0 ? "text-emerald-600/40" : "text-rose-600")}>
                               {diff > 0 ? "+" : ""}{formatIDR(diff)}
                             </TableCell>
                           </TableRow>
@@ -609,36 +611,79 @@ export default function CashierReportPage() {
                     </TableBody>
                   </Table>
                 </div>
+                )}
+
+                {shiftsForDate.length > 0 && (
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2 px-1">
+                    <div className="w-1.5 h-1.5 bg-emerald-600 rounded-full" />
+                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Shift Reports - Reprint</span>
+                  </div>
+                  <div className="space-y-3">
+                    {shiftsForDate.map((shift) => (
+                      <div key={shift.id} className="flex items-center justify-between gap-3 p-4 sm:p-5 bg-slate-50 rounded-xl sm:rounded-2xl border border-slate-100 hover:border-emerald-200 transition-all">
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl sm:rounded-2xl bg-slate-900 flex items-center justify-center text-white font-black text-[10px] sm:text-xs shrink-0">
+                            {(shift.user?.name || "?").charAt(0).toUpperCase()}
+                          </div>
+                          <div className="min-w-0">
+                            <p className="text-xs sm:text-sm font-black text-slate-900 uppercase truncate">{shift.user?.name || shift.user?.username || "Staff"}</p>
+                            <p className="text-[9px] sm:text-[10px] font-bold text-slate-400 truncate">
+                              {new Date(shift.start_time).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})} - {shift.end_time ? new Date(shift.end_time).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) : "Active"}
+                              {" | "}Opening: {formatIDR(shift.starting_cash)}
+                            </p>
+                          </div>
+                        </div>
+                        <Button 
+                          size="sm" 
+                          className="h-8 sm:h-9 px-3 sm:px-4 rounded-xl bg-slate-900 hover:bg-black text-white font-black text-[9px] sm:text-[10px] uppercase tracking-wider gap-1.5 shadow-lg active:scale-95 transition-all shrink-0"
+                          onClick={() => {
+                            setReportShiftId(shift.id);
+                            setIsShiftReportOpen(true);
+                          }}
+                        >
+                          <Printer className="w-3 h-3 sm:w-3.5 sm:h-3.5" /> REPRINT
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                )}
 
                 {selectedRecon.notes && (
-                  <div className="bg-amber-50 p-8 rounded-[2rem] border border-amber-100/50 shadow-inner">
+                  <div className="bg-amber-50 p-5 sm:p-8 rounded-xl sm:rounded-2xl border border-amber-100/50">
                     <span className="font-black text-amber-800 block mb-3 uppercase text-[10px] tracking-widest">SUBMISSION NOTES:</span>
-                    <p className="text-slate-700 leading-relaxed font-bold italic text-sm">"{selectedRecon.notes}"</p>
+                    <p className="text-slate-700 leading-relaxed font-bold italic text-sm">&quot;{selectedRecon.notes}&quot;</p>
                   </div>
                 )}
 
-                <div className="flex flex-col sm:flex-row justify-between items-center pt-8 border-t border-slate-100 gap-4">
-                  <div className="flex items-center gap-4">
-                    <div className="w-10 h-10 rounded-2xl bg-slate-900 flex items-center justify-center text-white font-black text-xs">
-                       {(selectedRecon.submitted_by || "X").charAt(0).toUpperCase()}
-                    </div>
-                    <div>
-                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Authenticated By</p>
-                      <p className="text-sm font-black text-slate-900 uppercase">
-                        {selectedRecon.submitted_by || "System Admin"}
-                        <span className="ml-2 text-[9px] font-bold text-slate-400 normal-case">{new Date(selectedRecon.updated_at).toLocaleString()}</span>
-                      </p>
-                    </div>
+                <div className="flex items-center gap-3 pt-6 border-t border-slate-100">
+                  <div className="w-8 h-8 rounded-xl bg-slate-900 flex items-center justify-center text-white font-black text-[10px] shrink-0">
+                     {(selectedRecon.submitted_by || "X").charAt(0).toUpperCase()}
                   </div>
-                  <Button onClick={() => setSelectedRecon(null)} className="rounded-2xl h-12 px-8 font-black uppercase tracking-wider bg-slate-900 hover:bg-slate-800 transition-all active:scale-95">
-                    Close Details
-                  </Button>
+                  <div>
+                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none mb-0.5">Submitted By</p>
+                    <p className="text-xs font-black text-slate-900 uppercase">
+                      {selectedRecon.submitted_by || "System Admin"}
+                      <span className="ml-1 text-[8px] font-bold text-slate-400 normal-case">{new Date(selectedRecon.updated_at).toLocaleString()}</span>
+                    </p>
+                  </div>
                 </div>
               </div>
             )}
           </div>
         </DialogContent>
       </Dialog>
+
+      <ShiftReportModal 
+        isOpen={isShiftReportOpen}
+        shiftId={reportShiftId}
+        onFinish={() => {
+          setIsShiftReportOpen(false);
+          setReportShiftId(null);
+        }}
+      />
     </div>
   );
 }
+

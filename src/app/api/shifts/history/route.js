@@ -26,10 +26,22 @@ export async function GET(req) {
       where.user_id = uid;
     }
 
+    // Filter by date if provided
+    const dateParam = searchParams.get('date');
+    if (dateParam) {
+      const dayStart = new Date(dateParam);
+      dayStart.setHours(0, 0, 0, 0);
+      const dayEnd = new Date(dateParam);
+      dayEnd.setHours(23, 59, 59, 999);
+      where.start_time = { gte: dayStart, lte: dayEnd };
+      where.status = 'CLOSED';
+    }
+
     const shifts = await prisma.userShift.findMany({
       where,
       orderBy: { start_time: 'desc' },
       take: 100,
+      include: { user: { select: { name: true, username: true } } }
     });
     return NextResponse.json(shifts);
   } catch (error) {

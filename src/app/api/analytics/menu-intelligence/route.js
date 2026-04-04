@@ -41,6 +41,7 @@ export async function GET(req) {
         category: m.category?.name || "Uncategorized",
         total_qty,
         total_revenue,
+        hpp: total_cost,
         net_profit,
         allocatedOverhead: 5000, 
         profitAfterOverhead: net_profit - 5000,

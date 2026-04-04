@@ -9,7 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "./ui/table";
 import { AlertTriangle, CheckCircle, Lock, Calculator, ArrowRight, ArrowLeft, RefreshCcw } from "lucide-react";
 import { useToast } from "./ui/use-toast";
-import { cn } from "@/lib/utils";
+import { cn } from "../lib/utils";
 
 const DENOMINATIONS = [
   { value: 100000, label: "Rp 100.000" },
@@ -24,7 +24,7 @@ const DENOMINATIONS = [
   { value: 100, label: "Coins (100)" },
 ];
 
-export default function StopShiftModal({ isOpen, onClose, onSuccess, currentUserId, authorizedManager }) {
+export default function StopShiftModal({ isOpen, onClose, onSuccess, onReauthorize, currentUserId, authorizedManager }) {
   const { success, error, confirm } = useToast();
   const [step, setStep] = useState("SALES"); // sales, cash, non-cash, review
   const [loading, setLoading] = useState(false);
@@ -35,6 +35,16 @@ export default function StopShiftModal({ isOpen, onClose, onSuccess, currentUser
   const [counts, setCounts] = useState({});
   const [totalCashCounted, setTotalCashCounted] = useState(0);
   const [note, setNote] = useState("");
+  const [internalManager, setInternalManager] = useState(null);
+  const [verificationPin, setVerificationPin] = useState("");
+  const [verifying, setVerifying] = useState(false);
+
+  // Sync prop to internal state to survive parent re-renders better
+  useEffect(() => {
+    if (authorizedManager) {
+      setInternalManager(authorizedManager);
+    }
+  }, [authorizedManager]);
 
   const loadSummary = useCallback(async () => {
     if (!currentUserId) return;
@@ -82,7 +92,21 @@ export default function StopShiftModal({ isOpen, onClose, onSuccess, currentUser
   const handleFinalSubmit = async () => {
     setLoading(true);
     try {
-      if (!shiftSummary || !authorizedManager) return;
+      if (!shiftSummary) {
+        error("Shift summary not loaded");
+        setLoading(false);
+        return;
+      }
+      
+      // Resolve manager from the authorization step
+      const currentManager = internalManager || authorizedManager;
+      
+      if (!currentManager) {
+        error("Authorization Required: Manager PIN verification must be completed.");
+        if (onReauthorize) onReauthorize();
+        setLoading(false);
+        return;
+      }
       
       const actualCashSales = totalCashCounted - shiftSummary.startingCash;
       const actualNonCashSales = shiftSummary.methodTotals
@@ -107,11 +131,11 @@ export default function StopShiftModal({ isOpen, onClose, onSuccess, currentUser
             discrepancy: actual - system
           };
         }),
-        manager: authorizedManager.username,
+        manager: currentManager.username,
         timestamp: new Date().toISOString()
       };
       
-      await api.post("/shifts/end", {
+      const res = await api.post("/shifts/end", {
         user_id: currentUserId,
         ending_cash: totalCashCounted,
         total_sales: totalActualSales,
@@ -124,13 +148,35 @@ export default function StopShiftModal({ isOpen, onClose, onSuccess, currentUser
 
       success(`Shift Ended Successfully. Total Sales: ${formatIDR(totalActualSales)}`);
       window.dispatchEvent(new Event('shift-status-changed'));
-      if (onSuccess) onSuccess();
+      
+      // Use the actual shift ID from the API response
+      if (onSuccess) onSuccess(res.id); 
       onClose();
     } catch (err) {
       console.error(err);
       error(`Failed to End Shift: ${err.response?.data?.error || err.message || "Unknown error"}`);
     } finally {
       setLoading(false);
+      setVerifying(false);
+    }
+  };
+
+  const handleVerifyingSubmit = async () => {
+    if (!verificationPin) {
+      error("PIN required for authorization");
+      return;
+    }
+    
+    setVerifying(true);
+    try {
+      const res = await api.post("/auth/verify-manager", { pin: verificationPin });
+      setInternalManager(res.manager);
+      success("Authorization Verified");
+      // Small timeout to let state propagate before we trigger final submit if they want
+    } catch (err) {
+      error(err.response?.data?.error || "Incorrect Manager PIN");
+    } finally {
+      setVerifying(false);
     }
   };
 
@@ -184,14 +230,14 @@ export default function StopShiftModal({ isOpen, onClose, onSuccess, currentUser
         <div className="flex-1 overflow-y-auto p-6 pt-2">
           {step === "SALES" && shiftSummary && (
             <div className="space-y-4 py-2">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="bg-gray-50 p-4 rounded-lg border text-center">
-                  <Label className="text-gray-500 text-[10px] font-bold uppercase tracking-widest">Total Sales</Label>
-                  <p className="text-2xl font-black text-slate-900 mt-1">{formatIDR(shiftSummary.totalSales)}</p>
+              <div className="grid grid-cols-2 gap-3 sm:gap-4">
+                <div className="bg-gray-50 p-3 sm:p-4 rounded-xl border text-center flex flex-col justify-center min-h-[90px]">
+                  <Label className="text-gray-400 text-[9px] sm:text-[10px] font-black uppercase tracking-widest mb-1">Total Sales</Label>
+                  <p className="text-lg sm:text-xl lg:text-2xl font-black text-slate-900 leading-tight break-all sm:break-normal">{formatIDR(shiftSummary.totalSales)}</p>
                 </div>
-                <div className="bg-emerald-50 p-4 rounded-lg border border-emerald-100 text-center">
-                  <Label className="text-emerald-600 text-[10px] font-bold uppercase tracking-widest">Cash Expected</Label>
-                  <p className="text-2xl font-black text-emerald-700 mt-1">{formatIDR(shiftSummary.expectedCash)}</p>
+                <div className="bg-emerald-50 p-3 sm:p-4 rounded-xl border border-emerald-100 text-center flex flex-col justify-center min-h-[90px]">
+                  <Label className="text-emerald-500 text-[9px] sm:text-[10px] font-black uppercase tracking-widest mb-1">Cash Expected</Label>
+                  <p className="text-lg sm:text-xl lg:text-2xl font-black text-emerald-700 leading-tight break-all sm:break-normal">{formatIDR(shiftSummary.expectedCash)}</p>
                 </div>
               </div>
 
@@ -227,14 +273,14 @@ export default function StopShiftModal({ isOpen, onClose, onSuccess, currentUser
 
           {step === "CASH" && (
             <div className="space-y-6 py-2">
-              <div className="bg-emerald-950 p-6 rounded-2xl text-white flex justify-between items-center shadow-xl">
-                <div>
-                  <Label className="text-emerald-400 text-[10px] font-black uppercase tracking-[0.2em]">Cash Counted</Label>
-                  <p className="text-3xl font-black tracking-tight">{formatIDR(totalCashCounted)}</p>
+              <div className="bg-emerald-950 p-5 sm:p-6 rounded-2xl text-white flex justify-between items-center gap-4 sm:gap-8 shadow-xl">
+                <div className="min-w-0 flex-1">
+                  <Label className="text-emerald-400 text-[9px] sm:text-[10px] font-black uppercase tracking-[0.2em]">Cash Counted</Label>
+                  <p className="text-xl sm:text-3xl font-black tracking-tight truncate leading-tight">{formatIDR(totalCashCounted)}</p>
                 </div>
-                <div className="text-right">
-                  <Label className="text-emerald-500/50 text-[10px] font-black uppercase tracking-[0.2em]">Expected</Label>
-                  <p className="text-lg font-bold opacity-60">{formatIDR(shiftSummary.expectedCash)}</p>
+                <div className="text-right shrink-0">
+                  <Label className="text-emerald-500/40 text-[9px] sm:text-[10px] font-black uppercase tracking-[0.2em]">Expected</Label>
+                  <p className="text-sm sm:text-lg font-bold opacity-50 leading-tight">{formatIDR(shiftSummary.expectedCash)}</p>
                 </div>
               </div>
               
@@ -381,16 +427,37 @@ export default function StopShiftModal({ isOpen, onClose, onSuccess, currentUser
                 >
                   <ArrowLeft className="w-4 h-4 mr-2" /> Adjust Values
                 </Button>
-                <Button 
-                  onClick={handleFinalSubmit} 
-                  disabled={loading || (hasDiscrepancy() && !note.trim())}
-                  className={cn(
-                    "h-14 rounded-2xl font-black uppercase tracking-widest text-sm flex-[2] shadow-xl transition-all active:scale-95 gap-2",
-                    hasDiscrepancy() ? "bg-rose-600 hover:bg-rose-700 shadow-rose-600/20" : "bg-emerald-600 hover:bg-emerald-700 shadow-emerald-600/20"
-                  )}
-                >
-                  {loading ? <RefreshCcw className="w-5 h-5 animate-spin" /> : "Authorize & Close Shift"} <CheckCircle className="w-5 h-5" />
-                </Button>
+                
+                {!(internalManager || authorizedManager) ? (
+                  <div className="flex-[2] flex gap-2">
+                    <Input 
+                      type="password"
+                      inputMode="numeric"
+                      placeholder="Manager PIN"
+                      value={verificationPin}
+                      onChange={(e) => setVerificationPin(e.target.value)}
+                      className="h-14 rounded-2xl border-2 border-slate-200 focus:border-emerald-500 font-bold text-center tracking-[0.5em]"
+                    />
+                    <Button 
+                      onClick={handleVerifyingSubmit} 
+                      disabled={verifying || !verificationPin}
+                      className="h-14 px-6 rounded-2xl bg-slate-900 hover:bg-black text-white font-black uppercase text-[10px] tracking-widest shadow-xl"
+                    >
+                      {verifying ? <RefreshCcw className="w-4 h-4 animate-spin" /> : "Verify"}
+                    </Button>
+                  </div>
+                ) : (
+                  <Button 
+                    onClick={handleFinalSubmit} 
+                    disabled={loading || (hasDiscrepancy() && !note.trim())}
+                    className={cn(
+                      "h-14 rounded-2xl font-black uppercase tracking-widest text-sm flex-[2] shadow-xl transition-all active:scale-95 gap-2",
+                      hasDiscrepancy() ? "bg-rose-600 hover:bg-rose-700 shadow-rose-600/20" : "bg-emerald-600 hover:bg-emerald-700 shadow-emerald-600/20"
+                    )}
+                  >
+                    {loading ? <RefreshCcw className="w-5 h-5 animate-spin" /> : "Authorize & Close Shift"} <CheckCircle className="w-5 h-5" />
+                  </Button>
+                )}
               </div>
             </div>
           )}

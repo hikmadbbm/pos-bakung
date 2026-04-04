@@ -1,11 +1,14 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { verifyAuth } from '@/lib/auth';
+import { deductStockForOrder } from '@/lib/stock-deduction';
 import jwt from 'jsonwebtoken';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret';
+const JWT_SECRET = process.env.JWT_SECRET;
+// Note: JWT_SECRET validation is already handled by auth.js module initialization
 
 function getUserIdFromAuth(req) {
   const auth = req.headers.get('authorization') || '';
