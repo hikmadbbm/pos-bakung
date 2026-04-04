@@ -43,31 +43,7 @@ function parseAmountToInt(value) {
   return Math.round(num);
 }
 
-// Standard QRIS Branding Components
-const QRISLogoFull = () => (
-  <div className="flex flex-col items-start">
-    <div className="flex items-center gap-1">
-       <div className="bg-slate-900 text-white font-black text-[12px] px-1.5 py-0.5 rounded-sm tracking-tighter leading-none italic">QRIS</div>
-       <div className="text-slate-600 font-extrabold text-[7px] leading-[1.1] uppercase tracking-tighter italic">
-         QR Code Standar<br/>Pembayaran Nasional
-       </div>
-    </div>
-  </div>
-);
-
-const GPNLogo = () => (
-  <div className="flex items-center gap-1.5 grayscale opacity-80">
-     <div className="text-rose-600">
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <path d="M12 2L4.5 20.29L5.21 21L12 18L18.79 21L19.5 20.29L12 2Z" fill="currentColor" stroke="currentColor" strokeWidth="1" />
-          <path d="M12 4L6 18H18L12 4Z" fill="white" />
-          <circle cx="12" cy="13" r="3" fill="currentColor" />
-        </svg>
-     </div>
-     <div className="text-rose-600 font-black text-[10px] leading-none tracking-tight">GPN</div>
-  </div>
-);
-
+// Professional Standard QRIS Branding Assets (Merged into the component)
 function QRISImage({ baseQRIS, amount, merchantName, nmid }) {
   const [qrSrc, setQrSrc] = useState(null);
   const [error, setError] = useState(false);
@@ -86,16 +62,16 @@ function QRISImage({ baseQRIS, amount, merchantName, nmid }) {
     const timer = setTimeout(() => {
       if (isMounted && !qrSrc) { 
         setError(true);
-        setDebugInfo("Generation timed out");
+        setDebugInfo("QR Generation Delay");
       }
-    }, 8000);
+    }, 10000);
 
     try {
         const dynamicQRIS = generateDynamicQRIS(baseQRIS, amount);
         QRCode.toDataURL(dynamicQRIS, {
             margin: 1,
-            width: 800,
-            color: { dark: '#0F172A', light: '#ffffff' }
+            width: 1000,
+            color: { dark: '#000000', light: '#ffffff' }
         })
         .then(url => {
             if (!isMounted) return;
@@ -123,38 +99,48 @@ function QRISImage({ baseQRIS, amount, merchantName, nmid }) {
 
   if (!qrSrc && !error) {
     return (
-        <div className="w-full flex-1 flex flex-col items-center justify-center bg-slate-50 rounded-3xl animate-pulse">
-            <Smartphone className="w-12 h-12 mb-4 text-emerald-500 opacity-30" />
-            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Generating Secure QR...</p>
+        <div className="w-full flex-1 flex flex-col items-center justify-center bg-slate-50 rounded-[3rem] p-12 min-h-[400px]">
+            <RefreshCcw className="w-12 h-12 mb-4 text-rose-500 animate-spin opacity-40" />
+            <p className="text-[12px] font-black text-rose-400 uppercase tracking-[0.2em]">Securing Connection...</p>
         </div>
     );
   }
 
   return (
-    <div className="relative w-full h-full bg-white flex flex-col items-center p-8 rounded-[3rem] shadow-2xl border border-slate-100 overflow-hidden">
-        {/* Dynamic Background Accents */}
-        <div className="absolute top-0 right-0 w-48 h-48 bg-rose-500/5 -translate-y-1/2 translate-x-1/2 rounded-full blur-3xl" />
-        <div className="absolute bottom-0 left-0 w-48 h-48 bg-slate-500/5 translate-y-1/2 -translate-x-1/2 rounded-full blur-3xl" />
-        
-        {/* Standard Brand Banner */}
-        <div className="w-full flex justify-between items-center mb-10 relative z-10">
-           <QRISLogoFull />
-           <GPNLogo />
+    <div className="relative w-full h-full bg-white flex flex-col items-center p-0 rounded-[3.5rem] shadow-[0_32px_64px_-16px_rgba(225,29,72,0.15)] border-4 border-rose-50 overflow-hidden ring-8 ring-white">
+        {/* Dominant Red Branding Header */}
+        <div className="w-full bg-rose-600 p-8 flex justify-between items-center relative overflow-hidden group">
+           <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 -translate-y-1/2 translate-x-1/2 rounded-full blur-3xl opacity-20" />
+           <div className="absolute bottom-0 left-0 w-64 h-64 bg-black/10 translate-y-1/2 -translate-x-1/2 rounded-full blur-3xl opacity-20" />
+           
+           {/* QRIS Logo from Media */}
+           <div className="bg-white p-3 rounded-2xl shadow-lg relative z-10">
+              <img src="/media/qris.png" alt="QRIS" className="h-8 w-auto object-contain" />
+           </div>
+
+           {/* GPN Logo from Media */}
+           <div className="bg-white p-3 rounded-2xl shadow-lg relative z-10 scale-110">
+              <img src="/media/Gerbang_Pembayaran_Nasional_logo.svg" alt="GPN" className="h-8 w-auto object-contain" />
+           </div>
         </div>
 
+        {/* Diagonal Decorators */}
+        <div className="absolute top-[120px] left-0 w-24 h-24 bg-rose-600 -rotate-45 -translate-x-1/2 translate-y-0 z-0 opacity-100 shadow-xl" />
+        <div className="absolute bottom-0 right-0 w-24 h-24 bg-rose-600 -rotate-45 translate-x-1/2 translate-y-0 z-0 opacity-100 shadow-xl" />
+
         {/* Merchant Identification Section */}
-        <div className="text-center mb-8 relative z-10">
-          <h4 className="text-2xl font-black text-slate-900 uppercase italic tracking-tight">{merchantName}</h4>
-          <div className="flex flex-col gap-1 mt-2">
-            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">NMID: {nmid || 'ID1020000000000'}</p>
-            <p className="text-[8px] font-bold text-slate-300 uppercase tracking-widest">Terminal ID: {Math.random().toString(36).substring(2, 9).toUpperCase()}</p>
+        <div className="text-center pt-8 pb-6 px-10 relative z-10 w-full">
+          <h4 className="text-2xl font-black text-slate-900 uppercase italic tracking-tight mb-2 drop-shadow-sm">{merchantName}</h4>
+          <div className="inline-flex flex-col gap-1 items-center bg-slate-50 px-6 py-2 rounded-2xl border border-slate-100/50">
+            <p className="text-[11px] font-black text-slate-500 uppercase tracking-widest break-all">NMID: {nmid || 'ID1020000000000'}</p>
+            <p className="text-[9px] font-bold text-slate-300 uppercase tracking-[0.25em]">TERMINAL ID: {Math.random().toString(36).substring(2, 9).toUpperCase()}</p>
           </div>
         </div>
 
         {/* The Core: Dynamic QR Code Container */}
-        <div className="relative w-full aspect-square border-4 border-slate-50 rounded-[2.5rem] p-4 bg-white shadow-xl shadow-slate-200/50 flex items-center justify-center mb-8 group transition-all">
+        <div className="relative w-[300px] aspect-square border-4 border-slate-50 rounded-[2.5rem] p-4 bg-white shadow-2xl flex items-center justify-center mb-10 group transition-all ring-12 ring-slate-50/50">
             {qrSrc ? (
-              <img src={qrSrc} alt="QRIS Standard" className="w-full h-full object-contain" />
+              <img src={qrSrc} alt="SCAN QRIS" className="w-full h-full object-contain mix-blend-multiply" />
             ) : (
               <div className="text-rose-500 text-[10px] font-black uppercase text-center p-8">
                  <AlertCircle className="w-10 h-10 mx-auto mb-3 opacity-20" />
@@ -163,25 +149,21 @@ function QRISImage({ baseQRIS, amount, merchantName, nmid }) {
             )}
         </div>
 
-        {/* Compliance Footer */}
-        <div className="text-center space-y-2 relative z-10 mt-auto">
-          <div className="px-4 py-1.5 bg-slate-900 rounded-full inline-block">
-             <p className="text-[9px] font-black text-white uppercase tracking-[0.4em]">SATU QRIS UNTUK SEMUA</p>
+        {/* Compliance Footer (Vibrant Red) */}
+        <div className="text-center space-y-3 relative z-10 mt-auto pb-10 w-full flex flex-col items-center">
+          <div className="px-8 py-2 bg-rose-600 rounded-full shadow-lg shadow-rose-200">
+             <p className="text-[10px] font-black text-white uppercase tracking-[0.4em]">SATU QRIS UNTUK SEMUA</p>
           </div>
           <div>
-            <p className="text-[7px] font-bold text-slate-400 uppercase tracking-tighter leading-relaxed">
-              Cek aplikasi penyelenggara di: <span className="text-slate-600">www.aspi-qris.id</span><br/>
+            <p className="text-[8px] font-bold text-rose-900/40 uppercase tracking-widest text-center px-12 leading-relaxed">
+              Cek aplikasi penyelenggara di: <span className="text-rose-600 italic">www.aspi-qris.id</span><br/>
               Ditetapkan oleh Bank Indonesia
             </p>
           </div>
-        </div>
 
-        {/* Small payment step icons dummy */}
-        <div className="flex justify-center gap-3 mt-8 opacity-20 grayscale scale-75">
-          <div className="w-6 h-6 rounded bg-slate-400" />
-          <div className="w-6 h-6 rounded bg-slate-400" />
-          <div className="w-6 h-6 rounded bg-slate-400" />
-          <div className="w-6 h-6 rounded bg-slate-400" />
+          <div className="flex gap-4 mt-4 opacity-10">
+             {[1,2,3,4,5].map(i => <div key={i} className="w-6 h-6 rounded-lg bg-rose-900" />)}
+          </div>
         </div>
     </div>
   );
