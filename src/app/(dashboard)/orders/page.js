@@ -179,6 +179,8 @@ export default function OrdersPage() {
   const [editingNoteItem, setEditingNoteItem] = useState(null);
   const [tempNote, setTempNote] = useState("");
   const [isDeletingPending, setIsDeletingPending] = useState(false);
+  const [cancelReason, setCancelReason] = useState("");
+  const [isCancelReasonOpen, setIsCancelReasonOpen] = useState(false);
 
   const { isFocusMode } = useFocusMode();
   const { connectionStatus, device, reconnect, connect } = usePrinter();
@@ -303,6 +305,18 @@ export default function OrdersPage() {
   }, [selectedPlatform, isDelivery, platform, displayedPMs, paymentMethodId, setPaymentMethod, setPaymentMethodId]);
 
   // Handlers
+  // Prevent accidental page refresh when cart is not empty
+  useEffect(() => {
+    const handleBeforeUnload = (e) => {
+      if (cart.length > 0) {
+        e.preventDefault();
+        e.returnValue = "";
+      }
+    };
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+  }, [cart]);
+
   const handleProcess = () => {
     if (cart.length === 0) return;
     if (!currentShift) { toastError("Start a shift first."); return; }
@@ -367,11 +381,17 @@ export default function OrdersPage() {
     if (!deleteTargetOrder) return;
     setIsDeletingPending(true);
     try {
-      await api.patch(`/orders/${deleteTargetOrder.id}/status`, { status: "CANCELLED", pin });
+      await api.patch(`/orders/${deleteTargetOrder.id}/status`, { 
+        status: "CANCELLED", 
+        pin, 
+        reason: cancelReason 
+      });
       success(`Order cancelled`);
       loadPendingOrders();
       if (currentOrderId === deleteTargetOrder.id) resetCart();
-      setIsPinDialogOpen(false); setDeleteTargetOrder(null);
+      setIsPinDialogOpen(false); 
+      setDeleteTargetOrder(null);
+      setCancelReason("");
     } catch (err) { toastError(err.response?.data?.error || "Cancel failed"); }
     finally { setIsDeletingPending(false); }
   };
@@ -551,7 +571,7 @@ export default function OrdersPage() {
                   <div className="text-right space-y-2">
                     <div className="font-black text-lg tracking-tighter">{formatIDR(order.total - (order.discount || 0))}</div>
                     <div className="flex gap-2">
-                       <Button size="icon" variant="ghost" className="h-9 w-9 text-rose-300 hover:text-rose-500 rounded-lg" onClick={() => { setDeleteTargetOrder(order); setIsPinDialogOpen(true); }}><Trash2 className="w-4 h-4" /></Button>
+                       <Button size="icon" variant="ghost" className="h-9 w-9 text-rose-300 hover:text-rose-500 rounded-lg" onClick={() => { setDeleteTargetOrder(order); setIsCancelReasonOpen(true); }}><Trash2 className="w-4 h-4" /></Button>
                        <Button className="h-9 px-6 rounded-xl bg-slate-900 text-white font-black text-[9px] uppercase tracking-widest" onClick={() => handleResumeOrder(order)}>RESUME</Button>
                     </div>
                   </div>
@@ -603,6 +623,49 @@ export default function OrdersPage() {
             <div className="flex gap-4">
                <Button variant="ghost" className="h-14 flex-1 rounded-2xl font-black uppercase text-[10px]" onClick={() => setEditingNoteItem(null)}>Discard</Button>
                <Button className="h-14 flex-1 rounded-2xl bg-emerald-600 hover:bg-emerald-700 font-black uppercase text-[10px] tracking-widest text-white shadow-xl shadow-emerald-500/20" onClick={() => { updateItemNotes(editingNoteItem.cartItemId, tempNote); setEditingNoteItem(null); }}>Commit Note</Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Cancellation Reason Modal */}
+      <Dialog open={isCancelReasonOpen} onOpenChange={setIsCancelReasonOpen}>
+        <DialogContent className="max-w-md p-0 rounded-[3rem] overflow-hidden border-none shadow-2xl bg-white">
+          <div className="bg-rose-600 p-10 text-center text-white relative overflow-hidden">
+            <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full blur-2xl -translate-y-1/2 translate-x-1/2" />
+            <h2 className="text-3xl font-black italic uppercase tracking-tighter relative z-10">Void Reason</h2>
+            <p className="text-[10px] font-black text-rose-100 uppercase tracking-[0.3em] mt-2 relative z-10">Audit documentation required</p>
+          </div>
+          <div className="p-10 space-y-8">
+            <div className="space-y-4">
+              <Label className="text-[10px] font-black uppercase text-slate-400">Why are you cancelling this?</Label>
+              <Input 
+                className="h-16 text-lg font-bold border-2 focus:border-rose-500 rounded-2xl uppercase placeholder:text-slate-200" 
+                value={cancelReason} 
+                onChange={e => setCancelReason(e.target.value)} 
+                placeholder="e.g. WRONG INPUT / OUT OF STOCK" 
+              />
+              <div className="flex flex-wrap gap-2 pt-2">
+                {["WRONG INPUT", "OUT OF STOCK", "CANCELLED BY GUEST", "TEST ORDER"].map(r => (
+                  <button 
+                    key={r}
+                    onClick={() => setCancelReason(r)}
+                    className="px-3 py-1.5 bg-slate-50 hover:bg-slate-100 text-[9px] font-black uppercase tracking-tight rounded-lg border text-slate-500 transition-all"
+                  >
+                    {r}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="flex gap-4">
+               <Button variant="ghost" className="h-16 flex-1 rounded-2xl font-black uppercase text-[10px] tracking-widest text-slate-300" onClick={() => { setIsCancelReasonOpen(false); setDeleteTargetOrder(null); }}>Dismiss</Button>
+               <Button 
+                className="h-16 flex-[2] rounded-2xl bg-slate-900 hover:bg-slate-800 text-white font-black uppercase text-[10px] tracking-widest shadow-xl shadow-slate-200" 
+                disabled={!cancelReason}
+                onClick={() => { setIsCancelReasonOpen(false); setIsPinDialogOpen(true); }}
+               >
+                 Next: Manager PIN
+               </Button>
             </div>
           </div>
         </DialogContent>

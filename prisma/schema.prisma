@@ -159,6 +159,8 @@ model Order {
   payment_method       String          @default("CASH")
   money_received       Int             @default(0)
   change_amount        Int             @default(0)
+  cancel_reason        String?
+  cancelled_at         DateTime?
   status               String          @default("COMPLETED")
   note                 String?
   customer_name        String?

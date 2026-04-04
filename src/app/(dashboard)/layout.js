@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion } from "framer-motion";
 import { LayoutDashboard, ShoppingCart, Utensils, DollarSign, BarChart, LogOut, Settings, Activity, Calendar, ClipboardList, Menu, X, Wallet, Smartphone, Users, Clock, Maximize2, Minimize2, RefreshCw } from "lucide-react";
-import { setAuth, api } from "../../lib/api";
+import { setAuth, api, decodeAndValidateJwt } from "../../lib/api";
 import { useRouter } from "next/navigation";
 import { cn } from "../../lib/utils";
 import UserMenu from "../../components/UserMenu";
@@ -100,7 +100,9 @@ export function DashboardContent({ children }) {
     setMounted(true);
     const token = localStorage.getItem("token");
     const userStr = localStorage.getItem("user");
-    if (!token) {
+    
+    if (!token || !decodeAndValidateJwt(token)) {
+      setAuth(null, null); // Clear corrupted/expired state
       router.push("/login");
     } else if (userStr) {
       try {

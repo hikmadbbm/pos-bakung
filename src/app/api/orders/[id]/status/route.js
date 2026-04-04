@@ -19,37 +19,42 @@ export async function PATCH(req, { params }) {
     }
 
     const body = await req.json();
-    const { status, pin } = body;
+    const { status, pin, reason } = body;
     if (!status || typeof status !== 'string') {
       return NextResponse.json({ error: 'status is required' }, { status: 400 });
     }
 
-    // PIN check:
-    // OWNER/MANAGER/KITCHEN can perform status changes without PIN
-    // CASHIER requires a Manager/Owner PIN for sensitive destructive actions
-    if (user.role !== 'KITCHEN' && user.role !== 'MANAGER' && user.role !== 'OWNER') {
-      if (!pin) {
-        return NextResponse.json({ error: 'PIN is required for this action' }, { status: 403 });
-      }
-      const approver = await prisma.user.findFirst({
-        where: { pin, status: 'ACTIVE', role: { in: ['MANAGER', 'OWNER'] } },
-        select: { id: true },
-      });
-      if (!approver) {
-        return NextResponse.json({ error: 'Invalid PIN' }, { status: 403 });
+    // PIN check for critical actions
+    if (status === 'CANCELLED' || (status === 'PAID' && user.role === 'CASHIER')) {
+      if (user.role !== 'MANAGER' && user.role !== 'OWNER') {
+        if (!pin) {
+          return NextResponse.json({ error: 'PIN is required for this action' }, { status: 403 });
+        }
+        const approver = await prisma.user.findFirst({
+          where: { pin, status: 'ACTIVE', role: { in: ['MANAGER', 'OWNER'] } },
+          select: { id: true, name: true },
+        });
+        if (!approver) {
+          return NextResponse.json({ error: 'Invalid PIN' }, { status: 403 });
+        }
       }
     }
 
     const updated = await prisma.$transaction(async (tx) => {
       const oldOrder = await tx.order.findUnique({
         where: { id },
-        select: { status: true }
+        select: { status: true, order_number: true }
       });
 
       if (!oldOrder) throw new Error('Order not found');
 
       // Build update data
       const updateData = { status };
+
+      if (status === 'CANCELLED') {
+        updateData.cancel_reason = reason || 'NO_REASON_PROVIDED';
+        updateData.cancelled_at = new Date();
+      }
 
       // Record who processed the payment when confirming a PENDING order
       if ((status === 'PAID' || status === 'COMPLETED') && oldOrder.status === 'PENDING') {
@@ -71,12 +76,19 @@ export async function PATCH(req, { params }) {
         },
       });
 
+      // Audit Log for Cancellation
+      if (status === 'CANCELLED') {
+        await tx.userActivityLog.create({
+          data: {
+            user_id: user.id,
+            action_type: 'VOID_ORDER',
+            description: `Order ${oldOrder.order_number} cancelled. Reason: ${reason || 'N/A'}`,
+            ip_address: req.headers.get('x-forwarded-for') || 'local'
+          }
+        });
+      }
+
       // Trigger stock deduction when transitioning INTO a paid state.
-      // Covers:
-      //   1. PENDING -> PAID  (QRIS confirmation flow)
-      //   2. PENDING -> COMPLETED  (direct kitchen completion)
-      //   3. Any -> COMPLETED (kitchen marks done — was not yet deducted)
-      // Guard: if order was ALREADY PAID or COMPLETED, skip to prevent double-deduction.
       const wasAlreadyPaidOrCompleted = oldOrder.status === 'PAID' || oldOrder.status === 'COMPLETED';
       const isNowPayable = status === 'PAID' || status === 'COMPLETED';
 

@@ -204,32 +204,39 @@ export const PrinterProvider = ({ children }) => {
          }
       }
       
-      // Standard BLE MTU is small. 20 bytes is the safest minimum for all printers.
-      const maxChunk = 20; 
-      console.log(`Starting print job: ${buffer.length} bytes, chunk size: ${maxChunk}`);
+      // Optimized BLE Throughput
+      // 512 is the maximum standard MTU for most modern BLE devices. 
+      // We use 512 as target, and fall back if the write fails.
+      let maxChunk = 512; 
+      const delay = 10; // Lowered from 30ms to 10ms for faster throughput
+      
+      console.log(`Starting print job: ${buffer.length} bytes, target chunk size: ${maxChunk}`);
 
       for (let i = 0; i < buffer.length; i += maxChunk) {
         const chunk = buffer.slice(i, i + maxChunk);
         
-        // Try multiple write methods
         try {
+          // Try high-speed write without response first
           if (characteristic.writeValueWithoutResponse) {
             await characteristic.writeValueWithoutResponse(chunk);
-          } else if (characteristic.writeValueWithResponse) {
-            await characteristic.writeValueWithResponse(chunk);
           } else {
             await characteristic.writeValue(chunk);
           }
         } catch (writeErr) {
-          console.warn("Primary write method failed, trying legacy fallback...", writeErr);
-          await characteristic.writeValue(chunk);
+          console.warn("High-speed write failed/unsupported. Scaling down chunk size...", writeErr);
+          // Fallback to safe minimum and retry this chunk
+          maxChunk = 20; 
+          i -= (maxChunk); // Step back to retry current data with smaller chunk
+          continue;
         }
 
         // Delay to prevent buffer overflow on the printer side
-        await new Promise(resolve => setTimeout(resolve, 30));
+        if (delay > 0) {
+          await new Promise(resolve => setTimeout(resolve, delay));
+        }
         
-        if (i % 100 === 0) {
-          console.log(`Sent ${i}/${buffer.length} bytes...`);
+        if (i % 1000 === 0) {
+          console.log(`Transmitted ${i}/${buffer.length} bytes...`);
         }
       }
       

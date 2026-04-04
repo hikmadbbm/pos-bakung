@@ -13,7 +13,7 @@ const apiClient = axios.create({
  * Decode a JWT without verifying (client-side only).
  * Returns null if token is malformed or expired.
  */
-function decodeAndValidateJwt(token) {
+export function decodeAndValidateJwt(token) {
   try {
     const [, payload] = token.split('.');
     if (!payload) return null;

@@ -1,10 +1,28 @@
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo, useEffect } from "react";
 
 /**
  * Custom hook to manage the POS cart state and calculations.
  */
 export function useCart(taxRate = 0, serviceRate = 0) {
-  const [cart, setCart] = useState([]);
+  // Initialize from sessionStorage to handle page refreshes
+  const [cart, setCart] = useState(() => {
+    if (typeof window !== "undefined") {
+      const saved = sessionStorage.getItem("pos_cart");
+      try {
+        return saved ? JSON.parse(saved) : [];
+      } catch (e) {
+        return [];
+      }
+    }
+    return [];
+  });
+
+  // Persist cart to sessionStorage whenever it changes
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      sessionStorage.setItem("pos_cart", JSON.stringify(cart));
+    }
+  }, [cart]);
 
   const generateCartItemId = useCallback(() => Math.random().toString(36).substr(2, 9), []);
 

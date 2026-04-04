@@ -50,15 +50,37 @@ export async function GET(req) {
     
     if (today >= start && today <= end) {
       const todaySummary = summaries.find(s => s.date.getTime() === today.getTime());
-      const isStale = !todaySummary || (Date.now() - new Date(todaySummary.updated_at).getTime() > 60000);
+      
+      // Staleness check: update if missing or > 1 minute old
+      const currentTime = Date.now();
+      const lastUpdate = todaySummary ? new Date(todaySummary.updated_at).getTime() : 0;
+      const isStale = !todaySummary || (currentTime - lastUpdate > 60000);
+
       if (isStale) {
-        await syncDailySummary(today);
-        // Re-fetch summaries
-        const freshSummaries = await prisma.dailySummary.findMany({
-          where: { date: { gte: start, lte: end } },
-          orderBy: { date: 'asc' }
-        });
-        summaries.splice(0, summaries.length, ...freshSummaries);
+        // Simple process-level lock to prevent double-sync from same instance
+        if (typeof global !== 'undefined') {
+          if (!global.is_syncing_dashboard || (currentTime - (global.last_dashboard_sync_attempt || 0) > 30000)) {
+            global.is_syncing_dashboard = true;
+            global.last_dashboard_sync_attempt = currentTime;
+            
+            try {
+              await syncDailySummary(today);
+              // Re-fetch summaries to get fresh data
+              const freshSummaries = await prisma.dailySummary.findMany({
+                where: { date: { gte: start, lte: end } },
+                orderBy: { date: 'asc' }
+              });
+              summaries.splice(0, summaries.length, ...freshSummaries);
+            } catch (err) {
+               console.error("Dashboard Sync Failed", err);
+            } finally {
+               global.is_syncing_dashboard = false;
+            }
+          }
+        } else {
+          // Fallback for non-global environments
+          await syncDailySummary(today);
+        }
       }
     }
 
@@ -157,8 +179,8 @@ export async function GET(req) {
       });
     }
 
-    // 6. Fetch Payment methods and recently active shift
-    const [payments, shift, categories] = await Promise.all([
+    // 6. Fetch Payment methods, shift, categories and expense breakdown
+    const [payments, shift, categories, expenseBreakdown] = await Promise.all([
       prisma.order.groupBy({
         by: ['payment_method'],
         where: { date: { gte: start, lte: end }, status: 'COMPLETED' },
@@ -172,6 +194,11 @@ export async function GET(req) {
       }),
       prisma.menuCategory.findMany({
         include: { _count: { select: { menus: true } } }
+      }),
+      prisma.expense.groupBy({
+        by: ['category'],
+        where: { date: { gte: start, lte: end } },
+        _sum: { amount: true }
       })
     ]);
 
@@ -188,8 +215,16 @@ export async function GET(req) {
         lowStockItems: finalLowStock,
         totalOrders,
         paymentDistribution: payments,
-        activeShift: shift ? { user: shift.user.name, started: shift.start_time } : null,
+        activeShift: shift ? { 
+          user: shift.user.name, 
+          started: shift.start_time,
+          starting_cash: shift.starting_cash
+        } : null,
         categoriesCount: categories.length,
+        expenseBreakdown: expenseBreakdown.map(eb => ({
+          category: eb.category,
+          amount: eb._sum.amount || 0
+        })),
         systemStatus: "Neural Sync Complete"
       },
       insights,
