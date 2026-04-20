@@ -1,0 +1,12 @@
+{
+  "no_data": "Belum ada data historis untuk prediksi neural.",
+  "trajectory": "Lintasan Permintaan (24 Jam Ke Depan)",
+  "prep_recommendations": "Rekomendasi Persiapan",
+  "avg_daily_sales": "Rata-rata Jual 7 Hari",
+  "recommended_prep": "Persiapan Disarankan",
+  "matrix_title": "Matriks Prediksi (Siklus 7 Hari)",
+  "normal_7d": "Normal 7 Hari",
+  "tomorrow": "Besok",
+  "suggested": "Disarankan",
+  "weekly_total": "Total Mingguan"
+}

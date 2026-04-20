@@ -21,27 +21,34 @@ model User {
   employee_id     String?
   notes           String?
   last_login      DateTime?
+  otp             String?
+  otp_expiry      DateTime?
   created_at      DateTime          @default(now())
   updated_at      DateTime          @updatedAt
+  authenticators  Authenticator[]
+  expenses        Expense[]
   ordersCreated   Order[]           @relation("OrderCreatedBy")
   ordersProcessed Order[]           @relation("OrderProcessedBy")
   activityLogs    UserActivityLog[]
   shifts          UserShift[]
-  expenses        Expense[]
 
   @@map("user")
 }
 
-model UserActivityLog {
-  id          Int      @id @default(autoincrement())
-  user_id     Int
-  action_type String
-  description String?
-  ip_address  String?
-  timestamp   DateTime @default(now())
-  user        User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+model Authenticator {
+  id                   String   @id @default(uuid())
+  user_id              Int
+  credentialID         String   @unique
+  credentialPublicKey  String
+  counter              BigInt
+  credentialDeviceType String
+  credentialBackedUp   Boolean
+  transports           String?
+  created_at           DateTime @default(now())
+  user                 User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
 
-  @@map("user_activity_log")
+  @@index([user_id])
+  @@map("authenticator")
 }
 
 model UserShift {
@@ -58,8 +65,8 @@ model UserShift {
   total_sales         Int       @default(0)
   status              String    @default("OPEN")
   reconciliation_data Json?
-  user                User      @relation(fields: [user_id], references: [id], onDelete: Cascade)
   expenses            Expense[]
+  user                User      @relation(fields: [user_id], references: [id], onDelete: Cascade)
 
   @@index([user_id])
   @@index([status])
@@ -91,22 +98,29 @@ model StoreConfig {
   show_name          Boolean  @default(true)
   kitchen_delay      Int      @default(0)
   receipt_auto_print Boolean  @default(false)
+  expense_categories Json?    @default("[]")
+  funding_sources    Json?    @default("[]")
+  business_hours     Json?    @default("{\"0\": {\"open\": \"08:00\", \"close\": \"22:00\"}, \"1\": {\"open\": \"08:00\", \"close\": \"22:00\"}, \"2\": {\"open\": \"08:00\", \"close\": \"22:00\"}, \"3\": {\"open\": \"08:00\", \"close\": \"22:00\"}, \"4\": {\"open\": \"08:00\", \"close\": \"22:00\"}, \"5\": {\"open\": \"08:00\", \"close\": \"22:00\"}, \"6\": {\"open\": \"08:00\", \"close\": \"22:00\"}}")
+  is_open            Boolean  @default(true)
+  special_closures   Json?    @default("[]")
 
   @@map("storeconfig")
 }
 
 model Menu {
-  id         Int           @id @default(autoincrement())
-  name       String
-  price      Int
-  created_at DateTime      @default(now())
-  categoryId Int?
-  is_active  Boolean       @default(true)
-  cost       Int
-  category   MenuCategory? @relation(fields: [categoryId], references: [id])
-  prices     MenuPrice[]
-  orderItems OrderItem[]
-  recipe     Recipe?
+  id          Int           @id @default(autoincrement())
+  name        String
+  price       Int
+  created_at  DateTime      @default(now())
+  categoryId  Int?
+  is_active   Boolean       @default(true)
+  cost        Int
+  productType ProductType   @default(OWN_PRODUCT)
+  consignment Consignment?
+  category    MenuCategory? @relation(fields: [categoryId], references: [id])
+  prices      MenuPrice[]
+  orderItems  OrderItem[]
+  recipe      Recipe?
 
   @@index([categoryId])
   @@index([name])
@@ -124,15 +138,33 @@ model MenuCategory {
 }
 
 model Platform {
-  id              Int          @id @default(autoincrement())
-  name            String
-  type            PlatformType @default(OFFLINE)
-  commission_rate Float        @default(0)
-  created_at      DateTime     @default(now())
-  menuPrices      MenuPrice[]
-  orders          Order[]
+  id               Int               @id @default(autoincrement())
+  name             String
+  type             PlatformType      @default(OFFLINE)
+  commission_rate  Float             @default(0)
+  created_at       DateTime          @default(now())
+  additional_fee   Int               @default(0)
+  channelCampaigns ChannelCampaign[]
+  menuPrices       MenuPrice[]
+  orders           Order[]
 
   @@map("platform")
+}
+
+model ChannelCampaign {
+  id          Int      @id @default(autoincrement())
+  platform_id Int
+  name        String
+  type        String
+  costType    String
+  value       Float
+  costBearer  String
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
+  platform    Platform @relation(fields: [platform_id], references: [id], onDelete: Cascade)
+  orders      Order[]
+
+  @@map("channel_campaign")
 }
 
 model MenuPrice {
@@ -149,36 +181,43 @@ model MenuPrice {
 }
 
 model Order {
-  id                   Int             @id @default(autoincrement())
-  order_number         String?         @unique @default(uuid())
-  date                 DateTime        @default(now())
+  id                   Int              @id @default(autoincrement())
+  order_number         String?          @unique @default(uuid())
+  date                 DateTime         @default(now())
   total                Int
-  commission           Int             @default(0)
-  net_revenue          Int             @default(0)
+  commission           Int              @default(0)
+  net_revenue          Int              @default(0)
   platform_id          Int?
-  payment_method       String          @default("CASH")
-  money_received       Int             @default(0)
-  change_amount        Int             @default(0)
-  cancel_reason        String?
-  cancelled_at         DateTime?
-  status               String          @default("COMPLETED")
+  payment_method       String           @default("CASH")
+  money_received       Int              @default(0)
+  change_amount        Int              @default(0)
+  status               String           @default("COMPLETED")
   note                 String?
   customer_name        String?
-  discount             Int             @default(0)
+  discount             Int              @default(0)
   created_by_user_id   Int?
   processed_by_user_id Int?
   payment_method_id    Int?
-  discount_rate        Float           @default(0)
-  discount_type        String          @default("FIXED")
-  print_count          Int             @default(0)
-  service_amount       Int             @default(0)
-  service_rate         Float           @default(0)
-  tax_amount           Int             @default(0)
-  tax_rate             Float           @default(0)
-  user                 User?           @relation("OrderCreatedBy", fields: [created_by_user_id], references: [id])
-  paymentMethod        PaymentMethod?  @relation(fields: [payment_method_id], references: [id])
-  platform             Platform?       @relation(fields: [platform_id], references: [id])
-  processed_by         User?           @relation("OrderProcessedBy", fields: [processed_by_user_id], references: [id])
+  discount_rate        Float            @default(0)
+  discount_type        String           @default("FIXED")
+  print_count          Int              @default(0)
+  service_amount       Int              @default(0)
+  service_rate         Float            @default(0)
+  tax_amount           Int              @default(0)
+  tax_rate             Float            @default(0)
+  cancel_reason        String?
+  cancelled_at         DateTime?
+  campaign_discount    Int              @default(0)
+  campaign_id          Int?
+  platform_actual_net  Int?
+  platform_adjustments Json?            @default("[]")
+  table_number         String?
+  campaign             ChannelCampaign? @relation(fields: [campaign_id], references: [id])
+  user                 User?            @relation("OrderCreatedBy", fields: [created_by_user_id], references: [id])
+  paymentMethod        PaymentMethod?   @relation(fields: [payment_method_id], references: [id])
+  platform             Platform?        @relation(fields: [platform_id], references: [id])
+  processed_by         User?            @relation("OrderProcessedBy", fields: [processed_by_user_id], references: [id])
+  orderPromotions      OrderPromotion[]
   orderItems           OrderItem[]
   stockMovements       StockMovement[]
 
@@ -187,6 +226,86 @@ model Order {
   @@index([payment_method_id])
   @@index([platform_id])
   @@map("order")
+}
+
+model Promotion {
+  id                  Int                   @id @default(autoincrement())
+  name                String
+  description         String?
+  type                String
+  status              String                @default("ACTIVE")
+  startDate           DateTime?
+  endDate             DateTime?
+  daysActive          String?
+  timeStart           String?
+  timeEnd             String?
+  priority            Int                   @default(0)
+  stackable           Boolean               @default(false)
+  source              String                @default("POS")
+  maxUsagePerDay      Int?
+  maxUsagePerCustomer Int?
+  created_at          DateTime              @default(now())
+  updated_at          DateTime              @updatedAt
+  orderPromotions     OrderPromotion[]
+  actions             PromotionAction[]
+  conditions          PromotionCondition[]
+  constraints         PromotionConstraint[]
+
+  @@map("promotion")
+}
+
+model PromotionCondition {
+  id                   Int       @id @default(autoincrement())
+  promotionId          Int
+  minTransactionAmount Int?
+  minItemQuantity      Int?
+  productIds           Int[]
+  categoryIds          Int[]
+  paymentMethods       String[]
+  customerType         String?
+  orderType            String?
+  platform             String?
+  promotion            Promotion @relation(fields: [promotionId], references: [id], onDelete: Cascade)
+
+  @@map("promotion_condition")
+}
+
+model PromotionAction {
+  id            Int       @id @default(autoincrement())
+  promotionId   Int
+  actionType    String
+  value         Float?
+  maxDiscount   Int?
+  freeProductId Int?
+  bundleItems   Json?
+  freeQty       Int?
+  triggerQty    Int?
+  promotion     Promotion @relation(fields: [promotionId], references: [id], onDelete: Cascade)
+
+  @@map("promotion_action")
+}
+
+model PromotionConstraint {
+  id                        Int       @id @default(autoincrement())
+  promotionId               Int
+  cannotCombineWith         Int[]
+  onlyApplyOnce             Boolean   @default(true)
+  maxDiscountPerTransaction Int?
+  excludeProducts           Int[]
+  promotion                 Promotion @relation(fields: [promotionId], references: [id], onDelete: Cascade)
+
+  @@map("promotion_constraint")
+}
+
+model OrderPromotion {
+  id          Int       @id @default(autoincrement())
+  orderId     Int
+  promotionId Int
+  amount      Int
+  order       Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  promotion   Promotion @relation(fields: [promotionId], references: [id])
+
+  @@map("order_promotion")
 }
 
 model PaymentMethod {
@@ -225,16 +344,19 @@ model OrderItem {
 }
 
 model Expense {
-  id          Int      @id @default(autoincrement())
-  date        DateTime @default(now())
-  item        String
-  category    String
-  amount      Int
-  description String?
-  user_id     Int?
-  shift_id    Int?
-  user        User?      @relation(fields: [user_id], references: [id])
-  shift       UserShift? @relation(fields: [shift_id], references: [id])
+  id                Int        @id @default(autoincrement())
+  date              DateTime   @default(now())
+  item              String
+  category          String
+  amount            Int
+  description       String?
+  shift_id          Int?
+  user_id           Int?
+  category_id       Int?
+  funding_source    String?
+  is_cash           Boolean    @default(true)
+  shift             UserShift? @relation(fields: [shift_id], references: [id])
+  user              User?      @relation(fields: [user_id], references: [id])
 
   @@map("expense")
 }
@@ -283,12 +405,18 @@ model Ingredient {
   volume            Float
   minimum_stock     Float                    @default(0)
   stock             Float                    @default(0)
+  is_active_brand   Boolean                  @default(false)
+  is_generic        Boolean                  @default(false)
+  parentId          Int?
+  parent            Ingredient?              @relation("IngredientToSubItems", fields: [parentId], references: [id])
+  subItems          Ingredient[]             @relation("IngredientToSubItems")
   price_history     IngredientPriceHistory[]
   purchases         Purchase[]
   recipe_items      RecipeItem[]
   stock_movements   StockMovement[]
 
   @@index([category])
+  @@index([parentId])
   @@map("ingredient")
 }
 
@@ -361,6 +489,7 @@ model Recipe {
   monthly_fixed_cost        Int           @default(0)
   monthly_production_volume Int           @default(0)
   type                      RecipeType    @default(STANDARD)
+  base_unit                 String?       @default("portion")
   snapshots                 HppSnapshot[]
   menu                      Menu?         @relation(fields: [menu_id], references: [id])
   used_in_items             RecipeItem[]  @relation("ComponentToItems")
@@ -400,24 +529,90 @@ model HppSnapshot {
 }
 
 model DailySummary {
-  id             Int      @id @default(autoincrement())
-  date           DateTime @unique
-  revenue        Int      @default(0)
-  net_revenue    Int      @default(0)
-  cogs           Int      @default(0)
-  expenses       Int      @default(0)
-  total_orders   Int      @default(0)
-  top_menus_json Json?
-  created_at     DateTime @default(now())
-  updated_at     DateTime @updatedAt
+  id                  Int      @id @default(autoincrement())
+  date                DateTime @unique
+  revenue             Int      @default(0)
+  net_revenue         Int      @default(0)
+  cogs                Int      @default(0)
+  expenses            Int      @default(0)
+  total_orders        Int      @default(0)
+  top_menus_json      Json?
+  created_at          DateTime @default(now())
+  updated_at          DateTime @updatedAt
+  consignment_summary Json?
 
   @@index([date])
   @@map("daily_summary")
 }
 
+model Consignment {
+  id                  String                @id @default(uuid())
+  productId           Int                   @unique
+  partnerName         String
+  modelType           ConsignmentModel
+  fixedDailyFee       Int                   @default(0)
+  revenueSharePercent Float?
+  startDate           DateTime
+  endDate             DateTime?
+  isActive            Boolean               @default(true)
+  createdAt           DateTime              @default(now())
+  updatedAt           DateTime              @updatedAt
+  menu                Menu                  @relation(fields: [productId], references: [id])
+  dailyLogs           ConsignmentDailyLog[]
+
+  @@map("consignment")
+}
+
+model ConsignmentDailyLog {
+  id               String      @id @default(uuid())
+  consignmentId    String
+  date             DateTime
+  calculatedIncome Int
+  notes            String?
+  createdAt        DateTime    @default(now())
+  actualReceived   Int         @default(0)
+  expectedIncome   Int         @default(0)
+  receivedAt       DateTime?
+  status           String      @default("PENDING")
+  consignment      Consignment @relation(fields: [consignmentId], references: [id])
+
+  @@unique([consignmentId, date])
+  @@index([status])
+  @@index([date])
+  @@map("consignment_daily_log")
+}
+
+model UserActivityLog {
+  id         Int      @id @default(autoincrement())
+  user_id    Int
+  ip_address String?
+  action     String?
+  created_at DateTime @default(now())
+  details    Json?
+  entity     String?
+  entity_id  String?
+  user       User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@index([user_id])
+  @@index([action])
+  @@index([entity])
+  @@map("user_activity_log")
+}
+
+enum ProductType {
+  OWN_PRODUCT
+  CONSIGNMENT
+}
+
+enum ConsignmentModel {
+  FIXED_DAILY
+  REVENUE_SHARE
+}
+
 enum CategoryType {
   FOOD
   DRINK
+  BOTH
 }
 
 enum Role {
@@ -426,11 +621,14 @@ enum Role {
   CASHIER
   KITCHEN
   STAFF
+  ADMIN
+  WAITER
 }
 
 enum PlatformType {
   OFFLINE
   DELIVERY
+  ONLINE
 }
 
 enum PaymentMethodType {
@@ -439,6 +637,7 @@ enum PaymentMethodType {
   BANK_TRANSFER
   E_WALLET
   OTHER
+  PAY_LATER
 }
 
 enum MovementType {

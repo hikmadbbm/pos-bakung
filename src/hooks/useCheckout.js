@@ -14,6 +14,7 @@ export function useCheckout() {
   const [moneyReceived, setMoneyReceived] = useState("");
   const [note, setNote] = useState("");
   const [customerName, setCustomerName] = useState("");
+  const [tableNumber, setTableNumber] = useState("");
   const [discount, setDiscount] = useState("");
   const [discountType, setDiscountType] = useState("FIXED");
 
@@ -23,6 +24,7 @@ export function useCheckout() {
     setMoneyReceived("");
     setNote("");
     setCustomerName("");
+    setTableNumber("");
     setDiscount("");
     setDiscountType("FIXED");
   }, []);
@@ -49,9 +51,10 @@ export function useCheckout() {
         items: cart.map((i) => ({ menu_id: i.menu_id, qty: i.qty, note: i.note })),
         payment_method: paymentMethod,
         payment_method_id: paymentMethodId,
-        money_received: currentPM?.type === "CASH" ? Number(moneyReceived) || total : total,
+        money_received: currentPM?.type === "CASH" ? (Number(moneyReceived) || total) : (currentPM?.type === "PAY_LATER" ? 0 : total),
         note,
         customer_name: customerName,
+        table_number: tableNumber,
         discount: appliedDiscount,
         discount_type: discountType,
         discount_rate: discountRate,
@@ -59,7 +62,7 @@ export function useCheckout() {
         tax_amount: taxAmount,
         service_rate: serviceRate,
         service_amount: serviceAmount,
-        status: currentPM?.type === "QRIS" ? "PENDING" : "PAID"
+        status: currentPM?.type === "QRIS" ? "PENDING" : (currentPM?.type === "PAY_LATER" ? "UNPAID" : "PAID")
       };
       
       let res;
@@ -96,6 +99,7 @@ export function useCheckout() {
         money_received: 0,
         note,
         customer_name: customerName,
+        table_number: tableNumber,
         discount: appliedDiscount,
         discount_type: discountType,
         discount_rate: discountRate,
@@ -130,6 +134,8 @@ export function useCheckout() {
     setNote,
     customerName,
     setCustomerName,
+    tableNumber,
+    setTableNumber,
     discount,
     setDiscount,
     discountType,

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getCache, setCache } from '@/lib/cache';
 import { syncDailySummary } from '@/lib/aggregation';
+import { formatIDR } from '@/lib/format';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -44,44 +45,63 @@ export async function GET(req) {
       orderBy: { date: 'asc' }
     });
 
-    // 3. If any summaries are missing (especially for today), sync them
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    // 3. Sync missing or stale summaries in the range
+    const now = Date.now();
+    const SIXTY_SECONDS = 60000;
+    const ONE_HOUR = 3600000;
     
-    if (today >= start && today <= end) {
-      const todaySummary = summaries.find(s => s.date.getTime() === today.getTime());
+    const datesToSync = [];
+    let current = new Date(start);
+    const endBound = new Date(end);
+    
+    // Normalize today for comparison
+    const todayStr = new Date().toISOString().split('T')[0];
+    
+    while (current <= endBound) {
+      const d = new Date(current);
+      d.setUTCHours(0,0,0,0);
+      const dStr = d.toISOString().split('T')[0];
       
-      // Staleness check: update if missing or > 1 minute old
-      const currentTime = Date.now();
-      const lastUpdate = todaySummary ? new Date(todaySummary.updated_at).getTime() : 0;
-      const isStale = !todaySummary || (currentTime - lastUpdate > 60000);
-
+      const existing = summaries.find(s => {
+        const sDate = new Date(s.date);
+        sDate.setUTCHours(0,0,0,0);
+        return sDate.toISOString().split('T')[0] === dStr;
+      });
+      
+      const isToday = dStr === todayStr;
+      const staleThreshold = isToday ? SIXTY_SECONDS : ONE_HOUR;
+      
+      const isStale = !existing || (now - new Date(existing.updated_at).getTime() > staleThreshold);
+      
       if (isStale) {
-        // Simple process-level lock to prevent double-sync from same instance
-        if (typeof global !== 'undefined') {
-          if (!global.is_syncing_dashboard || (currentTime - (global.last_dashboard_sync_attempt || 0) > 30000)) {
-            global.is_syncing_dashboard = true;
-            global.last_dashboard_sync_attempt = currentTime;
-            
-            try {
-              await syncDailySummary(today);
-              // Re-fetch summaries to get fresh data
-              const freshSummaries = await prisma.dailySummary.findMany({
-                where: { date: { gte: start, lte: end } },
-                orderBy: { date: 'asc' }
-              });
-              summaries.splice(0, summaries.length, ...freshSummaries);
-            } catch (err) {
-               console.error("Dashboard Sync Failed", err);
-            } finally {
-               global.is_syncing_dashboard = false;
-            }
-          }
-        } else {
-          // Fallback for non-global environments
-          await syncDailySummary(today);
+        datesToSync.push(new Date(d));
+      }
+      
+      current.setUTCDate(current.getUTCDate() + 1);
+    }
+
+    if (datesToSync.length > 0) {
+      // Safety: Limit syncs to a reasonable amount (e.g. 31 days)
+      const syncLimit = 31;
+      const limitedDates = datesToSync.sort((a,b) => b - a).slice(0, syncLimit);
+      
+      console.log(`Syncing ${limitedDates.length} dates sequentially for dashboard...`);
+      
+      // RUN SEQUENTIALLY to avoid "Timed out fetching a new connection from the connection pool"
+      for (const date of limitedDates) {
+        try {
+          await syncDailySummary(date);
+        } catch (err) {
+          console.error(`Failed to sync ${date}:`, err);
         }
       }
+      
+      // Re-fetch summaries if we did syncs
+      const freshSummaries = await prisma.dailySummary.findMany({
+        where: { date: { gte: start, lte: end } },
+        orderBy: { date: 'asc' }
+      });
+      summaries.splice(0, summaries.length, ...freshSummaries);
     }
 
     // 4. Aggregate summaries
@@ -90,8 +110,16 @@ export async function GET(req) {
     const cogs = summaries.reduce((acc, s) => acc + (s.cogs || 0), 0);
     const dailyExpenses = summaries.reduce((acc, s) => acc + (s.expenses || 0), 0);
     const totalOrders = summaries.reduce((acc, s) => acc + (s.total_orders || 0), 0);
+    
+    // SAFE AGGREGATION for consignment
+    let consignmentIncome = 0;
+    try {
+      consignmentIncome = summaries.reduce((acc, s) => acc + (Number(s.consignment_summary?.totalIncome) || 0), 0);
+    } catch (e) {
+      console.warn("Consignment aggregation failed, using 0", e.message);
+    }
 
-    // Aggregate top menus
+    // Aggregate top menus from summaries
     const menuMap = new Map();
     summaries.forEach(s => {
       const menus = s.top_menus_json || [];
@@ -102,10 +130,10 @@ export async function GET(req) {
         menuMap.set(m.id, prev);
       });
     });
-    const topMenus = Array.from(menuMap.values()).sort((a,b) => b.profit - a.profit).slice(0, 10);
+    const topMenus = Array.from(menuMap.values()).sort((a,b) => b.profit - a.profit).slice(0, 30);
 
-    // 5. Fetch FixedCosts and Low Stock Alerts
-    const [fixedCosts, lowStockItems] = await Promise.all([
+    // 5. Fetch Additional Data in Parallel
+    const [fixedCosts, lowStockItems, globalConsignmentRaw] = await Promise.all([
       prisma.fixedCost.findMany({ where: { is_active: true } }),
       prisma.ingredient.findMany({
         where: {
@@ -114,8 +142,21 @@ export async function GET(req) {
         },
         select: { item_name: true, stock: true, unit: true, minimum_stock: true },
         take: 5
-      }).catch(() => []) // Fallback for prisma version issues with field comparison
+      }).catch(() => []),
+      // Cache the cumulative consignment stats (Outstanding) for a very short duration (10s) 
+      // to ensure immediate feedback after financial actions
+      getCache('glb_consignment_sum') 
+        ? Promise.resolve(getCache('glb_consignment_sum'))
+        : prisma.consignmentDailyLog.aggregate({
+            where: { status: { in: ['PENDING', 'RECEIVED'] } },
+            _sum: { expectedIncome: true, actualReceived: true }
+          }).then(res => {
+            setCache('glb_consignment_sum', res, 10);
+            return res;
+          })
     ]);
+
+    const consignmentOutstanding = Math.max(0, (globalConsignmentRaw?._sum?.expectedIncome || 0) - (globalConsignmentRaw?._sum?.actualReceived || 0));
 
     // Fallback if field comparison fails (some prisma versions don't support it in 'where')
     let finalLowStock = lowStockItems;
@@ -131,15 +172,26 @@ export async function GET(req) {
     const days = daysBetweenInclusive(start, end);
     const totalOverhead = dailyOverhead * days;
     const totalExpenses = Math.round(dailyExpenses + totalOverhead);
-    const netProfit = netRevenue - cogs - totalExpenses;
+    
+    // Profit Calculation Logic Updated:
+    // Net Profit = (Own Product Profit) + (Consignment Income) - (Expenses)
+    // Own Product Profit is (netRevenue - cogs) where netRevenue and cogs exclude consignment if set in syncDailySummary
+    let grossProfit = netRevenue - cogs;
+    let netProfit = grossProfit + consignmentIncome - totalExpenses;
+    
+    // Feature request: if there are no transactions all day, don't show minus profit
+    if (totalOrders === 0 && netRevenue === 0) {
+      netProfit = 0;
+      grossProfit = 0;
+    }
 
     // 6. Build insights
     const insights = [];
-    if (totalOrders === 0) {
+    if (totalOrders === 0 && netRevenue === 0 && consignmentIncome === 0) {
       insights.push({
         type: 'info',
-        title: 'No sales yet',
-        message: 'No completed orders found for this period.',
+        title: 'No activity yet',
+        message: 'No orders or consignment income found for this period.',
       });
     } else if (netProfit >= 0) {
       insights.push({
@@ -171,6 +223,14 @@ export async function GET(req) {
       });
     }
     
+    if (consignmentIncome > 0) {
+      insights.push({
+        type: 'positive',
+        title: 'Consignment Income',
+        message: `You earned ${formatIDR(consignmentIncome)} from consignment partners in this period.`,
+      });
+    }
+
     if (topMenus.length > 0) {
       insights.push({
         type: 'action',
@@ -209,7 +269,10 @@ export async function GET(req) {
         revenue: netRevenue,
         cogs,
         expenses: totalExpenses,
+        grossProfit,
         netProfit,
+        consignmentIncome,
+        consignmentOutstanding,
         dailyOverhead: Math.round(totalOverhead),
         topMenus,
         lowStockItems: finalLowStock,
@@ -225,6 +288,8 @@ export async function GET(req) {
           category: eb.category,
           amount: eb._sum.amount || 0
         })),
+        range: { from: start, to: end },
+        days,
         systemStatus: "Neural Sync Complete"
       },
       insights,

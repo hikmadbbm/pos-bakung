@@ -10,9 +10,11 @@ export async function GET(req, { params }) {
     const { response } = await verifyAuth(req, ['OWNER', 'MANAGER', 'CASHIER']);
     if (response) return response;
     const resolvedParams = await params;
-    const userId = Number(resolvedParams.userId);
-    if (!Number.isFinite(userId)) {
-      return NextResponse.json({ error: 'Invalid userId' }, { status: 400 });
+    const userIdStr = resolvedParams?.userId;
+    const userId = Number(userIdStr);
+    
+    if (!userIdStr || !Number.isFinite(userId)) {
+      return NextResponse.json({ error: 'Invalid userId parameter' }, { status: 400 });
     }
 
     // First, check if the specific user has an open shift
@@ -33,8 +35,11 @@ export async function GET(req, { params }) {
 
     return NextResponse.json(shift);
   } catch (error) {
-    console.error('Failed to fetch current shift:', error);
-    return NextResponse.json({ error: 'Failed to fetch current shift' }, { status: 500 });
+    console.error('FATAL SHIFTS API ERROR:', error);
+    return NextResponse.json({ 
+      error: 'Failed to fetch current shift',
+      details: error.message 
+    }, { status: 500 });
   }
 }
 

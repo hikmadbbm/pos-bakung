@@ -1,0 +1,13 @@
+{
+  "title": "Kitchen Queue",
+  "subtitle": "Live Order Status & Production",
+  "loading": "Loading Kitchen...",
+  "all_clear": "Kitchen Clear",
+  "empty_queue": "No pending orders in queue.",
+  "start_cooking": "Start Cooking",
+  "ready_status": "Ready",
+  "sold_out_status": "Sold Out",
+  "unclassified": "Unclassified",
+  "not_found": "No products found",
+  "cost": "Cost"
+}

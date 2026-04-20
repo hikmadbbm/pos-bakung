@@ -1,0 +1,17 @@
+{
+  "title": "Cost Calculator",
+  "subtitle": "Price your menu based on COGS",
+  "select_product": "Select Product",
+  "production_cost": "Production Cost (HPP)",
+  "target_margin": "Target Margin (%)",
+  "recommended_price": "Recommended Price",
+  "current_price": "Current Selling Price",
+  "ingredient_breakdown": "Ingredient Breakdown",
+  "item": "Item",
+  "usage": "Usage",
+  "cost_contrib": "Cost Contrib.",
+  "no_recipe": "No recipe found for this product",
+  "add_ingredient": "Add Ingredient",
+  "profit_estimate": "Profit Estimate",
+  "margin_achieved": "Margin Achieved"
+}

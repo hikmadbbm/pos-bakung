@@ -21,7 +21,7 @@ export async function POST(req) {
     }
 
     const existing = await prisma.userShift.findFirst({
-      where: { status: 'OPEN' },
+      where: { status: 'OPEN', user_id },
       orderBy: { id: 'desc' },
     });
     if (existing) {

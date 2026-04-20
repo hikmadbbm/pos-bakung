@@ -12,6 +12,7 @@ import {
 import { motion, AnimatePresence } from "framer-motion";
 import { formatIDR } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import { useTranslation } from "@/lib/language-context";
 import { Button } from "./ui/button";
 import Portal from "./Portal";
 
@@ -22,6 +23,7 @@ export default function PriceChangeAlert({
   newPrice, 
   history = [] 
 }) {
+  const { t } = useTranslation();
   if (!isOpen || !ingredient) return null;
 
   const currentWac = ingredient.cost_per_unit || 0;
@@ -47,7 +49,7 @@ export default function PriceChangeAlert({
 
   // Add the draft price to the chart preview
   chartData.push({
-    date: "TODAY",
+    date: t('common.today'),
     price: newCpu
   });
 
@@ -72,8 +74,8 @@ export default function PriceChangeAlert({
                     {isLargeIncrease ? <AlertTriangle className="w-5 h-5" /> : isDown ? <TrendingDown className="w-5 h-5" /> : <TrendingUp className="w-5 h-5" />}
                   </div>
                   <div>
-                    <h3 className="font-extrabold text-slate-900 uppercase tracking-tight text-lg leading-none">Price Intelligence</h3>
-                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Anomaly Detection Node</p>
+                    <h3 className="font-extrabold text-slate-900 uppercase tracking-tight text-lg leading-none">{t('stock.price_intelligence')}</h3>
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">{t('stock.anomaly_detection')}</p>
                   </div>
                 </div>
                 <button onClick={onClose} className="w-8 h-8 rounded-full hover:bg-slate-50 flex items-center justify-center transition-colors">
@@ -86,30 +88,30 @@ export default function PriceChangeAlert({
                  <div className="space-y-4">
                     <div className="flex justify-between items-end">
                        <div>
-                          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Current WAC</p>
+                          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">{t('stock.current_wac')}</p>
                           <p className="text-lg font-bold text-slate-500 tabular-nums">{formatIDR(currentWac)}</p>
                        </div>
                        <div className="text-right">
-                          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">New Batch Rate</p>
+                          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">{t('stock.new_batch_rate')}</p>
                           <p className="text-2xl font-extrabold text-slate-900 tabular-nums leading-none tracking-tighter">{formatIDR(newCpu)}</p>
                        </div>
                     </div>
 
                     <div className={cn("inline-flex items-center gap-2 px-3 py-1.5 rounded-full border text-[10px] font-bold uppercase tracking-widest", badgeColor)}>
                        {isUp ? <TrendingUp className="w-3.5 h-3.5" /> : isDown ? <TrendingDown className="w-3.5 h-3.5" /> : <Minus className="w-3.5 h-3.5" />}
-                       {isUp ? "Price Hike" : isDown ? "Price Saving" : "Stable Rate"}
+                       {isUp ? t('stock.price_hike') : isDown ? t('stock.price_saving') : t('stock.stable_rate')}
                        <span className="opacity-30">|</span>
-                       {diff === 0 ? "0%" : `${Math.abs(diff).toFixed(1)}% Change`}
+                       {diff === 0 ? "0%" : `${Math.abs(diff).toFixed(1)}% ${t('common.variance')}`}
                     </div>
                  </div>
 
                  {/* Chart */}
                  <div className="space-y-3">
                     <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest ml-1 flex items-center gap-2">
-                       <TrendingUp className="w-3 h-3" /> 7-Day Efficiency Curve
+                       <TrendingUp className="w-3 h-3" /> {t('stock.efficiency_curve')}
                     </p>
-                    <div className="h-28 w-full bg-slate-50/50 rounded-2xl p-3 border border-slate-100">
-                        <ResponsiveContainer width="100%" height="100%">
+                    <div className="w-full bg-slate-50/50 rounded-2xl p-3 border border-slate-100" style={{ height: 112 }}>
+                        <ResponsiveContainer width="100%" height={112}>
                             <LineChart data={chartData}>
                                <Line 
                                  type="monotone" 

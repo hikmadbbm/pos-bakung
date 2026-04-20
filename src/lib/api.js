@@ -40,7 +40,16 @@ apiClient.interceptors.request.use((config) => {
         // Token expired or malformed — clear storage and redirect to login
         localStorage.removeItem("token");
         localStorage.removeItem("user");
-        window.location.href = "/login";
+        
+        // Avoid redirect loop if we're already on the login page
+        if (typeof window !== "undefined" && !window.location.pathname.startsWith("/login")) {
+          // Show a brief flash message before redirect
+          const flash = document.createElement('div');
+          flash.textContent = 'Sesi habis, memuat ulang...';
+          flash.style.cssText = 'position:fixed;top:16px;left:50%;transform:translateX(-50%);z-index:99999;background:#1a1a2e;color:#fff;padding:10px 24px;border-radius:999px;font-size:13px;font-weight:700;box-shadow:0 4px 24px rgba(0,0,0,0.3);pointer-events:none;';
+          document.body.appendChild(flash);
+          setTimeout(() => { window.location.href = "/login"; }, 1200);
+        }
         return Promise.reject(new Error("Session expired. Please log in again."));
       }
       config.headers.Authorization = `Bearer ${token}`;
@@ -61,14 +70,24 @@ apiClient.interceptors.response.use(
   (error) => {
     if (typeof window !== "undefined") {
       const status = error?.response?.status;
+      const url = error?.config?.url || "";
 
-      if (status === 401) {
+      // Only perform auto-logout on 401 for session-based endpoints.
+      // We exclude login and manager verification because they use 401 to indicate wrong credentials/PIN, 
+      // which should not terminate the existing session.
+      const isAuthExclusion = url.includes('/auth/login') || url.includes('/auth/verify-manager');
+
+      if (status === 401 && !isAuthExclusion) {
         // Unauthorized — token invalid/expired on server side
         localStorage.removeItem("token");
         localStorage.removeItem("user");
         // Avoid redirect loop if we're already on the login page
         if (!window.location.pathname.startsWith("/login")) {
-          window.location.href = "/login";
+          const flash = document.createElement('div');
+          flash.textContent = 'Sesi tidak valid, memuat ulang...';
+          flash.style.cssText = 'position:fixed;top:16px;left:50%;transform:translateX(-50%);z-index:99999;background:#1a1a2e;color:#fff;padding:10px 24px;border-radius:999px;font-size:13px;font-weight:700;box-shadow:0 4px 24px rgba(0,0,0,0.3);pointer-events:none;';
+          document.body.appendChild(flash);
+          setTimeout(() => { window.location.href = "/login"; }, 1200);
         }
       }
     }

@@ -8,7 +8,7 @@ export const runtime = 'nodejs';
 
 export async function GET(req) {
   try {
-    const { response } = await verifyAuth(req, ['OWNER', 'MANAGER']);
+    const { response } = await verifyAuth(req, ['OWNER']);
     if (response) return response;
     const searchParams = req.nextUrl.searchParams;
     const role = searchParams.get('role');
@@ -24,6 +24,8 @@ export async function GET(req) {
         id: true,
         name: true,
         username: true,
+        email: true,
+        phone_number: true,
         role: true,
         status: true,
         last_login: true,
@@ -80,6 +82,8 @@ export async function POST(req) {
         id: true,
         name: true,
         username: true,
+        email: true,
+        phone_number: true,
         role: true,
         status: true,
         last_login: true,

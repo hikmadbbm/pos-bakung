@@ -13,12 +13,14 @@ import { useToast } from "@/components/ui/use-toast";
 import { api } from "@/lib/api";
 import { formatIDR } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import { useTranslation } from "@/lib/language-context";
 
 import PurchaseOCR from "./PurchaseOCR";
 import PriceChangeAlert from "./PriceChangeAlert";
 import { Sparkles, History } from "lucide-react";
 
 export default function PurchaseForm({ onClose, onSuccess, initialData }) {
+  const { t } = useTranslation();
   const [ingredients, setIngredients] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -74,7 +76,7 @@ export default function PurchaseForm({ onClose, onSuccess, initialData }) {
       }
     } catch (e) {
       console.error(e);
-      error("Failed to load initial data");
+      error(t('purchase.load_fail'));
     } finally {
       setLoading(false);
     }
@@ -132,10 +134,10 @@ export default function PurchaseForm({ onClose, onSuccess, initialData }) {
       setFormData(prev => ({
         ...prev,
         supplier: data.supplier || prev.supplier,
-        notes: `OCR Imported: ${item.name} total ${item.total_price}`
+        notes: `${t('purchase.ocr_imported')}: ${item.name}`
       }));
 
-      success(`Successfully extracted ${data.items.length} items. Mapping first item.`);
+      success(t('purchase.ocr_success'));
     }
   };
 
@@ -179,7 +181,7 @@ export default function PurchaseForm({ onClose, onSuccess, initialData }) {
     const isExistingValid = (!isNewIngredient && formData.ingredient_id) || isEditing;
 
     if (!(isManualValid || isExistingValid) || !formData.quantity || !formData.unit_price) {
-      error("Please fill in all required fields (Qty & Price are mandatory)");
+      error(t('purchase.invalid_input'));
       return;
     }
 
@@ -198,7 +200,7 @@ export default function PurchaseForm({ onClose, onSuccess, initialData }) {
           volume: parseFloat(formData.volume) || 1,
           unit_price: parseInt(formData.unit_price)
         });
-        success("Purchase updated successfully");
+        success(t('purchase.save_success'));
       } else {
         await api.post("/purchases", {
           ...formData,
@@ -207,7 +209,7 @@ export default function PurchaseForm({ onClose, onSuccess, initialData }) {
           volume: parseFloat(formData.volume) || 1,
           unit_price: parseInt(formData.unit_price)
         });
-        success(isNewIngredient ? "New ingredient added and purchase recorded" : "Purchase recorded successfully");
+        success(isNewIngredient ? t('stock.add_success') : t('purchase.save_success'));
       }
       if (onSuccess) onSuccess();
     } catch (e) {
@@ -221,7 +223,7 @@ export default function PurchaseForm({ onClose, onSuccess, initialData }) {
   if (loading) return (
     <div className="flex flex-col items-center justify-center p-20 gap-4">
       <RefreshCw className="w-8 h-8 text-emerald-600 animate-spin" />
-      <p className="text-gray-500 font-black uppercase text-[10px] tracking-widest">Pre-fetching Data...</p>
+      <p className="text-gray-500 font-black uppercase text-[10px] tracking-widest">{t('purchase.pre_fetching')}</p>
     </div>
   );
 
@@ -231,14 +233,14 @@ export default function PurchaseForm({ onClose, onSuccess, initialData }) {
       {!initialData && (
         <div className="space-y-4">
           <div className="flex items-center gap-3">
-            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400">Search Material</h3>
+            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400">{t('purchase.search_material')}</h3>
           </div>
           
           <div className="flex gap-2">
             <div className="relative group flex-1">
               <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 group-focus-within:text-emerald-500 transition-colors" />
               <Input
-                placeholder="Search or add new..."
+                placeholder={t('purchase.search_placeholder')}
                 value={searchTerm}
                 onFocus={() => setSearchFocused(true)}
                 onBlur={() => setTimeout(() => setSearchFocused(false), 200)}
@@ -270,8 +272,8 @@ export default function PurchaseForm({ onClose, onSuccess, initialData }) {
                          <Plus className="w-3.5 h-3.5" />
                       </div>
                       <div>
-                        <div className="font-bold text-slate-800 text-sm">Create "{searchTerm || 'New Material'}"</div>
-                        <div className="text-[9px] font-medium text-slate-400 uppercase tracking-tight mt-0.5">Add to inventory</div>
+                        <div className="font-bold text-slate-800 text-sm">{t('purchase.create_item')} "{searchTerm || t('purchase.new_material')}"</div>
+                        <div className="text-[9px] font-medium text-slate-400 uppercase tracking-tight mt-0.5">{t('purchase.add_to_inventory')}</div>
                       </div>
                     </button>
 
@@ -293,13 +295,20 @@ export default function PurchaseForm({ onClose, onSuccess, initialData }) {
                              {i.unit}
                           </div>
                           <div>
-                             <div className="font-bold text-slate-800 text-sm group-hover:text-emerald-600 transition-colors uppercase tracking-tight">{i.item_name}</div>
-                             <div className="text-[9px] text-slate-400 font-medium uppercase tracking-tight mt-0.5">{i.brand || "UNBRANDED"} • {i.category}</div>
+                             <div className="font-bold text-slate-800 text-sm group-hover:text-emerald-600 transition-colors uppercase tracking-tight flex items-center gap-2">
+                               {i.item_name}
+                               {i.is_generic && (
+                                 <span className="px-1.5 py-0.5 rounded-md bg-slate-900 text-white text-[7px] font-black uppercase tracking-widest">GENERIC</span>
+                               )}
+                             </div>
+                             <div className="text-[9px] text-slate-400 font-medium uppercase tracking-tight mt-0.5">
+                               {i.is_generic ? "Recipe Placeholder" : (i.brand || "UNBRANDED")} • {i.category}
+                             </div>
                           </div>
                         </div>
                         <div className="text-right">
                            <div className="text-xs font-bold text-emerald-600">{formatIDR(i.price)}</div>
-                           <div className="text-[8px] text-slate-300 font-medium uppercase tracking-tight mt-0.5">Last Rate</div>
+                           <div className="text-[8px] text-slate-300 font-medium uppercase tracking-tight mt-0.5">{t('purchase.last_rate')}</div>
                         </div>
                       </button>
                     ))}
@@ -313,7 +322,7 @@ export default function PurchaseForm({ onClose, onSuccess, initialData }) {
                 className="h-12 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm active:scale-95 transition-all"
               >
                 <Sparkles className="w-4 h-4 md:mr-2" />
-                <span className="hidden md:inline font-bold text-xs">Scan Receipt</span>
+                <span className="hidden md:inline font-bold text-xs">{t('purchase.scan_receipt')}</span>
               </Button>
             )}
           </div>
@@ -323,29 +332,29 @@ export default function PurchaseForm({ onClose, onSuccess, initialData }) {
       {/* 2. Basic Info */}
       <div className="space-y-6">
         <div className="flex items-center gap-4">
-           <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider whitespace-nowrap">Material Information</h4>
+           <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider whitespace-nowrap">{t('purchase.material_info')}</h4>
            <div className="h-px bg-slate-50 flex-1" />
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
           <div className="space-y-1.5">
-             <Label className="text-xs font-semibold text-slate-600 ml-1">Category</Label>
+             <Label className="text-xs font-semibold text-slate-600 ml-1">{t('common.category')}</Label>
              <select 
                 className="w-full h-11 bg-slate-50 border border-slate-100 rounded-xl px-4 text-sm font-bold text-slate-800 outline-none focus:ring-2 focus:ring-emerald-500/10 transition-all"
                 value={formData.category}
                 onChange={(e) => setFormData({...formData, category: e.target.value})}
                 disabled={(!isNewIngredient && !!selectedIngredient) || !!initialData}
              >
-                <option value="">Select Category</option>
+                <option value="">{t('purchase.select_category')}</option>
                 {[...new Set(ingredients.map(i => i.category))].map(c => <option key={c} value={c}>{c}</option>)}
-                <option value="New Category">+ Other / New Category</option>
+                <option value="New Category">{t('purchase.other_category')}</option>
              </select>
           </div>
 
           <div className="space-y-1.5">
-             <Label className="text-xs font-semibold text-slate-600 ml-1">Material Name</Label>
+             <Label className="text-xs font-semibold text-slate-600 ml-1">{t('stock.material_name')}</Label>
              <Input
-                placeholder="E.G. GARLIC"
+                placeholder={t('purchase.eg_garlic')}
                 value={isNewIngredient ? formData.new_ingredient_name : (selectedIngredient?.item_name || "")}
                 onChange={(e) => setFormData({...formData, new_ingredient_name: e.target.value})}
                 readOnly={!isNewIngredient && (!!selectedIngredient || !!initialData)}
@@ -354,9 +363,9 @@ export default function PurchaseForm({ onClose, onSuccess, initialData }) {
           </div>
 
           <div className="space-y-1.5">
-             <Label className="text-xs font-semibold text-slate-600 ml-1">Brand</Label>
+             <Label className="text-xs font-semibold text-slate-600 ml-1">{t('stock.brand')}</Label>
              <Input
-                placeholder="E.G. INDOFOOD"
+                placeholder={t('purchase.eg_indofood')}
                 value={isNewIngredient ? (formData.brand || "") : (formData.brand || selectedIngredient?.brand || "")}
                 onChange={(e) => setFormData({...formData, brand: e.target.value})}
                 readOnly={!isNewIngredient && (!!selectedIngredient || !!initialData)}
@@ -369,13 +378,13 @@ export default function PurchaseForm({ onClose, onSuccess, initialData }) {
       {/* 3. Pricing & Unit */}
       <div className="space-y-6">
         <div className="flex items-center gap-4">
-           <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider whitespace-nowrap">Pricing & Measurements</h4>
+           <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider whitespace-nowrap">{t('purchase.pricing_measurements')}</h4>
            <div className="h-px bg-slate-50 flex-1" />
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
           <div className="space-y-1.5">
-             <Label className="text-xs font-semibold text-slate-600 ml-1">Buy Quantity (Pcs/Packs)</Label>
+             <Label className="text-xs font-semibold text-slate-600 ml-1">{t('purchase.buy_qty')}</Label>
              <Input
                 type="number"
                 placeholder="0"
@@ -386,7 +395,7 @@ export default function PurchaseForm({ onClose, onSuccess, initialData }) {
           </div>
 
           <div className="space-y-1.5">
-             <Label className="text-xs font-semibold text-slate-600 ml-1">Volume per Unit (Multiplier)</Label>
+             <Label className="text-xs font-semibold text-slate-600 ml-1">{t('purchase.volume_unit')}</Label>
              <Input
                 type="number"
                 placeholder="e.g. 1.0"
@@ -397,7 +406,7 @@ export default function PurchaseForm({ onClose, onSuccess, initialData }) {
           </div>
 
           <div className="space-y-1.5">
-             <Label className="text-xs font-semibold text-slate-600 ml-1">Total Purchase Price (IDR)</Label>
+             <Label className="text-xs font-semibold text-slate-600 ml-1">{t('purchase.total_price')}</Label>
              <div className="relative group">
                 <Input
                   type="number"
@@ -406,7 +415,7 @@ export default function PurchaseForm({ onClose, onSuccess, initialData }) {
                   onChange={(e) => setFormData({...formData, unit_price: e.target.value})}
                   className="h-11 pl-4 pr-12 bg-emerald-50 border-emerald-100 rounded-xl font-bold text-emerald-800 text-sm focus:border-emerald-500"
                 />
-                <div className="absolute right-4 top-1/2 -translate-y-1/2 text-[9px] font-bold text-emerald-600 uppercase">Total</div>
+                <div className="absolute right-4 top-1/2 -translate-y-1/2 text-[9px] font-bold text-emerald-600 uppercase">{t('common.total')}</div>
              </div>
           </div>
         </div>
@@ -418,7 +427,7 @@ export default function PurchaseForm({ onClose, onSuccess, initialData }) {
            <div className="grid grid-cols-2 gap-2">
               <div className="space-y-1.5 flex-1">
                  <Label className="text-[9px] font-black text-slate-400 uppercase tracking-[0.15em] flex items-center gap-1">
-                    <Calendar className="w-3 h-3" /> Date
+                    <Calendar className="w-3 h-3" /> {t('common.date')}
                  </Label>
                  <Input
                     id="purchase_date_input"
@@ -431,10 +440,10 @@ export default function PurchaseForm({ onClose, onSuccess, initialData }) {
               </div>
               <div className="space-y-1.5 flex-1">
                  <Label className="text-[9px] font-black text-slate-400 uppercase tracking-[0.15em] flex items-center gap-1">
-                    <User className="w-3 h-3" /> Supplier
+                    <User className="w-3 h-3" /> {t('purchase.supplier')}
                  </Label>
                  <Input
-                    placeholder="STORE..."
+                    placeholder="GUDANG..."
                     value={formData.supplier}
                     onChange={(e) => setFormData({...formData, supplier: e.target.value})}
                     className="h-10 bg-slate-50 border-slate-100 rounded-xl font-bold uppercase text-[9px] text-slate-700 focus:bg-white focus:border-emerald-500 transition-all px-2 md:px-4"
@@ -444,13 +453,13 @@ export default function PurchaseForm({ onClose, onSuccess, initialData }) {
            
            <div className="p-5 bg-slate-900 rounded-2xl flex items-center justify-between shadow-sm relative overflow-hidden group">
               <div className="relative z-10">
-                 <div className="text-[9px] font-bold text-emerald-400 uppercase tracking-wider mb-0.5">Total Transaction</div>
+                 <div className="text-[9px] font-bold text-emerald-400 uppercase tracking-wider mb-0.5">{t('purchase.total_transaction')}</div>
                  <div className="text-xl font-bold text-white tabular-nums">
                     {formatIDR((Number(formData.quantity) || 0) * (Number(formData.unit_price) || 0))}
                  </div>
               </div>
               <div className="text-right relative z-10">
-                 <div className="text-[9px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">Stock Impact</div>
+                 <div className="text-[9px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">{t('purchase.stock_impact')}</div>
                  <div className="text-xs font-bold text-emerald-500">
                     + {(parseFloat(formData.quantity) || 0) * (parseFloat(formData.volume) || 1)} {selectedIngredient?.unit || "Units"}
                  </div>
@@ -460,7 +469,7 @@ export default function PurchaseForm({ onClose, onSuccess, initialData }) {
 
         <div className="flex flex-col justify-end gap-5">
            <p className="text-[10px] font-medium text-slate-400 italic text-center md:text-right">
-              {initialData ? "Editing will automatically sync stock differences." : "Stock levels update instantly upon confirmation."}
+              {initialData ? t('purchase.edit_sync_tip') : t('purchase.stock_sync_tip')}
            </p>
            <div className="flex gap-3">
               <Button 
@@ -469,7 +478,7 @@ export default function PurchaseForm({ onClose, onSuccess, initialData }) {
                 onClick={onClose} 
                 className="flex-1 h-12 rounded-xl font-bold text-[11px] uppercase tracking-wider text-slate-400 border border-slate-100 hover:bg-slate-50"
               >
-                Cancel
+                {t('common.cancel')}
               </Button>
               <Button 
                 type="submit" 
@@ -479,7 +488,7 @@ export default function PurchaseForm({ onClose, onSuccess, initialData }) {
                   initialData ? "bg-emerald-600 hover:bg-emerald-700" : "bg-slate-900 hover:bg-black"
                 )}
               >
-                {isSaving ? "Saving..." : initialData ? "Confirm Update" : "Confirm Purchase"}
+                {isSaving ? t('common.saving') : initialData ? t('purchase.confirm_update') : t('purchase.confirm_purchase')}
               </Button>
            </div>
         </div>

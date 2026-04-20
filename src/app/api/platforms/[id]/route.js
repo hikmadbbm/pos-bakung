@@ -31,6 +31,9 @@ export async function PUT(req, { params }) {
       }
       data.commission_rate = commission;
     }
+    if (body.additional_fee !== undefined) {
+      data.additional_fee = Number(body.additional_fee) || 0;
+    }
 
     const updated = await prisma.platform.update({
       where: { id },

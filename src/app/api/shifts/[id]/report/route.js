@@ -50,8 +50,6 @@ export async function GET(req, { params }) {
     const totalBillCount = orders.length;
     const avgTicketSize = totalBillCount > 0 ? Math.round(totalSales / totalBillCount) : 0;
     
-    // For now, we assume void items are orders with a status like 'VOID' or 'CANCELLED' 
-    // although they aren't explicitly used yet. We'll search for them just in case.
     const voidOrders = await prisma.order.findMany({
         where: {
             processed_by_user_id: shift.user_id,
@@ -64,6 +62,19 @@ export async function GET(req, { params }) {
         select: { total: true }
     });
     const totalVoidAmount = voidOrders.reduce((acc, o) => acc + (o.total || 0), 0);
+
+    const expenses = await prisma.expense.findMany({
+      where: {
+        OR: [
+          { shift_id: id },
+          {
+            date: { gte: shift.start_time, lte: shift.end_time || new Date() },
+            is_cash: true
+          }
+        ]
+      }
+    });
+    const totalCashExpenses = expenses.filter(e => e.is_cash).reduce((acc, e) => acc + (e.amount || 0), 0);
 
     return NextResponse.json({
       store_name: storeConfig?.store_name || "POS BAKUNG",
@@ -79,6 +90,8 @@ export async function GET(req, { params }) {
         expected_cash: Number(shift.expected_cash || 0),
         avg_ticket_size: avgTicketSize,
         total_void_amount: totalVoidAmount,
+        total_cash_expenses: totalCashExpenses,
+        expenses: expenses.map(e => ({ item: e.item, amount: e.amount, date: e.date, is_cash: e.is_cash })),
         discrepancy: shift.discrepancy || 0,
         justification: shift.note || ""
       }

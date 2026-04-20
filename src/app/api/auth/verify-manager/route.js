@@ -13,19 +13,40 @@ export async function POST(req) {
       return NextResponse.json({ error: 'PIN required' }, { status: 400 });
     }
 
-    const user = await prisma.user.findFirst({
-      where: { pin, status: 'ACTIVE' }
+    const users = await prisma.user.findMany({
+      where: { 
+        status: 'ACTIVE',
+        role: { in: ['MANAGER', 'OWNER'] }
+      }
     });
 
-    if (!user) {
+    let authorizedUser = null;
+    for (const u of users) {
+      if (u.pin) {
+        // Support both hashed and plain text (for safety/migration)
+        const isMatch = u.pin.startsWith('$2') 
+          ? await bcrypt.compare(pin, u.pin)
+          : u.pin === pin;
+          
+        if (isMatch) {
+          authorizedUser = u;
+          break;
+        }
+      }
+    }
+
+    if (!authorizedUser) {
       return NextResponse.json({ error: 'Invalid PIN' }, { status: 401 });
     }
 
-    if (user.role !== 'MANAGER' && user.role !== 'OWNER') {
-      return NextResponse.json({ error: 'Manager authorization required' }, { status: 403 });
-    }
-
-    return NextResponse.json({ manager: { id: user.id, name: user.name, username: user.username, role: user.role } });
+    return NextResponse.json({ 
+      manager: { 
+        id: authorizedUser.id, 
+        name: authorizedUser.name, 
+        username: authorizedUser.username, 
+        role: authorizedUser.role 
+      } 
+    });
   } catch (error) {
     console.error('Failed to verify manager:', error);
     return NextResponse.json({ error: 'Failed to verify manager' }, { status: 500 });

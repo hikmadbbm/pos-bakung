@@ -46,11 +46,7 @@ export default function StopShiftButton({ mode = "full" }) {
         setStartTime(null);
       }
     } catch (e) {
-      if (e.response?.status === 401) {
-        localStorage.removeItem("token");
-        localStorage.removeItem("user");
-        window.location.href = "/login";
-      }
+      console.error(e);
       setHasActiveShift(false);
       setActiveShift(null);
       setStartTime(null);
@@ -134,7 +130,7 @@ export default function StopShiftButton({ mode = "full" }) {
           {/* Timer Display */}
           <div 
             className="flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-1 sm:py-1.5 bg-emerald-50 text-emerald-700 rounded-lg border border-emerald-100 shadow-sm transition-all"
-            title={!isOwnShift ? `Active Shift: ${activeShift?.user?.name || 'Personnel'}` : 'Your Active Shift'}
+            title={!isOwnShift ? `${t('shift.active_shift_prefix')}: ${activeShift?.user?.name || t('shift.personnel')}` : t('shift.active_shift_help')}
           >
             <Clock className="w-3.5 h-3.5 sm:w-4 h-4 animate-pulse" />
             <span className="font-mono font-black text-[11px] sm:text-sm tracking-widest">{elapsed}</span>
@@ -160,7 +156,7 @@ export default function StopShiftButton({ mode = "full" }) {
               onClick={() => setIsAuthOpen(true)}
           >
               <StopCircle className="mr-3 h-4 w-4 text-red-500" />
-              <span className="font-bold">{isOwnShift ? t('stop_shift') : t('end_external_shift')}</span>
+              <span className="font-bold">{isOwnShift ? t('shift.stop_shift') : t('shift.end_external_shift')}</span>
           </button>
       )}
 
@@ -177,8 +173,8 @@ export default function StopShiftButton({ mode = "full" }) {
         open={isAuthOpen}
         onClose={() => setIsAuthOpen(false)}
         onSubmit={handleAuthSubmit}
-        title={isOwnShift ? t('stop_shift_security') : t('admin_shift_override')}
-        subtitle={isOwnShift ? t('verification_required') : `${t('ending_shift_for')} ${activeShift?.user?.name || 'Personnel'}`}
+        title={isOwnShift ? t('shift.stop_shift_security') : t('shift.admin_shift_override')}
+        subtitle={isOwnShift ? t('shift.verification_required') : `${t('shift.ending_shift_for')} ${activeShift?.user?.name || t('shift.personnel')}`}
       />
 
       <ShiftReportModal 

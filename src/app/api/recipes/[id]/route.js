@@ -1,28 +1,11 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { verifyAuth } from '@/lib/auth';
+import { calculateItemsVariableCost } from '@/lib/hpp';
 
 export const dynamic = 'force-dynamic';
 
-// Helper for recursive HPP calculation
-async function calculateDeepHpp(items) {
-  let totalVariable = 0;
-  for (const item of items) {
-    if (item.item_type === 'INGREDIENT' && item.ingredient_id) {
-      const ing = await prisma.ingredient.findUnique({ where: { id: Number(item.ingredient_id) } });
-      if (ing) {
-        totalVariable += (ing.cost_per_unit || 0) * (Number(item.quantity) || 0);
-      }
-    } else if (item.item_type === 'COMPONENT' && item.component_recipe_id) {
-      const comp = await prisma.recipe.findUnique({ where: { id: Number(item.component_recipe_id) } });
-      if (comp) {
-        const costPerPortion = (comp.total_hpp || 0) / (comp.base_quantity || 1);
-        totalVariable += costPerPortion * (Number(item.quantity) || 0);
-      }
-    }
-  }
-  return Math.round(totalVariable);
-}
+
 
 export async function GET(req, { params }) {
   try {
@@ -37,7 +20,7 @@ export async function GET(req, { params }) {
       include: {
         items: {
           include: { 
-            ingredient: true,
+            ingredient: { include: { subItems: true } },
             component_recipe: true
           }
         },
@@ -56,7 +39,7 @@ export async function GET(req, { params }) {
 
 export async function PUT(req, { params }) {
   try {
-    const { response } = await verifyAuth(req, ['OWNER', 'MANAGER']);
+    const { user, response } = await verifyAuth(req, ['OWNER', 'MANAGER']);
     if (response) return response;
 
     const resolvedParams = await params;
@@ -68,12 +51,16 @@ export async function PUT(req, { params }) {
       menu_id, 
       base_quantity, 
       items, 
+      base_unit,
       monthly_fixed_cost,
       monthly_production_volume
     } = body;
 
+    const existingData = await prisma.recipe.findUnique({ where: { id } });
+    if (!existingData) return NextResponse.json({ error: 'Recipe not found' }, { status: 404 });
+
     // Calculate Total Variable Cost recursively
-    const totalVariableCost = await calculateDeepHpp(items);
+    const totalVariableCost = await calculateItemsVariableCost(items, prisma);
 
     let fixedCostPerUnit = 0;
     if (monthly_fixed_cost && monthly_production_volume > 0) {
@@ -93,6 +80,7 @@ export async function PUT(req, { params }) {
           type: type || 'STANDARD',
           menu_id: menu_id ? Number(menu_id) : null,
           base_quantity: Number(base_quantity) || 1,
+          base_unit: base_unit || 'portion',
           monthly_fixed_cost: Number(monthly_fixed_cost) || 0,
           monthly_production_volume: Number(monthly_production_volume) || 0,
           total_variable_cost: totalVariableCost,
@@ -111,7 +99,7 @@ export async function PUT(req, { params }) {
         include: {
           items: {
             include: { 
-              ingredient: true,
+              ingredient: { include: { subItems: true } },
               component_recipe: true
             }
           }
@@ -125,6 +113,22 @@ export async function PUT(req, { params }) {
         });
       }
 
+      // Audit Log for Price/Recipe Change
+      await tx.userActivityLog.create({
+        data: {
+          user_id: user.id,
+          action: 'UPDATE_RECIPE',
+          entity: 'RECIPE',
+          entity_id: String(id),
+          details: { 
+            name: name,
+            total_hpp: totalHpp,
+            old_hpp: existingData.total_hpp
+          },
+          ip_address: req.headers.get('x-forwarded-for') || 'local'
+        }
+      });
+
       return recipe;
     });
 
@@ -137,13 +141,27 @@ export async function PUT(req, { params }) {
 
 export async function DELETE(req, { params }) {
   try {
-    const { response } = await verifyAuth(req, ['OWNER', 'MANAGER']);
+    const { user, response } = await verifyAuth(req, ['OWNER', 'MANAGER']);
     if (response) return response;
 
     const resolvedParams = await params;
     const id = Number(resolvedParams.id);
 
+    const recipe = await prisma.recipe.findUnique({ where: { id } });
+    
     await prisma.recipe.delete({ where: { id } });
+
+    // Audit Log for Deletion
+    await prisma.userActivityLog.create({
+      data: {
+        user_id: user.id,
+        action: 'DELETE_RECIPE',
+        entity: 'RECIPE',
+        entity_id: String(id),
+        details: { name: recipe?.name || 'Unknown' },
+        ip_address: req.headers.get('x-forwarded-for') || 'local'
+      }
+    });
 
     return NextResponse.json({ success: true });
   } catch (error) {

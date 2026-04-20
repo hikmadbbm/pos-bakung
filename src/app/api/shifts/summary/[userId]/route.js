@@ -33,9 +33,8 @@ export async function GET(req, { params }) {
 
     const orders = await prisma.order.findMany({
       where: {
-        status: { in: ['PAID', 'PROCESSING', 'COMPLETED'] },
+        status: { in: ['PAID', 'PROCESSING', 'COMPLETED', 'UNPAID'] },
         date: { gte: shift.start_time },
-        OR: [{ created_by_user_id: userId }, { processed_by_user_id: userId }],
       },
       select: { 
         id: true, 
@@ -44,7 +43,12 @@ export async function GET(req, { params }) {
         payment_method_id: true,
         platform_id: true,
         commission: true,
+        platform_actual_net: true,
+        platform_adjustments: true,
         payment_method: true,
+        customer_name: true,
+        date: true,
+        status: true,
         paymentMethod: {
           select: { name: true, type: true }
         },
@@ -67,21 +71,32 @@ export async function GET(req, { params }) {
       count: 0
     }));
 
-    // Grouping logic
+    console.log(`[ShiftSummary] User: ${userId}, Shift Start: ${shift.start_time.toISOString()}, Orders Found: ${orders.length}`);
+    
     orders.forEach(o => {
       let target;
+      const orderAmount = Math.max(0, Number(o.total || 0) - Number(o.discount || 0));
+      let finalAmount = orderAmount;
       
-      if (o.payment_method_id) {
-        target = methodTotals.find(m => m.id === o.payment_method_id);
+      if (o.platform_id && o.platform_id !== 1) {
+        if (o.platform_actual_net !== null && o.platform_actual_net !== undefined) {
+          finalAmount = Number(o.platform_actual_net);
+        } else {
+          const commission = Number(o.commission || 0);
+          finalAmount = Math.max(0, orderAmount - commission);
+        }
+      }
+
+      const pmId = o.payment_method_id ? Number(o.payment_method_id) : null;
+      if (pmId) {
+        target = methodTotals.find(m => Number(m.id) === pmId);
       }
       
-      // Fallback: If not found by ID, try matching by name (from the order's payment_method string)
       if (!target && o.payment_method) {
         target = methodTotals.find(m => m.name.toLowerCase() === o.payment_method.toLowerCase());
       }
 
-      if (!target && o.platform_id && o.platform_id !== 1) { // 1 is usually "Offline"
-        // Try to find a virtual PM for this platform or create one in methodTotals
+      if (!target && o.platform_id && o.platform_id !== 1) {
         const platformName = o.platform?.name || 'Platform';
         target = methodTotals.find(m => m.name === platformName);
         
@@ -89,7 +104,7 @@ export async function GET(req, { params }) {
           target = {
             id: `plat-${o.platform_id}`,
             name: platformName,
-            type: 'E_WALLET', // Platforms are usually digital
+            type: 'E_WALLET',
             systemAmount: 0,
             count: 0
           };
@@ -98,31 +113,54 @@ export async function GET(req, { params }) {
       } 
       
       if (!target) {
-        // Fallback for Cash
         target = methodTotals.find(m => m.type === 'CASH');
       }
 
       if (target) {
-        let amount = Math.max(0, Number(o.total || 0) - Number(o.discount || 0));
-        
-        // If it's a platform and NOT Offline, subtract the commission to show real revenue
-        if (o.platform_id && o.platform_id !== 1) {
-          const commission = Number(o.commission || 0);
-          amount = Math.max(0, amount - commission);
-        }
-
-        target.systemAmount += amount;
+        // ALWAYS count the amount towards System Amount for visibility in the summary table
+        // This ensures "Total Sales" matches what's actually sold including receivables
+        target.systemAmount += finalAmount;
         target.count += 1;
+        console.log(`[ShiftSummary] Order ${o.id} (${o.status}): ${finalAmount} -> ${target.name}`);
       }
     });
 
     const totalCashSales = methodTotals
       .filter(m => m.type === 'CASH')
-      .reduce((acc, m) => acc + m.systemAmount, 0);
+      // Only count PAID cash as "Expected in drawer"
+      // Note: we fetch PAID/COMPLETED/PROCESSING/UNPAID. 
+      // If a CASH order is UNPAID (rare), it shouldn't be in expectedCash.
+      .reduce((acc, m) => {
+        const paidCashForMethod = orders
+          .filter(o => o.status !== 'UNPAID' && (o.payment_method_id === m.id || (!o.payment_method_id && m.type === 'CASH')))
+          .reduce((s, o) => s + (Math.max(0, (o.total || 0) - (o.discount || 0))), 0);
+        return acc + paidCashForMethod;
+      }, 0);
 
     const totalSales = methodTotals.reduce((acc, m) => acc + m.systemAmount, 0);
-    // User clarified: Expected Cash = Start + Cash Sales (e.g., 60k + 178k = 238k)
-    const expectedCash = Number(shift.starting_cash || 0) + totalCashSales;
+    
+    // Pending Kasbon - specifically sum the UNPAID ones for the dedicated section
+    const pendingKasbonTotal = orders
+      .filter(o => o.status === 'UNPAID')
+      .reduce((acc, o) => acc + (Math.max(0, (o.total || 0) - (o.discount || 0))), 0);
+
+    const shiftExpenses = await prisma.expense.findMany({
+      where: {
+        OR: [
+          { shift_id: shift.id },
+          { date: { gte: shift.start_time } }
+        ],
+        is_cash: true
+      }
+    });
+    
+    const totalCashExpenses = shiftExpenses.reduce((acc, exp) => acc + exp.amount, 0);
+    console.log(`[ShiftSummary] Cash Expenses: ${totalCashExpenses}`);
+
+    // User clarified: Expected Cash = Start + Cash Sales - Cash Expenses 
+    const expectedCash = Number(shift.starting_cash || 0) + totalCashSales - totalCashExpenses;
+
+    const paylaterOrders = orders.filter(o => o.status === 'UNPAID' && o.paymentMethod?.type === 'PAY_LATER');
 
     return NextResponse.json({
       summary: {
@@ -131,8 +169,23 @@ export async function GET(req, { params }) {
         startingCash: shift.starting_cash,
         totalCashSales,
         totalSales,
+        totalCashExpenses,
         expectedCash,
-        methodTotals
+        methodTotals,
+        paylaterOrders: paylaterOrders.map(o => ({
+          id: o.id,
+          total: o.total,
+          discount: o.discount,
+          payment_method_id: o.payment_method_id,
+          payment_method: o.payment_method,
+          customer_name: o.customer_name,
+          date: o.date
+        })),
+        availablePaymentMethods: paymentMethods.map(pm => ({
+          id: pm.id,
+          name: pm.name,
+          type: pm.type
+        }))
       },
     });
   } catch (error) {

@@ -2,8 +2,10 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { Clock, Loader2 } from "lucide-react";
 import { api } from "../../lib/api";
+import { useTranslation } from "../../lib/language-context";
 
 export default function TimeTracker() {
+  const { t } = useTranslation();
   const [time, setTime] = useState(0);
   const [isShiftActive, setIsShiftActive] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -25,7 +27,7 @@ export default function TimeTracker() {
         
         setIsShiftActive(true);
         setTime(elapsed);
-        setShiftOwner(res.user?.name || res.user?.username || 'Personnel');
+        setShiftOwner(res.user?.name || res.user?.username || t('common.personnel'));
       } else {
         setIsShiftActive(false);
         setTime(0);
@@ -64,17 +66,17 @@ export default function TimeTracker() {
   };
 
   return (
-    <div className="p-6 lg:p-8 bg-slate-900 border border-slate-800 shadow-2xl rounded-[2rem] text-white flex flex-col h-full relative overflow-hidden group min-h-[300px]">
+    <div className="p-5 lg:p-6 bg-slate-900 border border-slate-800 shadow-2xl rounded-[2rem] text-white flex flex-col h-full relative overflow-hidden group min-h-[160px]">
       <div className="absolute top-0 right-0 p-6 opacity-5 group-hover:opacity-10 transition-opacity">
         <Clock className="w-12 h-12" />
       </div>
       
       <div className="relative z-10 flex flex-col h-full">
-        <div className="flex justify-between items-start mb-6">
-          <h3 className="text-[10px] font-black text-emerald-500 uppercase tracking-[0.4em]">Management Cycle</h3>
+        <div className="flex justify-between items-start mb-3">
+          <h3 className="text-[10px] font-black text-emerald-500 uppercase tracking-[0.4em]">{t('dashboard.management_cycle')}</h3>
           {isShiftActive && shiftOwner && (
             <div className="text-[8px] font-bold text-emerald-400/40 uppercase tracking-widest text-right">
-              Active: {shiftOwner}
+              {t('dashboard.active_personnel').replace('%{name}', shiftOwner)}
             </div>
           )}
         </div>
@@ -84,28 +86,28 @@ export default function TimeTracker() {
             <Loader2 className="w-8 h-8 text-emerald-500 animate-spin" />
           ) : (
             <>
-              <div className="text-5xl font-black tracking-tighter tabular-nums mb-2 drop-shadow-lg">
+              <div className="text-4xl font-black tracking-tighter tabular-nums mb-1 drop-shadow-lg">
                 {formatTime(time)}
               </div>
               <p className="text-[10px] font-bold text-emerald-400/80 uppercase tracking-widest">
-                Elapsed Business Time
+                {t('dashboard.elapsed_time')}
               </p>
             </>
           )}
         </div>
 
         <div className="mt-auto pt-4 flex items-center justify-between border-t border-white/5">
-          <span className="text-[10px] font-black text-emerald-500 uppercase tracking-widest">Shift Status</span>
+          <span className="text-[10px] font-black text-emerald-500 uppercase tracking-widest">{t('dashboard.shift_status')}</span>
           <div className="flex items-center gap-2">
             {isShiftActive ? (
               <>
                 <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                <span className="text-[10px] font-black text-white/40 uppercase tracking-widest">ACTIVE</span>
+                <span className="text-[10px] font-black text-white/40 uppercase tracking-widest">{t('dashboard.active')}</span>
               </>
             ) : (
               <>
                 <div className="w-1.5 h-1.5 rounded-full bg-slate-500" />
-                <span className="text-[10px] font-black text-white/20 uppercase tracking-widest">INACTIVE</span>
+                <span className="text-[10px] font-black text-white/20 uppercase tracking-widest">{t('dashboard.inactive')}</span>
               </>
             )}
           </div>

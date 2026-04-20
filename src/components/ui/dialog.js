@@ -14,7 +14,7 @@ const Dialog = ({ open, onOpenChange, children }) => {
   )
 }
 
-const DialogContent = ({ className, children }) => {
+const DialogContent = ({ className, children, showCloseButton = true, disableBackdropClick = false }) => {
   const { open, onOpenChange } = React.useContext(DialogContext)
   const [mounted, setMounted] = React.useState(false)
 
@@ -28,20 +28,22 @@ const DialogContent = ({ className, children }) => {
     <div className="fixed inset-0 z-[100] flex flex-col items-center bg-slate-900/60 backdrop-blur-sm animate-in fade-in-0 duration-200 overflow-y-auto p-4 sm:p-6">
       <div 
         className="fixed inset-0 cursor-default" 
-        onClick={() => onOpenChange(false)}
+        onClick={() => !disableBackdropClick && onOpenChange(false)}
       />
       <div className={cn(
         "relative z-[110] w-full sm:max-w-lg my-auto bg-white shadow-2xl rounded-[2rem] border border-slate-100 transition-all duration-300 animate-in zoom-in-95 slide-in-from-bottom-5 overflow-hidden",
         className
       )}>
         {children}
-        <button
-          onClick={() => onOpenChange(false)}
-          className="absolute right-6 top-6 rounded-full bg-slate-50 opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none p-2 z-[120]"
-        >
-          <X className="h-4 w-4" />
-          <span className="sr-only">Close</span>
-        </button>
+        {showCloseButton && (
+          <button
+            onClick={() => onOpenChange(false)}
+            className="absolute right-6 top-6 rounded-full bg-slate-50 opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none p-2 z-[120]"
+          >
+            <X className="h-4 w-4" />
+            <span className="sr-only">Close</span>
+          </button>
+        )}
       </div>
     </div>
   )

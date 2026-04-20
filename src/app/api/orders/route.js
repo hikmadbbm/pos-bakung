@@ -4,6 +4,8 @@ import { logger } from '@/lib/logger';
 import jwt from 'jsonwebtoken';
 import { verifyAuth } from '@/lib/auth';
 import { deductStockForOrder } from '@/lib/stock-deduction';
+import { evaluatePromotions } from '@/lib/promo-engine';
+import { logActivity } from '@/lib/audit';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -38,6 +40,7 @@ export async function GET(req) {
     const startDate = searchParams.get('startDate');
     const endDate = searchParams.get('endDate');
     const range = searchParams.get('range'); // 'all', 'today', etc.
+    const sort = searchParams.get('sort') || 'desc';
 
     const skip = (page - 1) * limit;
 
@@ -53,20 +56,35 @@ export async function GET(req) {
 
     // Default to "Today" if no range or dates provided, unless range is "all"
     if (range !== 'all') {
+      const timezoneOffset = 7; // WIB (UTC+7)
+      
       if (startDate || endDate) {
         where.date = {};
-        if (startDate) where.date.gte = new Date(startDate);
+        if (startDate) {
+          // Parse as UTC YYYY-MM-DD 00:00:00
+          const start = new Date(`${startDate}T00:00:00.000Z`);
+          // Adjust to Jakarta Start: 00:00 WIB is 17:00 UTC previous day
+          start.setUTCHours(start.getUTCHours() - timezoneOffset);
+          where.date.gte = start;
+        }
         if (endDate) {
-          const end = new Date(endDate);
-          end.setHours(23, 59, 59, 999);
+          // Parse as UTC YYYY-MM-DD 23:59:59
+          const end = new Date(`${endDate}T23:59:59.999Z`);
+          // Adjust to Jakarta End: 23:59 WIB is 16:59 UTC same day
+          end.setUTCHours(end.getUTCHours() - timezoneOffset);
           where.date.lte = end;
         }
       } else {
-        // Enforce TODAY as default
-        const todayStart = new Date();
-        todayStart.setHours(0, 0, 0, 0);
-        const todayEnd = new Date();
-        todayEnd.setHours(23, 59, 59, 999);
+        // Enforce TODAY as default based on GMT+7
+        const nowInJakarta = new Date(Date.now() + (timezoneOffset * 60 * 60 * 1000));
+        
+        const todayStart = new Date(nowInJakarta);
+        todayStart.setUTCHours(0, 0, 0, 0);
+        todayStart.setTime(todayStart.getTime() - (timezoneOffset * 60 * 60 * 1000));
+        
+        const todayEnd = new Date(todayStart);
+        todayEnd.setTime(todayEnd.getTime() + (24 * 60 * 60 * 1000) - 1);
+
         where.date = {
           gte: todayStart,
           lte: todayEnd,
@@ -74,10 +92,10 @@ export async function GET(req) {
       }
     }
 
-    const [orders, total, stats] = await Promise.all([
+    const [orders, total, paidStats, unpaidStats, cancelledStats] = await Promise.all([
       prisma.order.findMany({
         where,
-        orderBy: { date: 'desc' },
+        orderBy: { date: sort === 'asc' ? 'asc' : 'desc' },
         take: limit,
         skip: skip,
         include: {
@@ -90,10 +108,15 @@ export async function GET(req) {
       prisma.order.count({ where }),
       prisma.order.aggregate({
         where: { ...where, status: { in: ['PAID', 'PROCESSING', 'COMPLETED'] } },
-        _sum: {
-          total: true,
-          net_revenue: true
-        }
+        _sum: { total: true, discount: true, net_revenue: true }
+      }),
+      prisma.order.aggregate({
+        where: { ...where, status: 'UNPAID' },
+        _sum: { total: true, discount: true }
+      }),
+      prisma.order.aggregate({
+        where: { ...where, status: 'CANCELLED' },
+        _sum: { total: true }
       })
     ]);
 
@@ -109,8 +132,11 @@ export async function GET(req) {
         totalPages: Math.ceil(total / limit)
       },
       stats: {
-        total_gross: stats._sum.total || 0,
-        total_net: stats._sum.net_revenue || 0
+        total_gross: (paidStats._sum.total || 0) + (unpaidStats._sum.total || 0),
+        total_net: paidStats._sum.net_revenue || 0,
+        total_paid: (paidStats._sum.total || 0) - (paidStats._sum.discount || 0),
+        total_unpaid: (unpaidStats._sum.total || 0) - (unpaidStats._sum.discount || 0),
+        total_cancelled: cancelledStats._sum.total || 0
       }
     });
   } catch (error) {
@@ -126,6 +152,13 @@ export async function POST(req) {
 
     const creatorId = user.id;
     const body = await req.json();
+
+    // Check store status
+    const config = await prisma.storeConfig.findFirst();
+    if (config && !config.is_open) {
+      return NextResponse.json({ error: 'Store is currently CLOSED. Transactions are blocked.' }, { status: 403 });
+    }
+
     const {
       items,
       payment_method,
@@ -143,6 +176,7 @@ export async function POST(req) {
       tax_amount,
       service_rate,
       service_amount,
+      table_number,
     } = body;
 
     if (!items || items.length === 0) {
@@ -151,6 +185,17 @@ export async function POST(req) {
 
     const finalCreatorId = created_by_user_id ? Number(created_by_user_id) : creatorId;
     const platId = platform_id ? Number(platform_id) : null;
+
+    const pmId = parseInt(payment_method_id);
+    const finalPmId = isNaN(pmId) ? null : pmId;
+
+    // Server-side validation for PAY_LATER requiring customer_name
+    if (finalPmId) {
+      const pm = await prisma.paymentMethod.findUnique({ where: { id: finalPmId } });
+      if (pm?.type === 'PAY_LATER' && (!customer_name || !customer_name.trim())) {
+        return NextResponse.json({ error: 'Customer name is MANDATORY for Kasbon (Pay Later) transactions.' }, { status: 400 });
+      }
+    }
 
     const created = await prisma.$transaction(async (tx) => {
       // 1. Fetch all required menus at once to avoid multiple round-trips
@@ -204,41 +249,69 @@ export async function POST(req) {
         appliedDiscount = finalDiscountRate || Number(discount) || 0;
       }
 
-      let netSubtotal = subtotal - appliedDiscount;
-      if (netSubtotal < 0) netSubtotal = 0;
-
-      let commission = 0;
-      if (platId) {
-        const platform = await tx.platform.findUnique({ where: { id: platId } });
-        if (platform && platform.commission_rate > 0) {
-          commission = Math.round(netSubtotal * (platform.commission_rate / 100));
-        }
+      // --- ARCHITECTURAL PRICING FLOW (Section 12) ---
+      // 1. Base Price (subtotal already calculated)
+      
+      // 2. Channel Cost (Static Cost Layer)
+      let commAmt = 0;
+      let additionalFee = 0;
+      const platformRec = platId ? await tx.platform.findUnique({ where: { id: platId } }) : null;
+      if (platformRec) {
+        commAmt = Math.round(subtotal * (platformRec.commission_rate / 100));
+        additionalFee = platformRec.additional_fee || 0;
       }
+      const totalChannelCost = commAmt + additionalFee;
 
-      const net_revenue = netSubtotal - commission;
+      // 3. Promotion Engine (Dynamic Logic)
+      const orderContext = {
+        items: itemsToCreate.map(i => ({ 
+          ...i, 
+          categoryId: menuMap.get(i.menu_id).categoryId 
+        })),
+        subtotal,
+        platform_id: platId,
+        payment_method,
+        order_type: null,
+      };
+      
+      const promoResult = await evaluatePromotions(orderContext);
+      const totalPromoDiscount = promoResult.totalDiscount || 0;
+      const finalTotalDiscount = appliedDiscount + totalPromoDiscount;
+
+      // 4. Final Price
+      const finalPrice = Math.max(0, subtotal - finalTotalDiscount);
+
+      // 5. Net Revenue Calculation
+      const net_revenue = finalPrice - totalChannelCost;
+      
       const receivedNum = Number(money_received) || 0;
-      const change_amount = receivedNum ? receivedNum - netSubtotal : 0;
+      const change_amount = receivedNum ? receivedNum - finalPrice : 0;
 
-      // 3. Create the order WITHOUT order_number first (avoids race condition)
-      //    The order_number is generated post-insert using the auto-incremented DB ID
-      //    which is guaranteed atomic by PostgreSQL — no two orders can have the same ID.
+      // Optional: Channel Campaign Integration
+      const campaignId = body.campaign_id ? Number(body.campaign_id) : null;
+      const campaignDiscount = body.campaign_discount ? Number(body.campaign_discount) : 0;
+
+      // 3. Create the order
       const newOrder = await tx.order.create({
         data: {
-          order_number: null, // Will be set right below using the new DB ID
+          order_number: null,
           total: subtotal,
-          discount: appliedDiscount,
+          discount: finalTotalDiscount,
           discount_type: finalDiscountType,
           discount_rate: finalDiscountRate,
-          commission,
+          commission: totalChannelCost, // Storing total static channel cost here
           net_revenue,
           platform_id: platId,
+          campaign_id: campaignId,
+          campaign_discount: campaignDiscount,
           payment_method,
-          payment_method_id: payment_method_id || null,
+          payment_method_id: finalPmId,
           money_received: receivedNum,
           tax_rate: Number(tax_rate) || 0,
           tax_amount: Number(tax_amount) || 0,
           service_rate: Number(service_rate) || 0,
           service_amount: Number(service_amount) || 0,
+          table_number: table_number || null,
           change_amount,
           status: status || 'PAID',
           note: note || null,
@@ -248,10 +321,18 @@ export async function POST(req) {
           orderItems: {
             create: itemsToCreate,
           },
+          orderPromotions: {
+            create: promoResult.appliedPromos.map(p => ({
+              promotionId: p.id,
+              amount: p.amount
+            }))
+          }
         },
         include: {
           orderItems: { include: { menu: true } },
           platform: true,
+          orderPromotions: true,
+          campaign: true
         },
       });
 
@@ -283,7 +364,21 @@ export async function POST(req) {
       timeout: 20000 // Increase timeout to 20s to handle recursion
     });
 
+    const ipAddress = req.headers.get('x-forwarded-for') || req.ip;
+    await logActivity({
+      userId: user.id,
+      action: 'CREATE',
+      entity: 'ORDER',
+      entityId: created.id,
+      ipAddress,
+      details: created
+    });
+
     logger.info('Order created', { id: created.id, total: created.total });
+    
+    // Dashboard sync is handled lazily by the dashboard insights service (60s stale check)
+    // No need to block order creation for a full day's aggregation.
+
     return NextResponse.json(created, { status: 201 });
   } catch (error) {
     const message = error?.message || 'Failed to create order';

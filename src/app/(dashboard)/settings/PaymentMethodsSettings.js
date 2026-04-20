@@ -12,8 +12,10 @@ import { api } from "../../../lib/api";
 import jsQR from "jsqr";
 import { ResponsiveDataView } from "../../../components/ResponsiveDataView";
 import { cn } from "../../../lib/utils";
+import { useTranslation } from "../../../lib/language-context";
 
 export default function PaymentMethodsSettings() {
+  const { t } = useTranslation();
   const [methods, setMethods] = useState([]);
   const [loading, setLoading] = useState(false);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -45,7 +47,7 @@ export default function PaymentMethodsSettings() {
       setMethods(res);
     } catch (e) {
       console.error(e);
-      error("Failed to load payment methods");
+      error(t('payments.fail_load'));
     } finally {
       setLoading(false);
     }
@@ -71,16 +73,16 @@ export default function PaymentMethodsSettings() {
     try {
       if (editingId) {
         await api.put(`/payment-methods/${editingId}`, formData);
-        success("Payment method updated");
+        success(t('payments.success_update'));
       } else {
         await api.post("/payment-methods", formData);
-        success("Payment method added");
+        success(t('payments.success_add'));
       }
       setIsDialogOpen(false);
       loadMethods();
     } catch (e) {
       console.error(e);
-      error("Failed to save payment method");
+      error(t('payments.fail_save'));
     }
   };
 
@@ -90,11 +92,11 @@ export default function PaymentMethodsSettings() {
     setMethods(prev => prev.filter(m => m.id !== id));
     try {
       await api.delete(`/payment-methods/${id}`);
-      success("Payment method deleted");
+      success(t('payments.success_delete'));
     } catch (e) {
       console.error(e);
       setMethods(previous);
-      error(e?.response?.data?.error || "Failed to delete payment method");
+      error(e?.response?.data?.error || t('payments.fail_delete'));
     }
   };
 
@@ -103,7 +105,7 @@ export default function PaymentMethodsSettings() {
     if (!file) return;
 
     if (file.size > 2 * 1024 * 1024) {
-      error("File is too large. Please use an image under 2MB.");
+      error(t('settings.logo_large_error') || "File is too large (max 2MB)");
       return;
     }
 
@@ -126,28 +128,28 @@ export default function PaymentMethodsSettings() {
             
             if (code) {
               setFormData(prev => ({ ...prev, imageUrl: base64String, qris_data: code.data }));
-              success("QRIS data extracted!");
+              success(t('payments.extract_success'));
             } else {
               setFormData(prev => ({ ...prev, imageUrl: base64String }));
-              error("Image uploaded, but no QR code found.");
+              error(t('payments.no_qr_found'));
             }
             setUploading(false);
           };
           img.src = base64String;
         } else {
           setFormData({ ...formData, imageUrl: base64String });
-          success("Image uploaded");
+          success(t('settings.logo_success'));
           setUploading(false);
         }
       };
       reader.onerror = () => {
-        error("Failed to read file");
+        error(t('common.upload_fail'));
         setUploading(false);
       };
       reader.readAsDataURL(file);
     } catch (e) {
       console.error(e);
-      error("Failed to process image");
+      error(t('common.upload_fail'));
       setUploading(false);
     }
   };
@@ -156,11 +158,11 @@ export default function PaymentMethodsSettings() {
     <div className="space-y-10">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
         <div>
-          <h3 className="text-2xl font-black tracking-tight text-slate-900 uppercase italic">Payment Methods</h3>
-          <p className="text-[10px] text-slate-400 font-black uppercase tracking-[0.2em] mt-1">Manage Cash, QRIS, and Bank Transfers</p>
+          <h3 className="text-2xl font-black tracking-tight text-slate-900 uppercase italic">{t('payments.title')}</h3>
+          <p className="text-[10px] text-slate-400 font-black uppercase tracking-[0.2em] mt-1">{t('payments.subtitle')}</p>
         </div>
         <Button onClick={() => { resetForm(); setIsDialogOpen(true); }} className="w-full md:w-auto h-12 px-8 rounded-2xl bg-slate-900 hover:bg-black text-white font-black text-[10px] uppercase tracking-widest shadow-xl active:scale-95 transition-all">
-          <Plus className="w-4 h-4 mr-2" /> New Method
+          <Plus className="w-4 h-4 mr-2" /> {t('payments.new_method')}
         </Button>
       </div>
 
@@ -168,15 +170,15 @@ export default function PaymentMethodsSettings() {
         <ResponsiveDataView
           loading={loading}
           data={methods}
-          emptyMessage="No payment methods found"
+          emptyMessage={t('payments.no_methods')}
           columns={[
             {
-              header: "Order",
+              header: t('payments.order'),
               accessor: (m) => <span className="font-mono text-slate-400 font-black">#{m.display_order}</span>,
               className: "pl-10 w-20"
             },
             {
-              header: "Icon",
+              header: t('common.icon'),
               accessor: (m) => (
                 <div className="w-12 h-12 rounded-2xl bg-slate-50 border border-slate-100 flex items-center justify-center overflow-hidden">
                   {m.imageUrl ? (
@@ -189,7 +191,7 @@ export default function PaymentMethodsSettings() {
               className: "w-24"
             },
             {
-              header: "Name",
+              header: t('common.name'),
               accessor: (m) => (
                 <div className="font-black text-slate-900 uppercase tracking-tight">
                   <p className="text-base">{m.name}</p>
@@ -198,7 +200,7 @@ export default function PaymentMethodsSettings() {
               )
             },
             {
-              header: "Details",
+              header: t('payments.details'),
               accessor: (m) => (
                 <div className="text-[10px] text-slate-500 font-bold uppercase tracking-wide">
                   {m.account_number && <div>{m.account_number}</div>}
@@ -207,18 +209,18 @@ export default function PaymentMethodsSettings() {
               )
             },
             {
-              header: "Status",
+              header: t('common.status'),
               accessor: (m) => (
                 <span className={cn(
                   "px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest border",
                   m.is_active ? "bg-emerald-50 text-emerald-600 border-emerald-100" : "bg-slate-50 text-slate-400 border-slate-100"
                 )}>
-                  {m.is_active ? "ACTIVE" : "INACTIVE"}
+                  {m.is_active ? t('common.online') : t('common.offline')}
                 </span>
               )
             },
             {
-              header: "Actions",
+              header: t('common.actions'),
               accessor: (m) => (
                 <div className="flex justify-end gap-2 pr-10">
                    <Button variant="ghost" size="icon" className="h-10 w-10 text-emerald-400 hover:bg-emerald-50 rounded-xl" onClick={() => {
@@ -269,7 +271,7 @@ export default function PaymentMethodsSettings() {
                       "px-2 py-1 rounded-md text-[8px] font-black uppercase tracking-widest",
                       m.is_active ? "text-emerald-600 bg-emerald-50" : "text-slate-400 bg-slate-50"
                    )}>
-                      {m.is_active ? "ACTIVE" : "INACTIVE"}
+                      {m.is_active ? t('common.online') : t('common.offline')}
                    </span>
                    <p className="mt-2 text-[10px] font-black text-slate-300 uppercase tracking-widest tabular-nums font-mono">#{m.display_order}</p>
                 </div>
@@ -287,7 +289,7 @@ export default function PaymentMethodsSettings() {
                    setFormData({...m});
                    setEditingId(m.id);
                    setIsDialogOpen(true);
-                }}>Edit</Button>
+                }}>{t('common.edit')}</Button>
                 <Button variant="ghost" className="h-12 w-12 rounded-xl text-rose-500 hover:bg-rose-50" onClick={() => setConfirmDeleteId(m.id)}>
                    <Trash2 className="w-4.5 h-4.5" />
                 </Button>
@@ -304,14 +306,14 @@ export default function PaymentMethodsSettings() {
              <div className="w-16 h-16 bg-white/10 backdrop-blur-md rounded-2xl flex items-center justify-center mx-auto mb-6 border border-white/20">
                 <CreditCard className="w-8 h-8 text-white" />
              </div>
-             <DialogTitle className="text-3xl font-black uppercase tracking-tight relative z-10">{editingId ? "Edit Method" : "New Method"}</DialogTitle>
-             <p className="text-[10px] font-black text-emerald-400 uppercase tracking-[0.3em] mt-3 relative z-10">Payment Gateway Details</p>
+             <DialogTitle className="text-3xl font-black uppercase tracking-tight relative z-10 text-white">{editingId ? t('payments.edit_method') : t('payments.new_method')}</DialogTitle>
+             <p className="text-[10px] font-black text-white/70 uppercase tracking-[0.3em] mt-3 relative z-10">{t('payments.subtitle')}</p>
           </div>
 
           <form onSubmit={handleSubmit} className="p-10 space-y-8 bg-white flex-1 overflow-y-auto min-h-0 scrollbar-hide">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
               <div className="space-y-3">
-                <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Name</Label>
+                <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400">{t('common.name')}</Label>
                 <Input required className="h-14 rounded-2xl bg-slate-50 border-slate-100 font-black text-base uppercase" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} placeholder="e.g. Bank BCA, QRIS" />
               </div>
               <div className="space-y-3">
@@ -321,18 +323,18 @@ export default function PaymentMethodsSettings() {
                   value={formData.type}
                   onChange={e => setFormData({...formData, type: e.target.value})}
                 >
-                  <option value="CASH">Cash</option>
+                  <option value="CASH">{t('pos.cash')}</option>
                   <option value="QRIS">QRIS</option>
-                  <option value="BANK_TRANSFER">Bank Transfer</option>
+                  <option value="BANK_TRANSFER">{t('pos.bank_transfer')}</option>
                   <option value="E_WALLET">E-Wallet</option>
-                  <option value="OTHER">Other</option>
+                  <option value="OTHER">{t('common.other')}</option>
                 </select>
               </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
               <div className="space-y-3">
-                <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Account Number</Label>
+                <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400">{t('payments.account_number')}</Label>
                 <Input className="h-14 rounded-2xl bg-slate-50 border-slate-100 font-black text-base font-mono" value={formData.account_number} onChange={e => setFormData({...formData, account_number: e.target.value})} placeholder="e.g. 12345678" />
               </div>
               <div className="space-y-3">
@@ -342,8 +344,8 @@ export default function PaymentMethodsSettings() {
             </div>
 
             <div className="space-y-3">
-              <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Payment Instructions</Label>
-              <Textarea className="rounded-2xl bg-slate-50 border-slate-100 p-6 font-bold text-sm uppercase min-h-[100px]" value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})} placeholder="Enter payment instructions for the customer..." />
+              <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400">{t('payments.instructions')}</Label>
+              <Textarea className="rounded-2xl bg-slate-50 border-slate-100 p-6 font-bold text-sm uppercase min-h-[100px]" value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})} placeholder={t('payments.instructions')} />
             </div>
 
             <div className="space-y-4">
@@ -366,14 +368,14 @@ export default function PaymentMethodsSettings() {
                           <ImageIcon className="w-8 h-8 text-slate-300" />
                        </div>
                        <div>
-                          <p className="text-[10px] font-black text-slate-900 uppercase tracking-widest">Upload Payment Logo</p>
+                          <p className="text-[10px] font-black text-slate-900 uppercase tracking-widest">{t('payments.select_image')}</p>
                           <p className="text-[8px] font-bold text-slate-400 uppercase tracking-tighter mt-1">Recommended for QRIS & Bank Transfers</p>
                        </div>
                     </div>
                  )}
                  <Input type="file" accept="image/*" onChange={handleFileUpload} disabled={uploading} className="hidden" id="pm-file" />
                  <Button type="button" variant="outline" asChild className="h-12 px-8 rounded-xl bg-white border-slate-200 text-slate-900 font-black text-[9px] uppercase tracking-widest shadow-sm hover:bg-slate-50">
-                    <label htmlFor="pm-file" className="cursor-pointer">{uploading ? "PROCCESSING..." : "SELECT IMAGE"}</label>
+                    <label htmlFor="pm-file" className="cursor-pointer">{uploading ? t('payments.processing') : t('payments.select_image')}</label>
                  </Button>
               </div>
             </div>
@@ -382,7 +384,7 @@ export default function PaymentMethodsSettings() {
               <div className="space-y-4 p-8 rounded-[2rem] bg-emerald-50 border border-emerald-100 animate-in fade-in slide-in-from-top-4">
                 <div className="flex items-center gap-3">
                    <QrCode className="w-6 h-6 text-emerald-600" />
-                   <Label className="text-[10px] font-black uppercase tracking-widest text-emerald-800">QRIS Data</Label>
+                   <Label className="text-[10px] font-black uppercase tracking-widest text-emerald-800">{t('payments.qris_data')}</Label>
                 </div>
                 <Textarea value={formData.qris_data} onChange={e => setFormData({...formData, qris_data: e.target.value})} placeholder="000201010211..." rows={4} className="font-mono text-xs bg-white border-emerald-200 p-4 rounded-xl shadow-inner" />
                 <p className="text-[9px] font-bold text-emerald-600 uppercase leading-relaxed">Used to generate dynamic QR codes for payments. Usually extracted automatically from uploaded QR image.</p>
@@ -401,17 +403,17 @@ export default function PaymentMethodsSettings() {
                  >
                    <div className={cn("w-4 h-4 bg-white rounded-full shadow-lg transition-all", formData.is_active ? "translate-x-6" : "translate-x-0")} />
                  </button>
-                 <Label className="text-[10px] font-black uppercase tracking-widest text-slate-900">Active Status</Label>
+                 <Label className="text-[10px] font-black uppercase tracking-widest text-slate-900">{t('payments.active_status')}</Label>
               </div>
               <div className="flex-1 flex justify-end items-center gap-4">
-                 <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Display Order</Label>
+                 <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400">{t('payments.display_order')}</Label>
                  <Input type="number" value={formData.display_order} onChange={e => setFormData({...formData, display_order: e.target.value})} className="w-24 h-12 rounded-xl bg-slate-50 border-slate-100 font-black text-center" />
               </div>
             </div>
 
             <DialogFooter className="pt-6 gap-6">
-              <Button type="button" variant="ghost" className="h-14 px-10 rounded-2xl font-black text-[10px] uppercase text-slate-400" onClick={() => setIsDialogOpen(false)}>Cancel</Button>
-              <Button type="submit" disabled={uploading} className="h-14 px-12 rounded-2xl bg-slate-900 text-white font-black uppercase text-[10px] tracking-widest shadow-2xl">Save Method</Button>
+              <Button type="button" variant="ghost" className="h-14 px-10 rounded-2xl font-black text-[10px] uppercase text-slate-400" onClick={() => setIsDialogOpen(false)}>{t('common.cancel')}</Button>
+              <Button type="submit" disabled={uploading} className="h-14 px-12 rounded-2xl bg-slate-900 text-white font-black uppercase text-[10px] tracking-widest shadow-2xl">{t('common.save')}</Button>
             </DialogFooter>
           </form>
         </DialogContent>

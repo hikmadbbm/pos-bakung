@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import jwt from 'jsonwebtoken';
 import { prisma } from './prisma';
+import { hasPermission, PERMISSIONS } from './permissions';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret';
 
@@ -82,4 +83,48 @@ export async function verifyAuth(req, allowedRoles = []) {
     console.error('Auth verification failed:', error);
     return { user: null, response: NextResponse.json({ error: 'Internal server error' }, { status: 500 }) };
   }
+}
+
+/**
+ * Higher-level auth check that also validates specific action permissions
+ * @param {Request} req 
+ * @param {string} permission - e.g. 'finance:confirm'
+ * @returns {Promise<{user: any, response: NextResponse | null}>}
+ */
+export async function verifyPermission(req, permission) {
+  const { user, response } = await verifyAuth(req);
+  if (response) return { user, response };
+
+  if (!hasPermission(user, permission)) {
+    console.warn(`Permission Denied: User ${user.username} (Role: ${user.role}) attempted ${permission}`);
+    return { 
+      user, 
+      response: NextResponse.json(
+        { error: `Forbidden: You do not have permission to ${permission}` }, 
+        { status: 403 }
+      ) 
+    };
+  }
+
+  return { user, response: null };
+}
+
+/**
+ * Generates a JWT token for a user.
+ * @param {object} user - User object containing id, name, username, role, status.
+ * @returns {string} - The generated JWT token.
+ */
+export function generateToken(user) {
+  return jwt.sign(
+    { 
+      id: user.id, 
+      name: user.name, 
+      username: user.username, 
+      role: user.role, 
+      status: user.status,
+      permissions: PERMISSIONS[user.role] || []
+    },
+    JWT_SECRET,
+    { expiresIn: '7d' }
+  );
 }

@@ -12,14 +12,21 @@ export async function GET(req) {
     const { response } = await verifyAuth(req, ['OWNER', 'MANAGER']);
     if (response) return response;
 
+    const { searchParams } = new URL(req.url);
+    const type = searchParams.get('type');
+    const essential = searchParams.get('essential') === 'true';
+
     const recipes = await prisma.recipe.findMany({
+      where: {
+        ...(type ? { type: type } : {})
+      },
       include: {
-        items: {
+        items: !essential ? {
           include: { 
             ingredient: true,
             component_recipe: true
           }
-        },
+        } : false,
         menu: true
       },
       orderBy: { name: 'asc' },
@@ -42,6 +49,7 @@ export async function POST(req) {
       type, // STANDARD, COMPONENT
       menu_id, 
       base_quantity, 
+      base_unit,
       items, // Array of { item_type, ingredient_id, component_recipe_id, quantity, unit }
       monthly_fixed_cost,
       monthly_production_volume
@@ -70,6 +78,7 @@ export async function POST(req) {
           type: type || 'STANDARD',
           menu_id: menu_id ? Number(menu_id) : null,
           base_quantity: Number(base_quantity) || 1,
+          base_unit: base_unit || 'portion',
           monthly_fixed_cost: Number(monthly_fixed_cost) || 0,
           monthly_production_volume: Number(monthly_production_volume) || 0,
           total_variable_cost: totalVariableCost,

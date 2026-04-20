@@ -1,23 +1,26 @@
 export function parseDateRange(searchParams) {
   const from = searchParams.get('from');
   const to = searchParams.get('to');
+  const timezoneOffset = 7; // WIB (UTC+7)
 
   let start, end;
   
   if (from) {
-    start = new Date(from);
-    start.setHours(0, 0, 0, 0);
+    // If from is YYYY-MM-DD, parsing it directly as Date can be impacted by local TZ
+    // We force it to be treated as UTC midnight of that literal string date
+    const datePart = from.includes('T') ? from.split('T')[0] : from;
+    start = new Date(`${datePart}T00:00:00.000Z`);
   } else {
-    start = new Date();
-    start.setHours(0, 0, 0, 0);
+    const nowInJakarta = new Date(Date.now() + (timezoneOffset * 60 * 60 * 1000));
+    start = new Date(nowInJakarta.toISOString().split('T')[0] + 'T00:00:00.000Z');
   }
 
   if (to) {
-    end = new Date(to);
-    end.setHours(23, 59, 59, 999);
+    const datePart = to.includes('T') ? to.split('T')[0] : to;
+    end = new Date(`${datePart}T23:59:59.999Z`);
   } else {
-    end = new Date();
-    end.setHours(23, 59, 59, 999);
+    const nowInJakarta = new Date(Date.now() + (timezoneOffset * 60 * 60 * 1000));
+    end = new Date(nowInJakarta.toISOString().split('T')[0] + 'T23:59:59.999Z');
   }
 
   return { start, end };
@@ -41,4 +44,3 @@ export function getDailyOverhead(fixedCosts) {
     return acc;
   }, 0);
 }
-

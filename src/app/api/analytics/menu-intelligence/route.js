@@ -28,8 +28,8 @@ export async function GET(req) {
       }
     });
 
-    // Provide mocked intel based on existing menus
-    const metrics = menus.map(m => {
+    // 1. Calculate basic metrics
+    let metrics = menus.map(m => {
       const total_qty = m.orderItems.reduce((acc, curr) => acc + curr.qty, 0);
       const total_revenue = m.orderItems.reduce((acc, curr) => acc + (curr.price * curr.qty), 0);
       const total_cost = m.orderItems.reduce((acc, curr) => acc + (curr.cost * curr.qty), 0);
@@ -42,10 +42,31 @@ export async function GET(req) {
         total_qty,
         total_revenue,
         hpp: total_cost,
-        net_profit,
+        net_profit
+      };
+    });
+
+    // 2. Calculate thresholds
+    const avgProfit = metrics.reduce((acc, curr) => acc + curr.net_profit, 0) / (metrics.length || 1);
+    const avgQty = metrics.reduce((acc, curr) => acc + curr.total_qty, 0) / (metrics.length || 1);
+
+    // 3. Categorize items
+    metrics = metrics.map(m => {
+      let status = "PROFITABLE MENU";
+      
+      if (m.total_qty >= avgQty && m.net_profit >= avgProfit) {
+        status = "STAR MENU";
+      } else if (m.total_qty >= avgQty && m.net_profit < avgProfit) {
+        status = "LOW MARGIN MENU";
+      } else if (m.total_qty < avgQty && m.net_profit < avgProfit) {
+        status = "UNDERPERFORMING MENU";
+      }
+      
+      return {
+        ...m,
+        status,
         allocatedOverhead: 5000, 
-        profitAfterOverhead: net_profit - 5000,
-        status: net_profit > 100000 ? "STAR MENU" : (net_profit > 50000 ? "PROFITABLE MENU" : "UNDERPERFORMING MENU")
+        profitAfterOverhead: m.net_profit - 5000
       };
     });
 
@@ -59,8 +80,8 @@ export async function GET(req) {
         lowSelling: metrics.filter(m => m.status === "UNDERPERFORMING MENU")
       },
       thresholds: {
-        avgProfit: metrics.reduce((acc, curr) => acc + curr.net_profit, 0) / (metrics.length || 1),
-        avgQty: metrics.reduce((acc, curr) => acc + curr.total_qty, 0) / (metrics.length || 1)
+        avgProfit,
+        avgQty
       }
     });
   } catch (error) {

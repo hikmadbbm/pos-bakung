@@ -42,7 +42,8 @@ export function useCart(taxRate = 0, serviceRate = 0) {
         price: currentPrice, 
         qty: 1, 
         note: "", 
-        categoryId: menu.categoryId 
+        categoryId: menu.categoryId,
+        categoryType: menu.category?.type || "FOOD"
       }];
     });
   }, [generateCartItemId]);
@@ -89,11 +90,13 @@ export function useCart(taxRate = 0, serviceRate = 0) {
   // Calculations
   const subtotal = useMemo(() => cart.reduce((acc, item) => acc + item.price * item.qty, 0), [cart]);
   
-  const calculateTotal = useCallback((discount = 0, discountType = "FIXED") => {
+  const calculateTotal = useCallback((discount = 0, discountType = "FIXED", promoDiscount = 0) => {
     const dVal = Number(discount) || 0;
-    const appliedDiscount = discountType === "PERCENT" 
+    const appliedManualDiscount = discountType === "PERCENT" 
       ? Math.round(subtotal * (dVal / 100)) 
       : dVal;
+    
+    const appliedDiscount = appliedManualDiscount + (Number(promoDiscount) || 0);
     
     const amountAfterDiscount = Math.max(0, subtotal - appliedDiscount);
     const taxAmount = Math.round(amountAfterDiscount * (taxRate / 100));

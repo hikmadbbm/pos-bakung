@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "./ui/dialog";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
@@ -7,7 +7,7 @@ import { Label } from "./ui/label";
 import { useRouter } from "next/navigation";
 import { api } from "../lib/api";
 
-import { User, Calculator, Rocket, ArrowRight, ArrowLeft } from "lucide-react";
+import { User, Calculator, Rocket, ArrowRight, ArrowLeft, Info } from "lucide-react";
 import { cn } from "../lib/utils";
 
 export default function PostLoginModal({ isOpen, user, onClose }) {
@@ -16,6 +16,35 @@ export default function PostLoginModal({ isOpen, user, onClose }) {
   const [startingCash, setStartingCash] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [activeShift, setActiveShift] = useState(null);
+
+  const fetchActiveShift = useCallback(async () => {
+    const userId = user?.id;
+    if (!userId || !isOpen) return;
+    
+    try {
+      // Clear previous shift data before fetching new one to avoid visual artifacts
+      setActiveShift(null);
+      const res = await api.get(`/shifts/current/${userId}`);
+      if (res && typeof res === 'object' && res.id) {
+          setActiveShift(res);
+      } else {
+          setActiveShift(null);
+      }
+    } catch (err) {
+      console.error("Failed to check shift status:", err);
+      setActiveShift(null);
+    }
+  }, [user?.id, isOpen]);
+
+  useEffect(() => {
+    if (isOpen && user?.id) {
+      fetchActiveShift();
+      setMode("selection");
+      setError("");
+      setStartingCash("");
+    }
+  }, [isOpen, user?.id, fetchActiveShift]);
 
   const handleDashboard = () => {
     if (onClose) onClose();
@@ -23,7 +52,13 @@ export default function PostLoginModal({ isOpen, user, onClose }) {
   };
 
   const handleOpenPOS = () => {
-    setMode("input");
+    if (activeShift) {
+        // Direct go to POS if shift already active
+        if (onClose) onClose();
+        router.push("/orders");
+    } else {
+        setMode("input");
+    }
   };
 
   const handleStartShift = async (e) => {
@@ -32,13 +67,13 @@ export default function PostLoginModal({ isOpen, user, onClose }) {
     
     // Validation
     const amount = parseFloat(startingCash);
-    if (isNaN(amount) || amount < 0.01 || amount > 999999.99) {
-      setError("Amount must be between 0.01 and 999,999.99");
+    if (isNaN(amount) || amount < 0 || amount > 999999.99) {
+      setError("Amount must be between 0 and 999,999.99");
       return;
     }
     
     // Regex for 2 decimal places max
-    if (!/^\d+(\.\d{1,2})?$/.test(startingCash)) {
+    if (startingCash !== "" && !/^\d+(\.\d{1,2})?$/.test(startingCash)) {
        setError("Maximum 2 decimal places allowed");
        return;
     }
@@ -104,14 +139,33 @@ export default function PostLoginModal({ isOpen, user, onClose }) {
               
               <button 
                 onClick={handleOpenPOS}
-                className="w-full flex items-center gap-4 p-5 rounded-2xl bg-slate-50 border border-slate-100 hover:border-emerald-500 hover:bg-emerald-50 transition-all group text-left"
+                className={cn(
+                  "w-full flex items-center gap-4 p-5 rounded-2xl border transition-all group text-left",
+                  activeShift 
+                    ? "bg-emerald-50 border-emerald-200 hover:border-emerald-500" 
+                    : "bg-slate-50 border-slate-100 hover:border-emerald-500 hover:bg-emerald-50"
+                )}
               >
                 <div className="w-12 h-12 rounded-xl bg-emerald-600 text-white flex items-center justify-center shadow-lg shadow-emerald-600/20 group-hover:scale-110 transition-transform">
                   <Rocket className="w-6 h-6" />
                 </div>
                 <div className="flex-1">
-                  <p className="font-black text-slate-800 uppercase tracking-tight">Open POS System</p>
-                  <p className="text-xs text-slate-400 font-medium">Access order processing & sales</p>
+                  <p className="font-black text-slate-800 uppercase tracking-tight">
+                    {activeShift ? "Resume POS Terminal" : "Open POS System"}
+                  </p>
+                  {activeShift ? (
+                    <div className="flex flex-col mt-0.5">
+                      <p className="text-[10px] text-emerald-600 font-bold uppercase tracking-wider flex items-center gap-1">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                        Shift Active
+                      </p>
+                      <p className="text-[11px] text-slate-500 font-medium italic">
+                        Started by {activeShift.user?.name || 'Staff'} • Rp {Number(activeShift.starting_cash).toLocaleString('id-ID')}
+                      </p>
+                    </div>
+                  ) : (
+                    <p className="text-xs text-slate-400 font-medium">Access order processing & sales</p>
+                  )}
                 </div>
                 <ArrowRight className="w-5 h-5 text-slate-300 group-hover:text-emerald-600 group-hover:translate-x-1 transition-all" />
               </button>
@@ -159,7 +213,7 @@ export default function PostLoginModal({ isOpen, user, onClose }) {
                 <Button 
                   type="submit" 
                   disabled={loading}
-                  className="h-14 rounded-2xl bg-emerald-600 hover:bg-emerald-700 font-black uppercase tracking-widest shadow-xl shadow-emerald-600/20 transition-all active:scale-95"
+                  className="h-14 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-black uppercase tracking-widest shadow-xl shadow-emerald-600/20 transition-all active:scale-95"
                 >
                   {loading ? "Initializing..." : "Launch POS Terminal"}
                 </Button>

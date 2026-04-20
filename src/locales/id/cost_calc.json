@@ -1,0 +1,17 @@
+{
+  "title": "Kalkulator Modal",
+  "subtitle": "Tentukan harga menu berdasarkan HPP",
+  "select_product": "Pilih Produk",
+  "production_cost": "Biaya Produksi (HPP)",
+  "target_margin": "Target Margin (%)",
+  "recommended_price": "Harga Rekomendasi",
+  "current_price": "Harga Jual Saat Ini",
+  "ingredient_breakdown": "Rincian Bahan",
+  "item": "Item",
+  "usage": "Penggunaan",
+  "cost_contrib": "Kontrib. Biaya",
+  "no_recipe": "Tidak ada resep untuk produk ini",
+  "add_ingredient": "Tambah Bahan",
+  "profit_estimate": "Estimasi Profit",
+  "margin_achieved": "Margin Tercapai"
+}

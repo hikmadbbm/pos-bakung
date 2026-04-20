@@ -1,0 +1,12 @@
+{
+  "no_data": "No historical data for neural forecasting yet.",
+  "trajectory": "Demand Trajectory (Next 24 Hours)",
+  "prep_recommendations": "Prep Recommendations",
+  "avg_daily_sales": "7D Avg Sales",
+  "recommended_prep": "Recommended Prep",
+  "matrix_title": "Forecast Matrix (7-Cycle)",
+  "normal_7d": "7D Normal",
+  "tomorrow": "Tomorrow",
+  "suggested": "Suggested",
+  "weekly_total": "Weekly Total"
+}

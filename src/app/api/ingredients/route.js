@@ -9,13 +9,44 @@ export async function GET(req) {
     const { response } = await verifyAuth(req, ['OWNER', 'MANAGER', 'CASHIER']);
     if (response) return response;
 
+    const { searchParams } = new URL(req.url);
+    const essential = searchParams.get('essential') === 'true';
+
+    if (essential) {
+      const ingredients = await prisma.ingredient.findMany({
+        select: {
+          id: true,
+          item_name: true,
+          category: true,
+          unit: true,
+          cost_per_unit: true,
+          is_generic: true,
+          subItems: {
+            select: {
+              id: true,
+              item_name: true,
+              unit: true,
+              cost_per_unit: true,
+              is_active_brand: true
+            }
+          }
+        },
+        orderBy: { item_name: 'asc' },
+      });
+      return NextResponse.json(ingredients);
+    }
+
     const ingredients = await prisma.ingredient.findMany({
+      include: {
+        subItems: true,
+        parent: { select: { item_name: true } }
+      },
       orderBy: { item_name: 'asc' },
     });
     return NextResponse.json(ingredients);
   } catch (error) {
     console.error('Failed to fetch ingredients:', error);
-    return NextResponse.json({ error: 'Failed to fetch ingredients' }, { status: 500 });
+    return NextResponse.json({ error: 'Failed' }, { status: 500 });
   }
 }
 
@@ -26,18 +57,12 @@ export async function POST(req) {
 
     const body = await req.json();
     let { 
-      category, 
-      item_name, 
-      brand, 
-      volume, 
-      unit, 
-      price, 
-      purchase_location, 
-      purchase_link, 
-      notes 
+      category, item_name, brand, volume, unit, price, 
+      purchase_location, purchase_link, notes,
+      is_generic, parentId, is_active_brand
     } = body;
 
-    if (!item_name || !unit || !category || !volume || !price) {
+    if (!item_name || !unit || !category || volume === undefined || volume === "" || price === undefined || price === "") {
       return NextResponse.json({ error: 'Category, Item Name, Volume, Unit, and Price are required' }, { status: 400 });
     }
 
@@ -53,7 +78,7 @@ export async function POST(req) {
       data: {
         category,
         item_name,
-        brand: brand || 'Local',
+        brand: brand || (is_generic ? 'GENERIC' : 'Local'),
         volume: vol,
         unit,
         price: prc,
@@ -61,6 +86,9 @@ export async function POST(req) {
         purchase_location,
         purchase_link,
         notes,
+        is_generic: !!is_generic,
+        parentId: parentId ? Number(parentId) : null,
+        is_active_brand: !!is_active_brand,
         price_history: {
           create: { price: prc }
         }

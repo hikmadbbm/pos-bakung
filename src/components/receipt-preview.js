@@ -10,8 +10,10 @@ import { api } from "../lib/api";
 import { ESC_POS } from "../lib/printer-commands";
 import { processLogo } from "../lib/escpos-image";
 import { cn } from "../lib/utils";
+import { useTranslation } from "../lib/language-context";
 
-export function ReceiptPreview({ isOpen, onClose, order, config: propConfig }) {
+export function ReceiptPreview({ isOpen, onClose, order, config: propConfig, forceCopy = false, receiptOnly = false }) {
+  const { t } = useTranslation();
   const { success, error } = useToast();
   const { device, connect, print } = usePrinter();
   const [printingReceipt, setPrintingReceipt] = useState(false);
@@ -104,7 +106,8 @@ export function ReceiptPreview({ isOpen, onClose, order, config: propConfig }) {
         data += ESC_POS.ALIGN_CENTER;
         data += ESC_POS.BOLD_ON;
         data += ESC_POS.DOUBLE_WIDTH_ON;
-        data += (storeConfig.store_name || "BAKMIE YOU-TJE") + "\n";
+        const name = storeConfig.store_name || "Bakmie You-Tje";
+        data += name + "\n";
         data += ESC_POS.RESET_SIZE;
         data += ESC_POS.BOLD_Off;
       }
@@ -118,22 +121,21 @@ export function ReceiptPreview({ isOpen, onClose, order, config: propConfig }) {
       // Original / Copy Label
       data += ESC_POS.ALIGN_CENTER;
       data += ESC_POS.BOLD_ON;
-      data += currentOrder.print_count > 0 ? "COPY RECEIPT\n" : "ORIGINAL RECEIPT\n";
+      data += (forceCopy || currentOrder.print_count > 0) ? `${t('receipt.copy')}\n` : `${t('receipt.original')}\n`;
       data += ESC_POS.BOLD_Off;
       data += ESC_POS.separator(width);
       
       data += ESC_POS.ALIGN_LEFT;
-      data += `REF: ${order.order_number}\n`;
-      data += `DATE: ${formatDate(order.date)}\n`;
+      data += `${t('receipt.ref')}: ${order.order_number}\n`;
+      data += `${t('receipt.date')}: ${formatDate(order.date)}\n`;
       if (storeConfig.show_customer && order.customer_name) {
-        data += `GUEST: ${order.customer_name}\n`;
+        data += `${t('common.guest')}: ${order.customer_name}\n`;
       }
       data += ESC_POS.separator(width);
       
       order.orderItems.forEach(item => {
-        // Line 1: Name (Bold)
-        data += ESC_POS.BOLD_ON;
-        data += (item.menu?.name || "Unknown").toUpperCase() + "\n";
+        const itemTypeMark = item.menu?.productType === 'CONSIGNMENT' ? ' (Titipan)' : '';
+        data += (item.menu?.name || "Unknown") + itemTypeMark + "\n";
         data += ESC_POS.BOLD_Off;
  
         // Line 2: Note (Italic)
@@ -153,61 +155,64 @@ export function ReceiptPreview({ isOpen, onClose, order, config: propConfig }) {
       // General Order Note
       if (order.note) {
         data += ESC_POS.separator(width);
-        data += ESC_POS.BOLD_ON + "NOTES:\n" + ESC_POS.BOLD_Off;
+        data += ESC_POS.BOLD_ON + `${t('receipt.notes')}:\n` + ESC_POS.BOLD_Off;
         data += order.note + "\n";
       }
       
       data += ESC_POS.separator(width);
       
-      data += ESC_POS.formatTwoColumns("Subtotal", formatIDR(order.total), width);
+      data += ESC_POS.formatTwoColumns(t('receipt.subtotal'), formatIDR(order.total), width);
       
       let finalTotal = order.total;
       
       if (order.service_amount > 0) {
-        data += ESC_POS.formatTwoColumns(`Service (${order.service_rate || storeConfig.service_charge}%)`, formatIDR(order.service_amount), width);
+        data += ESC_POS.formatTwoColumns(`${t('receipt.service')} (${order.service_rate || storeConfig.service_charge}%)`, formatIDR(order.service_amount), width);
         finalTotal += order.service_amount;
       } else if (!order.hasOwnProperty('service_amount') && storeConfig.service_charge > 0) {
         // Fallback for old orders
         const serviceAmount = Math.round(order.total * (storeConfig.service_charge / 100));
-        data += ESC_POS.formatTwoColumns(`Service (${storeConfig.service_charge}%)`, formatIDR(serviceAmount), width);
+        data += ESC_POS.formatTwoColumns(`${t('receipt.service')} (${storeConfig.service_charge}%)`, formatIDR(serviceAmount), width);
         finalTotal += serviceAmount;
       }
       
       if (order.tax_amount > 0) {
-        data += ESC_POS.formatTwoColumns(`Tax (${order.tax_rate || storeConfig.tax_rate}%)`, formatIDR(order.tax_amount), width);
+        data += ESC_POS.formatTwoColumns(`${t('receipt.tax')} (${order.tax_rate || storeConfig.tax_rate}%)`, formatIDR(order.tax_amount), width);
         finalTotal += order.tax_amount;
       } else if (!order.hasOwnProperty('tax_amount') && storeConfig.tax_rate > 0) {
         // Fallback for old orders
         const taxAmount = Math.round(finalTotal * (storeConfig.tax_rate / 100));
-        data += ESC_POS.formatTwoColumns(`Tax (${storeConfig.tax_rate}%)`, formatIDR(taxAmount), width);
+        data += ESC_POS.formatTwoColumns(`${t('receipt.tax')} (${storeConfig.tax_rate}%)`, formatIDR(taxAmount), width);
         finalTotal += taxAmount;
       }
  
       if (order.discount > 0) {
-        data += ESC_POS.formatTwoColumns("Discount", `-${formatIDR(order.discount)}`, width);
+        data += ESC_POS.formatTwoColumns(t('receipt.discount'), `-${formatIDR(order.discount)}`, width);
         finalTotal -= order.discount;
       }
       
       data += ESC_POS.BOLD_ON;
-      data += ESC_POS.formatTwoColumns("TOTAL", formatIDR(Math.max(0, finalTotal)), width);
+      data += ESC_POS.formatTwoColumns(t('receipt.total'), formatIDR(Math.max(0, finalTotal)), width);
       data += ESC_POS.BOLD_Off;
  
       data += ESC_POS.separator(width);
-      data += ESC_POS.formatTwoColumns("METHOD", order.payment_method?.toUpperCase() || "CASH", width);
-      
-      const receivedAmount = order.money_received || finalTotal;
+      const isUnpaid = order.status === 'UNPAID';
+      const receivedAmount = isUnpaid ? 0 : (order.money_received ?? finalTotal);
       const changeAmount = Math.max(0, receivedAmount - finalTotal);
       
-      data += ESC_POS.formatTwoColumns("PAID", formatIDR(receivedAmount), width);
-      data += ESC_POS.formatTwoColumns("CHANGE", formatIDR(changeAmount), width);
+      if (isUnpaid) {
+        data += ESC_POS.formatTwoColumns('TOTAL HUTANG', formatIDR(finalTotal), width);
+      } else {
+        data += ESC_POS.formatTwoColumns(t('receipt.paid'), formatIDR(receivedAmount), width);
+        data += ESC_POS.formatTwoColumns(t('receipt.change'), formatIDR(changeAmount), width);
+      }
       
       data += ESC_POS.separator(width);
       data += ESC_POS.ALIGN_CENTER;
-      data += (storeConfig.receipt_footer || "THANK YOU!") + "\n";
+      data += (storeConfig.receipt_footer || "Thank you!") + "\n";
       data += ESC_POS.FEED_PAPER(4);
       
       await print(data);
-      success("Receipt printed");
+      success(t('common.print_success'));
  
       // Increment print count in DB
       try {
@@ -218,11 +223,11 @@ export function ReceiptPreview({ isOpen, onClose, order, config: propConfig }) {
       }
     } catch (e) {
       console.error("Print failed", e);
-      error("Printer communication failed");
+      error(t('common.print_fail'));
     } finally {
       setPrintingReceipt(false);
     }
-  }, [print, storeConfig, currentOrder, order, width, success, error]);
+  }, [print, storeConfig, currentOrder, order, width, success, error, t, forceCopy]);
 
   const handlePrintKitchen = useCallback(async () => {
     if (!print || !storeConfig.kitchen_enabled || !order) return;
@@ -246,28 +251,29 @@ export function ReceiptPreview({ isOpen, onClose, order, config: propConfig }) {
         let data = ESC_POS.INIT;
         data += ESC_POS.ALIGN_CENTER;
         data += ESC_POS.DOUBLE_SIZE_ON;
-        data += "KITCHEN TICKET\n";
+        data += `${t('receipt.kitchen_ticket')}\n`;
         if (copies > 1) data += `COPY ${i + 1}/${copies}\n`;
         data += ESC_POS.RESET_SIZE;
         data += ESC_POS.separator(width);
         
         data += ESC_POS.ALIGN_LEFT;
         data += ESC_POS.BOLD_ON;
-        data += `REF: ${order.order_number}\n`;
-        data += `DATE: ${formatDate(order.date)}\n`;
-        if (order.customer_name) data += `GUEST: ${order.customer_name}\n`;
+        data += `${t('receipt.ref')}: ${order.order_number}\n`;
+        data += `${t('receipt.date')}: ${formatDate(order.date)}\n`;
+        if (order.customer_name) data += `${t('common.guest')}: ${order.customer_name}\n`;
         data += ESC_POS.BOLD_Off;
         data += ESC_POS.separator(width);
         
         itemsToPrint.forEach(item => {
           data += ESC_POS.DOUBLE_HEIGHT_ON;
-          data += `[ ] ${item.qty} x ${item.menu?.name}\n`;
+          const itemTypeMark = item.menu?.productType === 'CONSIGNMENT' ? ' (Titipan)' : '';
+          data += `[ ] ${item.qty} x ${item.menu?.name}${itemTypeMark}\n`;
           data += ESC_POS.RESET_SIZE;
-          if (item.note) data += `    -> ${item.note.toUpperCase()}\n`;
+          if (item.note) data += `    -> ${item.note}\n`;
         });
         
         if (order.note) {
-          data += ESC_POS.BOLD_ON + "ORDER NOTE: " + order.note + ESC_POS.BOLD_Off + "\n";
+          data += ESC_POS.BOLD_ON + `${t('receipt.order_note')}: ` + order.note + ESC_POS.BOLD_Off + "\n";
         }
         
         data += ESC_POS.separator(width);
@@ -275,14 +281,14 @@ export function ReceiptPreview({ isOpen, onClose, order, config: propConfig }) {
         
         await print(data);
       }
-      success("Kitchen ticket sent");
+      success(t('common.print_success'));
     } catch (e) {
       console.error("Kitchen print failed", e);
-      error("Kitchen printer failed");
+      error(t('common.print_fail'));
     } finally {
       setPrintingKitchen(false);
     }
-  }, [print, storeConfig.kitchen_enabled, storeConfig.kitchen_copies, storeConfig.kitchen_categories, order, width, success, error]);
+  }, [print, storeConfig.kitchen_enabled, storeConfig.kitchen_copies, storeConfig.kitchen_categories, order, width, success, error, t]);
 
   const [printState, setPrintState] = useState("IDLE");
   const activeOrderRef = useRef(null);
@@ -342,20 +348,26 @@ export function ReceiptPreview({ isOpen, onClose, order, config: propConfig }) {
              <CheckCircle2 className="w-24 h-24 -rotate-12" />
           </div>
           <div className="relative z-10 flex justify-between items-end">
-            <div>
-              <h3 className="text-2xl font-black uppercase tracking-tight">Sequence Success</h3>
-              <p className="text-[10px] font-bold text-emerald-100 uppercase tracking-widest">Topology Visualization Node</p>
+            <div className="space-y-1">
+              <h3 className="text-2xl font-black uppercase tracking-tight text-white leading-none">
+                {receiptOnly ? `PREVIEW STRUK #${order?.order_number}` : 'CETAK STRUK'}
+              </h3>
+              <p className="text-xs font-bold text-white/70 uppercase tracking-widest">
+                {t('receipt.system_admin')}
+              </p>
             </div>
-            <div className="flex bg-black/20 p-1 rounded-xl backdrop-blur-md">
-               <button 
-                onClick={() => setPreviewMode("receipt")}
-                className={cn("px-4 py-2 rounded-lg text-[9px] font-black uppercase transition-all", previewMode === "receipt" ? "bg-white text-emerald-600 shadow-lg" : "text-emerald-50")}
-               >POS</button>
-               <button 
-                onClick={() => setPreviewMode("kitchen")}
-                className={cn("px-4 py-2 rounded-lg text-[9px] font-black uppercase transition-all", previewMode === "kitchen" ? "bg-white text-emerald-600 shadow-lg" : "text-emerald-50")}
-               >Kitchen</button>
-            </div>
+            {!receiptOnly && (
+              <div className="flex bg-black/20 p-1 rounded-xl backdrop-blur-md">
+                 <button 
+                  onClick={() => setPreviewMode("receipt")}
+                  className={cn("px-4 py-2 rounded-lg text-[10px] font-black uppercase transition-all", previewMode === "receipt" ? "bg-white text-emerald-600 shadow-lg" : "text-emerald-50")}
+                 >POS</button>
+                 <button 
+                  onClick={() => setPreviewMode("kitchen")}
+                  className={cn("px-4 py-2 rounded-lg text-[10px] font-black uppercase transition-all", previewMode === "kitchen" ? "bg-white text-emerald-600 shadow-lg" : "text-emerald-50")}
+                 >Kitchen</button>
+              </div>
+            )}
           </div>
         </div>
 
@@ -367,7 +379,7 @@ export function ReceiptPreview({ isOpen, onClose, order, config: propConfig }) {
                 previewMode === "receipt" ? "w-[280px] rounded-xl" : "w-[300px] rounded-sm border-l-4 border-l-emerald-500"
               )}>
                 {previewMode === "receipt" ? (
-                    <div className="p-6 font-mono text-[10px] text-slate-800 space-y-4 animate-in fade-in duration-500 min-h-[400px]">
+                    <div className="p-6 font-mono text-xs text-slate-900 space-y-4 animate-in fade-in duration-500 min-h-[400px]">
                       <div className="text-center space-y-2 pb-2">
                         {storeConfig.show_logo && storeConfig.logo_url && (
                           <div className="flex justify-center mb-4">
@@ -375,19 +387,19 @@ export function ReceiptPreview({ isOpen, onClose, order, config: propConfig }) {
                           </div>
                         )}
                         {storeConfig.show_name !== false && (
-                          <h4 className="font-black text-base uppercase leading-tight tracking-tighter">{storeConfig.store_name}</h4>
+                          <h4 className="font-black text-base leading-tight tracking-tighter">{storeConfig.store_name}</h4>
                         )}
-                        <p className="text-[7.5px] leading-relaxed opacity-60 px-4">{storeConfig.address}</p>
+                        <p className="text-[10px] leading-relaxed opacity-80 px-4">{storeConfig.address}</p>
                         {(storeConfig.phone || storeConfig.instagram || storeConfig.whatsapp) && (
-                          <div className="flex flex-wrap justify-center gap-x-4 gap-y-1 text-[7px] opacity-50 font-black uppercase pt-1">
+                          <div className="flex flex-wrap justify-center gap-x-4 gap-y-1 text-[10px] opacity-70 font-black uppercase pt-1">
                             {storeConfig.phone && <span className="flex items-center gap-1">Tel: {storeConfig.phone}</span>}
                             {storeConfig.instagram && <span className="flex items-center gap-1">IG: {storeConfig.instagram}</span>}
                             {storeConfig.whatsapp && <span className="flex items-center gap-1">WA: {storeConfig.whatsapp}</span>}
                           </div>
                         )}
                         <div className="pt-2 text-center">
-                          <span className="text-[7px] font-black tracking-widest uppercase opacity-40">
-                            *** {currentOrder.print_count > 0 ? "Copy Receipt" : "Original Receipt"} ***
+                          <span className="text-[10px] font-black tracking-widest uppercase opacity-60">
+                            *** {(forceCopy || currentOrder.print_count > 0) ? t('receipt.copy') : t('receipt.original')} ***
                           </span>
                         </div>
                       </div>
@@ -395,10 +407,10 @@ export function ReceiptPreview({ isOpen, onClose, order, config: propConfig }) {
                       <div className="border-b-[1.5px] border-dashed border-slate-200" />
                       
                       <div className="space-y-1 py-1">
-                        <div className="flex justify-between"><span>REF:</span><span className="font-black">{order.order_number}</span></div>
-                        <div className="flex justify-between"><span>DATE:</span><span>{formatDate(order.date)}</span></div>
+                        <div className="flex justify-between"><span>{t('receipt.ref')}:</span><span className="font-black">{order.order_number}</span></div>
+                        <div className="flex justify-between"><span>{t('receipt.date')}:</span><span>{formatDate(order.date)}</span></div>
                         {storeConfig.show_customer && order.customer_name && (
-                          <div className="flex justify-between"><span>GUEST:</span><span className="font-black">{order.customer_name}</span></div>
+                          <div className="flex justify-between"><span>{t('common.guest').toUpperCase()}:</span><span className="font-black">{order.customer_name}</span></div>
                         )}
                       </div>
                       
@@ -407,7 +419,9 @@ export function ReceiptPreview({ isOpen, onClose, order, config: propConfig }) {
                       <div className="space-y-2 py-2">
                         {order.orderItems?.map((item, idx) => (
                           <div key={idx} className="space-y-0.5">
-                            <p className="font-black uppercase leading-tight">{item.menu?.name}</p>
+                            <p className="font-black leading-tight">
+                              {item.menu?.name} {item.menu?.productType === 'CONSIGNMENT' && <span className="text-amber-600 italic">(Titipan)</span>}
+                            </p>
                             {item.note && <p className="italic text-[8px] opacity-70">- {item.note}</p>}
                             <div className="flex justify-between items-center text-[8px] opacity-80 pt-0.5">
                               <span>{item.qty} x {formatIDR(item.price).replace('Rp', '').trim()}</span>
@@ -420,28 +434,28 @@ export function ReceiptPreview({ isOpen, onClose, order, config: propConfig }) {
                       <div className="border-b-[1.5px] border-dashed border-slate-200" />
                       
                       <div className="space-y-1.5 py-1">
-                        <div className="flex justify-between"><span>Subtotal</span><span className="tabular-nums">{formatIDR(order.total)}</span></div>
+                        <div className="flex justify-between"><span>{t('receipt.subtotal')}</span><span className="tabular-nums">{formatIDR(order.total)}</span></div>
                         
                         {order.service_amount > 0 ? (
-                          <div className="flex justify-between opacity-70">
-                            <span>Service ({order.service_rate || storeConfig.service_charge}%)</span>
+                          <div className="flex justify-between opacity-80">
+                            <span>{t('receipt.service')} ({order.service_rate || storeConfig.service_charge}%)</span>
                             <span className="tabular-nums">{formatIDR(order.service_amount)}</span>
                           </div>
                         ) : (!order.hasOwnProperty('service_amount') && storeConfig.service_charge > 0) ? (
-                          <div className="flex justify-between opacity-70">
-                            <span>Service ({storeConfig.service_charge}%)</span>
+                          <div className="flex justify-between opacity-80">
+                            <span>{t('receipt.service')} ({storeConfig.service_charge}%)</span>
                             <span className="tabular-nums">{formatIDR(Math.round(order.total * (storeConfig.service_charge / 100)))}</span>
                           </div>
                         ) : null}
                         
                         {order.tax_amount > 0 ? (
-                          <div className="flex justify-between opacity-70">
-                            <span>Tax ({order.tax_rate || storeConfig.tax_rate}%)</span>
+                          <div className="flex justify-between opacity-80">
+                            <span>{t('receipt.tax')} ({order.tax_rate || storeConfig.tax_rate}%)</span>
                             <span className="tabular-nums">{formatIDR(order.tax_amount)}</span>
                           </div>
                         ) : (!order.hasOwnProperty('tax_amount') && storeConfig.tax_rate > 0) ? (
-                          <div className="flex justify-between opacity-70">
-                            <span>Tax ({storeConfig.tax_rate}%)</span>
+                          <div className="flex justify-between opacity-80">
+                            <span>{t('receipt.tax')} ({storeConfig.tax_rate}%)</span>
                             <span className="tabular-nums">
                               {formatIDR(Math.round((order.total + (storeConfig.service_charge > 0 ? order.total * (storeConfig.service_charge / 100) : 0)) * (storeConfig.tax_rate / 100)))}
                             </span>
@@ -450,13 +464,13 @@ export function ReceiptPreview({ isOpen, onClose, order, config: propConfig }) {
                         
                         {order.discount > 0 && (
                           <div className="flex justify-between font-bold">
-                            <span>Discount</span>
+                            <span>{t('receipt.discount')}</span>
                             <span className="tabular-nums">-{formatIDR(order.discount)}</span>
                           </div>
                         )}
                         
                         <div className="flex justify-between font-black text-sm pt-3 border-t-[1.5px] border-slate-900/5 mt-2">
-                          <span className="tracking-tighter uppercase">TOTAL</span>
+                          <span className="tracking-tighter uppercase">{t('receipt.total')}</span>
                           <span className="tabular-nums">{formatIDR(Math.max(0, 
                             order.total + 
                             (order.service_amount || (order.hasOwnProperty('service_amount') ? 0 : Math.round(order.total * (storeConfig.service_charge / 100 || 0)))) + 
@@ -469,30 +483,44 @@ export function ReceiptPreview({ isOpen, onClose, order, config: propConfig }) {
                       <div className="border-b-[1.5px] border-dashed border-slate-200" />
                       
                       <div className="space-y-1 py-1 font-bold">
-                        <div className="flex justify-between"><span>METHOD</span><span>{order.payment_method || "CASH"}</span></div>
-                        <div className="flex justify-between opacity-70">
-                          <span>PAID</span>
-                          <span>{formatIDR(order.money_received || (order.total + 
-                            (order.service_amount || 0) + 
-                            (order.tax_amount || 0) - 
-                            (order.discount || 0))
-                          )}</span>
-                        </div>
-                        <div className="flex justify-between opacity-70 text-emerald-600">
-                          <span>CHANGE</span>
-                          <span>{formatIDR(Math.max(0, (order.money_received || (order.total + 
-                            (order.service_amount || 0) + 
-                            (order.tax_amount || 0) - 
-                            (order.discount || 0))) - (order.total + 
-                            (order.service_amount || 0) + 
-                            (order.tax_amount || 0) - 
-                            (order.discount || 0))))}</span>
-                        </div>
+                        <div className="flex justify-between"><span>{t('receipt.method')}</span><span>{order.payment_method || t('common.cash_label')}</span></div>
+                        {order.status === 'UNPAID' ? (
+                          <div className="flex justify-between text-rose-600">
+                            <span>TOTAL HUTANG</span>
+                            <span>{formatIDR(Math.max(0, 
+                              order.total + 
+                              (order.service_amount || (order.hasOwnProperty('service_amount') ? 0 : Math.round(order.total * (storeConfig.service_charge / 100 || 0)))) + 
+                              (order.tax_amount || (order.hasOwnProperty('tax_amount') ? 0 : Math.round((order.total + (order.total * (storeConfig.service_charge / 100 || 0))) * (storeConfig.tax_rate / 100 || 0)))) - 
+                              (order.discount || 0)
+                            ))}</span>
+                          </div>
+                        ) : (
+                          <>
+                            <div className="flex justify-between opacity-80">
+                              <span>{t('receipt.paid')}</span>
+                              <span>{formatIDR(order.money_received ?? (order.total + 
+                                (order.service_amount || 0) + 
+                                (order.tax_amount || 0) - 
+                                (order.discount || 0))
+                              )}</span>
+                            </div>
+                            <div className="flex justify-between opacity-80 text-emerald-700">
+                              <span>{t('receipt.change')}</span>
+                              <span>{formatIDR(Math.max(0, (order.money_received ?? (order.total + 
+                                (order.service_amount || 0) + 
+                                (order.tax_amount || 0) - 
+                                (order.discount || 0))) - (order.total + 
+                                (order.service_amount || 0) + 
+                                (order.tax_amount || 0) - 
+                                (order.discount || 0))))}</span>
+                            </div>
+                          </>
+                        )}
                       </div>
 
                       <div className="text-center pt-6 space-y-2">
                         <div className="border-b-[1.5px] border-dashed border-slate-200" />
-                        <p className="opacity-40 italic py-2 text-[8px] leading-relaxed uppercase">{storeConfig.receipt_footer}</p>
+                        <p className="opacity-70 italic py-2 text-[10px] leading-relaxed">{storeConfig.receipt_footer}</p>
                         <div className="border-b-[1.5px] border-dashed border-slate-200" />
                         <p className="text-[6px] opacity-20 font-black tracking-[0.3em] pt-1">SEQUENCE BY BAKUNG POS</p>
                       </div>
@@ -500,21 +528,21 @@ export function ReceiptPreview({ isOpen, onClose, order, config: propConfig }) {
                 ) : (
                   <div className="p-8 font-mono text-sm text-slate-900 space-y-4 bg-white animate-in fade-in slide-in-from-right-4 duration-500 border-2 border-dashed border-slate-100">
                     <div className="text-center pb-2">
-                       <h4 className="font-black uppercase tracking-tighter text-xl">KITCHEN TICKET</h4>
+                       <h4 className="font-black uppercase tracking-tighter text-xl">{t('receipt.kitchen_ticket')}</h4>
                     </div>
                     
                     <div className="border-b-[1.5px] border-dashed border-slate-200" />
                     
                     <div className="space-y-1">
                        <div className="flex justify-between font-black">
-                          <span>REF: {order.order_number}</span>
+                          <span>{t('receipt.ref')}: {order.order_number}</span>
                        </div>
                        <div className="flex justify-between font-black">
-                          <span>TIME: {new Date(order.date).toLocaleTimeString()}</span>
+                          <span>{t('receipt.time')}: {new Date(order.date).toLocaleTimeString()}</span>
                        </div>
                        {order.customer_name && (
                          <div className="flex justify-between font-black">
-                            <span>GUEST: {order.customer_name}</span>
+                            <span>{t('common.guest').toUpperCase()}: {order.customer_name}</span>
                          </div>
                        )}
                     </div>
@@ -525,11 +553,11 @@ export function ReceiptPreview({ isOpen, onClose, order, config: propConfig }) {
                       {order.orderItems?.map((item, idx) => (
                         <div key={idx} className="space-y-1">
                            <div className="font-black text-lg leading-tight tabular-nums uppercase">
-                              [ ] {item.qty} x {item.menu?.name}
+                              [ ] {item.qty} x {item.menu?.name} {item.menu?.productType === 'CONSIGNMENT' && <span className="text-amber-600 text-xs italic">(TITIPAN)</span>}
                            </div>
-                           {order.note && (
+                           {item.note && (
                               <div className="pl-8 font-bold text-xs uppercase opacity-80">
-                                * {order.note}
+                                -{">"} {item.note}
                               </div>
                            )}
                         </div>
@@ -553,8 +581,8 @@ export function ReceiptPreview({ isOpen, onClose, order, config: propConfig }) {
                       {printingReceipt ? <RefreshCcw className="w-6 h-6 animate-spin" /> : <Printer className="w-7 h-7" />}
                    </div>
                    <div className="text-left">
-                      <p className="text-[10px] font-black text-white/50 uppercase tracking-[0.2em] leading-none mb-1">POS Hardware</p>
-                      <p className="text-lg font-black uppercase tracking-widest">Print Receipt</p>
+                      <p className="text-xs font-black text-white/50 uppercase tracking-[0.2em] leading-none mb-1">{t('receipt.pos_hardware')}</p>
+                      <p className="text-lg font-black uppercase tracking-widest">{t('receipt.print_receipt')}</p>
                    </div>
                 </div>
                 <div className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center">
@@ -562,7 +590,7 @@ export function ReceiptPreview({ isOpen, onClose, order, config: propConfig }) {
                 </div>
               </Button>
 
-              {storeConfig.kitchen_enabled && (
+              {!receiptOnly && storeConfig.kitchen_enabled && (
                 <Button 
                   onClick={handlePrintKitchen}
                   disabled={printingKitchen}
@@ -573,8 +601,8 @@ export function ReceiptPreview({ isOpen, onClose, order, config: propConfig }) {
                         {printingKitchen ? <RefreshCcw className="w-6 h-6 animate-spin text-emerald-600" /> : <ChefHat className="w-7 h-7 text-emerald-600" />}
                      </div>
                      <div className="text-left">
-                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] leading-none mb-1">Kitchen Queue</p>
-                        <p className="text-lg font-black uppercase tracking-widest">Print Kitchen</p>
+                        <p className="text-xs font-black text-slate-500 uppercase tracking-[0.2em] leading-none mb-1">{t('receipt.kitchen_queue')}</p>
+                        <p className="text-lg font-black uppercase tracking-widest">{t('receipt.print_kitchen')}</p>
                      </div>
                   </div>
                   <div className="flex gap-2">
@@ -586,20 +614,22 @@ export function ReceiptPreview({ isOpen, onClose, order, config: propConfig }) {
               )}
            </div>
 
-           <div className="pt-4 flex flex-col items-center gap-4">
-              <Button 
-                onClick={onClose}
-                className="h-20 w-full rounded-[2rem] bg-emerald-600 hover:bg-emerald-700 text-white font-black uppercase text-xs tracking-[0.3em] shadow-2xl shadow-emerald-500/20 active:scale-95 transition-all"
-              >
-                New Transaction
-              </Button>
-              <button 
-                onClick={onClose}
-                className="text-[10px] font-black text-slate-300 hover:text-slate-600 uppercase tracking-[0.5em] transition-all"
-              >
-                Close Portal
-              </button>
-           </div>
+            {!receiptOnly && (
+              <div className="pt-4 flex flex-col items-center gap-4">
+                 <Button 
+                   onClick={onClose}
+                   className="h-20 w-full rounded-[2rem] bg-emerald-600 hover:bg-emerald-700 text-white font-black uppercase text-xs tracking-[0.3em] shadow-2xl shadow-emerald-500/20 active:scale-95 transition-all"
+                 >
+                   {t('receipt.new_transaction')}
+                 </Button>
+                 <button 
+                   onClick={onClose}
+                   className="text-[11px] font-black text-slate-400 hover:text-slate-700 uppercase tracking-[0.5em] transition-all"
+                 >
+                   {t('receipt.close_portal')}
+                 </button>
+              </div>
+            )}
         </div>
       </DialogContent>
     </Dialog>

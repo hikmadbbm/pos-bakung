@@ -1,0 +1,23 @@
+{
+  "title": "Produk",
+  "subtitle": "Klasifikasi Produk & Harga",
+  "new_item": "Item Baru",
+  "edit_item": "Ubah Item",
+  "item_details": "Detail Item",
+  "categories": "Kategori",
+  "item_name": "Nama Item",
+  "price_idr": "Harga (IDR)",
+  "cost_idr": "Modal (IDR)",
+  "selling_prices": "Harga Jual",
+  "ai_recommendation": "Rekomendasi AI",
+  "ready_status": "Tersedia",
+  "sold_out_status": "Habis",
+  "unclassified": "Tidak Terklasifikasi",
+  "purge": "Hapus",
+  "not_found": "Produk tidak ditemukan",
+  "category_name": "Nama Kategori",
+  "classification": "Klasifikasi",
+  "theme_color": "Warna Tema",
+  "master_database": "Database Utama",
+  "cost": "Modal"
+}

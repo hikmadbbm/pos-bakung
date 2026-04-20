@@ -25,7 +25,13 @@ export async function PUT(req, { params }) {
     if (body.email !== undefined) data.email = body.email || null;
     if (body.role !== undefined) data.role = body.role;
     if (body.status !== undefined) data.status = body.status;
-    if (body.pin !== undefined) data.pin = body.pin || null;
+    if (body.pin !== undefined) {
+      if (body.pin) {
+        data.pin = await bcrypt.hash(body.pin, 10);
+      } else {
+        data.pin = null;
+      }
+    }
     if (body.phone_number !== undefined) data.phone_number = body.phone_number || null;
     if (body.employee_id !== undefined) data.employee_id = body.employee_id || null;
     if (body.notes !== undefined) data.notes = body.notes || null;

@@ -49,6 +49,7 @@ export async function PUT(req) {
     if (body.quick_tags !== undefined) data.quick_tags = body.quick_tags;
     if (body.kitchen_delay !== undefined) data.kitchen_delay = Number(body.kitchen_delay);
     if (body.receipt_auto_print !== undefined) data.receipt_auto_print = Boolean(body.receipt_auto_print);
+    if (body.expense_categories !== undefined) data.expense_categories = body.expense_categories;
 
     const existing = await prisma.storeConfig.findFirst({ orderBy: { id: 'asc' }, select: { id: true } });
     const saved = existing

@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { verifyAuth } from '@/lib/auth';
-import { deductStockForOrder } from '@/lib/stock-deduction';
+import { deductStockForOrder, restoreStockForCancelledOrder } from '@/lib/stock-deduction';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -30,11 +30,28 @@ export async function PATCH(req, { params }) {
         if (!pin) {
           return NextResponse.json({ error: 'PIN is required for this action' }, { status: 403 });
         }
-        const approver = await prisma.user.findFirst({
-          where: { pin, status: 'ACTIVE', role: { in: ['MANAGER', 'OWNER'] } },
-          select: { id: true, name: true },
+        const approvers = await prisma.user.findMany({
+          where: { status: 'ACTIVE', role: { in: ['MANAGER', 'OWNER', 'ADMIN'] } },
+          select: { id: true, name: true, pin: true },
         });
-        if (!approver) {
+
+        let isValidPin = false;
+        const bcrypt = await import('bcryptjs');
+        for (const approver of approvers) {
+          if (approver.pin) {
+            // Check if it's a legacy plain text PIN or a bcrypt hash
+            const isMatch = approver.pin.startsWith('$2') 
+              ? await bcrypt.compare(pin, approver.pin)
+              : approver.pin === pin;
+              
+            if (isMatch) {
+              isValidPin = true;
+              break;
+            }
+          }
+        }
+
+        if (!isValidPin) {
           return NextResponse.json({ error: 'Invalid PIN' }, { status: 403 });
         }
       }
@@ -81,19 +98,28 @@ export async function PATCH(req, { params }) {
         await tx.userActivityLog.create({
           data: {
             user_id: user.id,
-            action_type: 'VOID_ORDER',
-            description: `Order ${oldOrder.order_number} cancelled. Reason: ${reason || 'N/A'}`,
+            action: 'VOID_ORDER',
+            entity: 'ORDER',
+            entity_id: String(id),
+            details: { 
+              order_number: oldOrder.order_number, 
+              reason: reason || 'N/A' 
+            },
             ip_address: req.headers.get('x-forwarded-for') || 'local'
           }
         });
       }
 
-      // Trigger stock deduction when transitioning INTO a paid state.
+      // Trigger stock deduction/restoration based on status transition
       const wasAlreadyPaidOrCompleted = oldOrder.status === 'PAID' || oldOrder.status === 'COMPLETED';
       const isNowPayable = status === 'PAID' || status === 'COMPLETED';
 
-      if (isNowPayable && !wasAlreadyPaidOrCompleted) {
-        await deductStockForOrder(id, tx, updatedOrder);
+      if (status === 'CANCELLED' && wasAlreadyPaidOrCompleted) {
+         // RESTORE stock if cancelled after being paid
+         await restoreStockForCancelledOrder(id, tx, updatedOrder);
+      } else if (isNowPayable && !wasAlreadyPaidOrCompleted) {
+         // DEDUCT stock if newly paid
+         await deductStockForOrder(id, tx, updatedOrder);
       }
 
       return updatedOrder;
@@ -101,6 +127,14 @@ export async function PATCH(req, { params }) {
       maxWait: 15000,
       timeout: 20000
     });
+
+    // Trigger dashboard sync for this order's date
+    try {
+      const { syncDailySummary } = await import('@/lib/aggregation');
+      await syncDailySummary(updated.date || new Date());
+    } catch (e) {
+      console.warn("Status API: Failed to sync dashboard", e);
+    }
 
     return NextResponse.json(updated);
   } catch (error) {

@@ -9,9 +9,20 @@ export async function calculateItemsVariableCost(items, tx = prisma) {
   
   for (const item of items) {
     if (item.item_type === 'INGREDIENT' && item.ingredient_id) {
-      const ing = await tx.ingredient.findUnique({ where: { id: Number(item.ingredient_id) } });
+      const ing = await tx.ingredient.findUnique({ 
+        where: { id: Number(item.ingredient_id) },
+        include: { subItems: { where: { is_active_brand: true }, take: 1 } }
+      });
+      
       if (ing) {
-        totalVariable += (ing.cost_per_unit || 0) * (Number(item.quantity) || 0);
+        let costPerUnit = ing.cost_per_unit || 0;
+        
+        // If it's a generic ingredient, use the active brand's cost
+        if (ing.is_generic && ing.subItems && ing.subItems.length > 0) {
+          costPerUnit = ing.subItems[0].cost_per_unit || 0;
+        }
+        
+        totalVariable += costPerUnit * (Number(item.quantity) || 0);
       }
     } else if (item.item_type === 'COMPONENT' && item.component_recipe_id) {
       const comp = await tx.recipe.findUnique({ where: { id: Number(item.component_recipe_id) } });
@@ -85,6 +96,22 @@ export async function updateRecipeHpp(recipeId, tx = prisma) {
 export async function recalculateAffectedRecipes(ingredientId, tx = prisma) {
   const recipeItems = await tx.recipeItem.findMany({
     where: { ingredient_id: Number(ingredientId) },
+    select: { recipe_id: true }
+  });
+
+  const recipeIds = [...new Set(recipeItems.map(i => i.recipe_id))];
+  
+  for (const id of recipeIds) {
+    await updateRecipeHpp(id, tx);
+  }
+}
+
+/**
+ * Finds all recipes that use a particular GENERIC ingredient and triggers HPP recalculation.
+ */
+export async function recalculateAffectedRecipesByParent(parentId, tx = prisma) {
+  const recipeItems = await tx.recipeItem.findMany({
+    where: { ingredient_id: Number(parentId) },
     select: { recipe_id: true }
   });
 

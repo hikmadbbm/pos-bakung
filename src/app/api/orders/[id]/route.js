@@ -2,29 +2,16 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { verifyAuth } from '@/lib/auth';
 import { deductStockForOrder } from '@/lib/stock-deduction';
-import jwt from 'jsonwebtoken';
+import { logActivity } from '@/lib/audit';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret';
-// Note: JWT_SECRET validation is already handled by auth.js module initialization
-
-function getUserIdFromAuth(req) {
-  const auth = req.headers.get('authorization') || '';
-  const match = auth.match(/^Bearer\s+(.+)$/i);
-  if (!match) return null;
-  try {
-    const payload = jwt.verify(match[1], JWT_SECRET);
-    const id = Number(payload?.id);
-    return Number.isFinite(id) ? id : null;
-  } catch {
-    return null;
-  }
-}
-
 export async function PUT(req, { params }) {
   try {
+    const { user, response } = await verifyAuth(req, ['OWNER', 'MANAGER', 'CASHIER', 'KITCHEN']);
+    if (response) return response;
+
     const resolvedParams = await params;
     const id = Number(resolvedParams.id);
     if (!Number.isFinite(id)) {
@@ -44,58 +31,58 @@ export async function PUT(req, { params }) {
       discount_type, 
       discount_rate, 
       status, 
-      created_by_user_id,
       tax_rate,
       tax_amount,
       service_rate,
-      service_amount
+      service_amount,
+      platform_actual_net,
+      platform_adjustments
     } = body;
 
-    if (!items || items.length === 0) {
-      return NextResponse.json({ error: 'Order items cannot be empty' }, { status: 400 });
+    const ipAddress = req.headers.get('x-forwarded-for') || req.ip;
+
+    const oldOrder = await prisma.order.findUnique({
+      where: { id },
+      include: { orderItems: true }
+    });
+
+    if (!oldOrder) {
+      return NextResponse.json({ error: 'Order not found' }, { status: 404 });
     }
 
-    let subtotal = 0;
-
     const updated = await prisma.$transaction(async (tx) => {
-      const order = await tx.order.findUnique({ where: { id }, select: { id: true, order_number: true } });
-      if (!order) {
-        return null;
-      }
-
+      let subtotal = 0;
       const platId = platform_id ? Number(platform_id) : null;
-      const menuIds = items.map(i => i.menu_id);
-      const dbMenus = await tx.menu.findMany({
+      const menuIds = items ? items.map(i => i.menu_id) : [];
+      
+      const dbMenus = items ? await tx.menu.findMany({
         where: { id: { in: menuIds } },
-        include: {
-          prices: platId ? { where: { platform_id: platId } } : false,
-        },
-      });
+        include: { prices: platId ? { where: { platform_id: platId } } : false },
+      }) : [];
 
       const menuMap = new Map(dbMenus.map(m => [m.id, m]));
 
-      for (const item of items) {
-        const menu = menuMap.get(item.menu_id);
-        if (!menu) {
-          throw new Error(`Menu item ${item.menu_id} not found`);
+      if (items) {
+        for (const item of items) {
+          const menu = menuMap.get(item.menu_id);
+          if (!menu) throw new Error(`Menu item ${item.menu_id} not found`);
+          const explicitPrice = item.price;
+          let finalPrice = menu.price;
+          if (explicitPrice !== undefined && explicitPrice !== null) {
+            finalPrice = explicitPrice;
+          } else if (platId && menu.prices && menu.prices.length > 0) {
+            finalPrice = menu.prices[0].price;
+          }
+          item.calculatedPrice = finalPrice;
+          item.calculatedCost = menu.cost || 0;
+          subtotal += finalPrice * item.qty;
         }
-
-        const explicitPrice = item.price;
-        let finalPrice = menu.price;
-
-        if (explicitPrice !== undefined && explicitPrice !== null) {
-          finalPrice = explicitPrice;
-        } else if (platId && menu.prices && menu.prices.length > 0) {
-          finalPrice = menu.prices[0].price;
-        }
-
-        item.calculatedPrice = finalPrice;
-        item.calculatedCost = menu.cost || 0;
-        subtotal += finalPrice * item.qty;
+      } else {
+        subtotal = oldOrder.total;
       }
 
-      const finalDiscountType = discount_type || "FIXED";
-      const finalDiscountRate = Number(discount_rate) || 0;
+      const finalDiscountType = discount_type || oldOrder.discount_type || "FIXED";
+      const finalDiscountRate = discount_rate !== undefined ? Number(discount_rate) : Number(oldOrder.discount_rate);
       let appliedDiscount = 0;
 
       if (finalDiscountType === "PERCENT") {
@@ -116,14 +103,17 @@ export async function PUT(req, { params }) {
       }
 
       const net_revenue = netSubtotal - commission;
-      const received = money_received || 0;
+      const received = money_received !== undefined ? money_received : oldOrder.money_received;
       const change_amount = received ? received - netSubtotal : 0;
 
-      const creatorId = created_by_user_id ? Number(created_by_user_id) : getUserIdFromAuth(req);
+      if (items) {
+        await tx.orderItem.deleteMany({ where: { order_id: id } });
+      }
 
-      await tx.orderItem.deleteMany({ where: { order_id: id } });
+      const pmId = parseInt(payment_method_id);
+      const finalPmId = isNaN(pmId) ? (oldOrder.payment_method_id) : pmId;
 
-      const newOrder = await tx.order.update({
+      return await tx.order.update({
         where: { id },
         data: {
           total: subtotal,
@@ -132,48 +122,113 @@ export async function PUT(req, { params }) {
           discount_rate: finalDiscountRate,
           commission,
           net_revenue,
-          platform_id: platId,
-          payment_method,
-          payment_method_id: payment_method_id ? Number(payment_method_id) : null,
+          platform_id: platId !== null ? platId : oldOrder.platform_id,
+          payment_method: payment_method || oldOrder.payment_method,
+          payment_method_id: finalPmId,
           money_received: received,
-          tax_rate: Number(tax_rate) || 0,
-          tax_amount: Number(tax_amount) || 0,
-          service_rate: Number(service_rate) || 0,
-          service_amount: Number(service_amount) || 0,
+          tax_rate: tax_rate !== undefined ? Number(tax_rate) : oldOrder.tax_rate,
+          tax_amount: tax_amount !== undefined ? Number(tax_amount) : oldOrder.tax_amount,
+          service_rate: service_rate !== undefined ? Number(service_rate) : oldOrder.service_rate,
+          service_amount: service_amount !== undefined ? Number(service_amount) : oldOrder.service_amount,
           change_amount,
-          status: status || 'PENDING',
-          note: note || null,
-          customer_name: customer_name || null,
-          created_by_user_id: creatorId ? Number(creatorId) : null,
-          processed_by_user_id: creatorId ? Number(creatorId) : null,
-          orderItems: {
-            create: items.map((item) => ({
-              menu_id: item.menu_id,
-              qty: item.qty,
-              price: item.calculatedPrice,
-              cost: item.calculatedCost,
-            })),
-          },
+          status: status || oldOrder.status,
+          note: note !== undefined ? note : oldOrder.note,
+          customer_name: customer_name !== undefined ? customer_name : oldOrder.customer_name,
+          processed_by_user_id: user.id,
+          platform_actual_net: platform_actual_net !== undefined ? Number(platform_actual_net) : undefined,
+          platform_adjustments: platform_adjustments || undefined,
+          ...(items && {
+            orderItems: {
+              create: items.map((item) => ({
+                menu_id: item.menu_id,
+                qty: item.qty,
+                price: item.calculatedPrice,
+                cost: item.calculatedCost,
+              })),
+            },
+          })
         },
         include: {
           orderItems: { include: { menu: true } },
           platform: true,
         },
       });
-
-      return newOrder;
     }, { timeout: 15000 });
 
-    if (!updated) {
-      return NextResponse.json({ error: 'Order not found' }, { status: 404 });
+    // Log the change
+    await logActivity({
+      userId: user.id,
+      action: 'UPDATE',
+      entity: 'ORDER',
+      entityId: id,
+      ipAddress,
+      details: {
+        before: oldOrder,
+        after: updated
+      }
+    });
+
+    // Trigger dashboard sync
+    try {
+      const { syncDailySummary } = await import('@/lib/aggregation');
+      await syncDailySummary(updated.date);
+    } catch (e) {
+      console.warn("Update API: Failed to sync dashboard", e);
     }
 
     return NextResponse.json(updated);
   } catch (error) {
     console.error('Failed to update order:', error);
-    const message = error?.message?.includes('not found') ? error.message : (error?.message || 'Failed to update order');
-    const statusCode = message.includes('not found') ? 400 : 500;
-    return NextResponse.json({ error: message, detail: error?.message }, { status: statusCode });
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+}
+
+export async function DELETE(req, { params }) {
+  try {
+    const { user, response } = await verifyAuth(req, ['OWNER', 'MANAGER', 'CASHIER']);
+    if (response) return response;
+
+    const resolvedParams = await params;
+    const id = Number(resolvedParams.id);
+    const { pin } = await req.json().catch(() => ({}));
+
+    const order = await prisma.order.findUnique({
+      where: { id },
+      select: { id: true, status: true, order_number: true }
+    });
+
+    if (!order) return NextResponse.json({ error: 'Order not found' }, { status: 404 });
+    if (order.status !== 'CANCELLED') {
+      return NextResponse.json({ error: 'Only cancelled orders can be deleted permanently' }, { status: 400 });
+    }
+
+    // Security PIN check for Cashiers
+    if (user.role !== 'MANAGER' && user.role !== 'OWNER') {
+      if (!pin) return NextResponse.json({ error: 'PIN is required to delete orders' }, { status: 403 });
+      const approver = await prisma.user.findFirst({
+        where: { pin, status: 'ACTIVE', role: { in: ['MANAGER', 'OWNER'] } }
+      });
+      if (!approver) return NextResponse.json({ error: 'Invalid PIN' }, { status: 403 });
+    }
+
+    await prisma.$transaction(async (tx) => {
+      await tx.stockMovement.deleteMany({ where: { order_id: id } });
+      await tx.order.delete({ where: { id } });
+    });
+
+    await logActivity({
+      userId: user.id,
+      action: 'HARD_DELETE',
+      entity: 'ORDER',
+      entityId: id,
+      ipAddress: req.headers.get('x-forwarded-for') || req.ip,
+      details: { order_number: order.order_number }
+    });
+
+    return NextResponse.json({ success: true, message: 'Order deleted permanently' });
+  } catch (error) {
+    console.error('Failed to delete order:', error);
+    return NextResponse.json({ error: 'Failed to delete order', detail: error.message }, { status: 500 });
   }
 }
 

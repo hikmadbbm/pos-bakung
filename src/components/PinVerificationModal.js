@@ -121,8 +121,8 @@ export default function PinVerificationModal({
             <Lock className="w-24 h-24 -rotate-12" />
           </div>
           <div className="relative z-10 space-y-2 text-center">
-            <h3 className="text-xl font-black tracking-tight">{title}</h3>
-            <p className="text-[10px] items-center justify-center flex gap-1 font-bold text-emerald-100 uppercase tracking-widest leading-none">
+            <h3 className="text-xl font-black tracking-tight text-white">{title}</h3>
+            <p className="text-[10px] items-center justify-center flex gap-1 font-bold text-white uppercase tracking-widest leading-none">
               <Lock className="w-2.5 h-2.5" /> {subtitle}
             </p>
           </div>
@@ -182,15 +182,15 @@ export default function PinVerificationModal({
                 onClick={() => handleSubmit()}
                 disabled={pin.length < 4 || loading}
                 className={cn(
-                  "h-16 rounded-2xl font-black uppercase tracking-widest text-sm shadow-xl transition-all active:scale-95",
+                  "h-16 rounded-2xl font-black uppercase tracking-widest text-sm shadow-xl transition-all active:scale-95 text-white",
                   "bg-emerald-600 hover:bg-emerald-700 shadow-emerald-600/20"
                 )}
              >
                 {loading ? (
-                  <RefreshCcw className="w-5 h-5 animate-spin" />
+                  <RefreshCcw className="w-5 h-5 animate-spin text-white" />
                 ) : (
                   <>
-                    <CheckCircle className="w-5 h-5 mr-2" /> Verify Personnel
+                    <CheckCircle className="w-5 h-5 mr-2 text-white" /> <span className="text-white">Verify Personnel</span>
                   </>
                 )}
              </Button>

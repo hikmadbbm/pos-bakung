@@ -1,146 +1,131 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { verifyAuth } from '@/lib/auth';
+import { logActivity } from '@/lib/audit';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
-
-function normalizePrices(prices) {
-  if (!prices) return [];
-  let rows = [];
-  if (Array.isArray(prices)) {
-    rows = prices;
-  } else if (typeof prices === 'object') {
-    rows = Object.entries(prices).map(([platform_id, v]) => ({
-      platform_id: Number(platform_id),
-      price: Number(v),
-    }));
-  } else {
-    return null;
-  }
-  return rows
-    .filter((r) => Number.isFinite(Number(r.platform_id)) && Number.isFinite(Number(r.price)))
-    .map((r) => ({ platform_id: Number(r.platform_id), price: Math.round(Number(r.price)) }));
-}
 
 export async function PUT(req, { params }) {
   try {
     const { user, response } = await verifyAuth(req, ['OWNER', 'MANAGER', 'KITCHEN']);
     if (response) return response;
 
-    const resolvedParams = await params;
-    const id = Number(resolvedParams.id);
-    if (!Number.isFinite(id)) {
-      return NextResponse.json({ error: 'Invalid id' }, { status: 400 });
-    }
-
+    const { id: idStr } = await params;
+    const id = Number(idStr);
     const body = await req.json();
 
-    // If Kitchen, restrict what can be updated
-    if (user.role === 'KITCHEN') {
-      const allowedKeys = ['is_active'];
-      const bodyKeys = Object.keys(body);
-      const invalidKeys = bodyKeys.filter(k => !allowedKeys.includes(k) && body[k] !== undefined);
-      
-      if (invalidKeys.length > 0) {
-        return NextResponse.json({ 
-          error: 'Kitchen role can only update availability (is_active)' 
-        }, { status: 403 });
-      }
-    }
+    const { name, price, cost, categoryId, productType, is_active, prices, consignment } = body;
 
-    const data = {};
-    if (body.is_active !== undefined) data.is_active = !!body.is_active;
+    const ipAddress = req.headers.get('x-forwarded-for') || req.ip;
 
-    if (body.name !== undefined) {
-      if (!body.name || typeof body.name !== 'string') {
-        return NextResponse.json({ error: 'name must be a non-empty string' }, { status: 400 });
-      }
-      data.name = body.name;
-    }
-    if (body.price !== undefined) {
-      const p0 = Number(body.price);
-      if (!Number.isFinite(p0)) return NextResponse.json({ error: 'price must be a number' }, { status: 400 });
-      data.price = Math.round(p0);
-    }
-    if (body.cost !== undefined) {
-      const c0 = Number(body.cost);
-      if (!Number.isFinite(c0)) return NextResponse.json({ error: 'cost must be a number' }, { status: 400 });
-      data.cost = Math.round(c0);
-    }
-    if (body.categoryId !== undefined) {
-      data.categoryId = body.categoryId ? Number(body.categoryId) : null;
-    }
-
-    const priceRows = body.prices !== undefined ? normalizePrices(body.prices) : undefined;
-    if (body.prices !== undefined && priceRows === null) {
-      return NextResponse.json({ error: 'prices must be object or array' }, { status: 400 });
-    }
-
-    const updated = await prisma.$transaction(async (tx) => {
-      if (priceRows !== undefined) {
-        await tx.menuPrice.deleteMany({ where: { menu_id: id } });
-      }
-
-      const m = await tx.menu.update({
-        where: { id },
-        data: {
-          ...data,
-          ...(priceRows !== undefined
-            ? {
-                prices: {
-                  create: priceRows,
-                },
-              }
-            : {}),
-        },
-        include: {
-          category: true,
-          prices: { select: { platform_id: true, price: true } },
-        },
-      });
-      return m;
+    // Get old data for audit log
+    const oldData = await prisma.menu.findUnique({
+      where: { id },
+      include: { prices: true, consignment: true }
     });
 
-    const prices = {};
-    for (const p of updated.prices || []) {
-      prices[p.platform_id] = p.price;
-    }
-    return NextResponse.json({ ...updated, prices, profit: (updated.price || 0) - (updated.cost || 0) });
+    await prisma.$transaction(async (tx) => {
+      // 1. Update Menu item
+      await tx.menu.update({
+        where: { id },
+        data: {
+          name,
+          price: Math.round(Number(price) || 0),
+          cost: Math.round(Number(cost) || 0),
+          categoryId: categoryId ? Number(categoryId) : null,
+          productType: productType || 'OWN_PRODUCT',
+          is_active: is_active === undefined ? true : !!is_active,
+        }
+      });
+
+      // 2. Update Prices
+      if (prices) {
+        await tx.menuPrice.deleteMany({ where: { menu_id: id } });
+        const priceData = Object.entries(prices)
+          .filter(([_, pval]) => pval !== "" && pval !== null)
+          .map(([pid, pval]) => ({
+            menu_id: id,
+            platform_id: Number(pid),
+            price: Math.round(Number(pval))
+          }));
+        
+        if (priceData.length > 0) {
+          await tx.menuPrice.createMany({ data: priceData });
+        }
+      }
+
+      // 3. Update Consignment
+      if (productType === 'CONSIGNMENT' && consignment) {
+        await tx.consignment.upsert({
+          where: { productId: id },
+          create: {
+            productId: id,
+            partnerName: consignment.partnerName || 'Unknown',
+            modelType: consignment.modelType || 'FIXED_DAILY',
+            fixedDailyFee: Math.round(Number(consignment.fixedDailyFee) || 0),
+            revenueSharePercent: parseFloat(consignment.revenueSharePercent) || 0,
+            startDate: new Date(consignment.startDate || new Date()),
+            isActive: true
+          },
+          update: {
+            partnerName: consignment.partnerName,
+            modelType: consignment.modelType,
+            fixedDailyFee: Math.round(Number(consignment.fixedDailyFee) || 0),
+            revenueSharePercent: parseFloat(consignment.revenueSharePercent) || 0,
+            isActive: true
+          }
+        });
+      } else {
+        await tx.consignment.deleteMany({ where: { productId: id } });
+      }
+    });
+
+    // Log Activity
+    await logActivity({
+      userId: user.id,
+      action: 'UPDATE',
+      entity: 'MENU',
+      entityId: id,
+      ipAddress,
+      details: {
+        before: oldData,
+        after: body
+      }
+    });
+
+    return NextResponse.json({ ok: true });
   } catch (error) {
-    console.error('Failed to update menu:', error);
-    return NextResponse.json({ error: 'Failed to update menu' }, { status: 500 });
+    console.error('FATAL PUT ERROR:', error);
+    return NextResponse.json({ error: 'Update failed', details: error.message }, { status: 500 });
   }
 }
 
 export async function DELETE(req, { params }) {
   try {
-    const { response } = await verifyAuth(req, ['OWNER', 'MANAGER']);
+    const { user, response } = await verifyAuth(req, ['OWNER', 'MANAGER']);
     if (response) return response;
+    
+    const { id: idStr } = await params;
+    const id = Number(idStr);
 
-    const resolvedParams = await params;
-    const id = Number(resolvedParams.id);
-    if (!Number.isFinite(id)) {
-      return NextResponse.json({ error: 'Invalid id' }, { status: 400 });
-    }
+    const ipAddress = req.headers.get('x-forwarded-for') || req.ip;
+    const oldData = await prisma.menu.findUnique({ where: { id } });
+    
+    await prisma.menu.delete({ where: { id } });
 
-    try {
-      await prisma.menu.delete({ 
-        where: { id }
-      });
-      return NextResponse.json({ ok: true });
-    } catch (e) {
-      // Prisma error for foreign key constraint fail
-      if (e.code === 'P2003') {
-        return NextResponse.json({ 
-          error: 'This item cannot be deleted because it is part of existing Order History or Recipes. You can deactivate it instead.' 
-        }, { status: 400 });
-      }
-      throw e;
-    }
+    await logActivity({
+      userId: user.id,
+      action: 'DELETE',
+      entity: 'MENU',
+      entityId: id,
+      ipAddress,
+      details: { deleted: oldData }
+    });
+    
+    return NextResponse.json({ ok: true });
   } catch (error) {
-    console.error('Failed to delete menu:', error);
-    return NextResponse.json({ error: error.message || 'Failed to delete menu' }, { status: 500 });
+    console.error('DELETE ERROR:', error);
+    return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
-

@@ -5,8 +5,10 @@ import { Button } from "../../../components/ui/button";
 import { Loader2, CheckCircle, Clock, Utensils, AlertCircle, RefreshCcw, Users, CreditCard } from "lucide-react";
 import { useToast } from "../../../components/ui/use-toast";
 import { cn } from "../../../lib/utils";
+import { useTranslation } from "../../../lib/language-context";
 
 export default function KitchenViewPage() {
+  const { t } = useTranslation();
   const { success, error } = useToast();
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -30,12 +32,12 @@ export default function KitchenViewPage() {
       setOrders(combined);
     } catch (e) {
       console.error("Failed to load kitchen orders", e);
-      if (!isAuto) error("Failed to load orders");
+      if (!isAuto) error(t('orders.load_fail'));
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [error]);
+  }, [error, t]);
 
   useEffect(() => {
     loadOrders();
@@ -46,7 +48,7 @@ export default function KitchenViewPage() {
   const handleStatusChange = async (orderId, newStatus) => {
     try {
       await api.patch(`/orders/${orderId}/status`, { status: newStatus });
-      success(`Order is ${newStatus}`);
+      success(`${t('orders.order')} ${newStatus}`);
       loadOrders(true);
     } catch (e) {
       console.error(e);
@@ -59,7 +61,7 @@ export default function KitchenViewPage() {
     return (
       <div className="flex flex-col items-center justify-center h-[60vh] gap-4">
         <Loader2 className="w-8 h-8 animate-spin text-emerald-600" />
-        <p className="text-gray-500 animate-pulse font-black uppercase tracking-widest text-[10px]">Loading Kitchen...</p>
+        <p className="text-gray-500 animate-pulse font-black uppercase tracking-widest text-[10px]">{t('kitchen.loading')}</p>
       </div>
     );
   }
@@ -69,7 +71,7 @@ export default function KitchenViewPage() {
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
         <div>
           <h2 className="text-3xl font-black tracking-tight text-slate-900 flex items-center gap-4 uppercase italic">
-            <Utensils className="w-8 h-8 text-emerald-600" /> Kitchen Orders
+            <Utensils className="w-8 h-8 text-emerald-600" /> {t('kitchen.title')}
           </h2>
           <div className="flex items-center gap-2.5 mt-2">
             <span className="flex h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
@@ -85,11 +87,11 @@ export default function KitchenViewPage() {
             disabled={refreshing}
             className="rounded-xl font-black text-[10px] uppercase tracking-widest text-slate-500"
           >
-            <RefreshCcw className="w-4 h-4 mr-2" /> Sync
+            <RefreshCcw className="w-4 h-4 mr-2" /> {t('common.sync')}
           </Button>
           <div className="h-6 w-px bg-slate-200" />
           <div className="px-4 py-2 bg-slate-900 text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg whitespace-nowrap">
-            {orders.length} ORDERS
+            {orders.length} {t('orders.orders_label')}
           </div>
         </div>
       </div>
@@ -99,8 +101,8 @@ export default function KitchenViewPage() {
           <div className="w-24 h-24 bg-slate-50 rounded-[3rem] flex items-center justify-center mb-8 shadow-inner border border-slate-100">
              <CheckCircle className="w-10 h-10 text-slate-200" />
           </div>
-          <h3 className="text-3xl font-black text-slate-900 uppercase tracking-tight">All Clear</h3>
-          <p className="text-[10px] text-slate-400 font-black uppercase tracking-[0.3em] mt-6 px-10 text-center leading-relaxed">No orders in queue.</p>
+          <h3 className="text-3xl font-black text-slate-900 uppercase tracking-tight">{t('kitchen.all_clear')}</h3>
+          <p className="text-[10px] text-slate-400 font-black uppercase tracking-[0.3em] mt-6 px-10 text-center leading-relaxed">{t('kitchen.empty_queue')}</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
@@ -114,7 +116,7 @@ export default function KitchenViewPage() {
                 order.status === 'PROCESSING' ? "bg-emerald-600 text-white" : "bg-slate-50 text-slate-900"
               )}>
                 <div>
-                  <div className="text-[10px] font-black uppercase tracking-[0.3em] opacity-60 mb-1">Order</div>
+                  <div className="text-[10px] font-black uppercase tracking-[0.3em] opacity-60 mb-1">{t('orders.order')}</div>
                   <h3 className="text-2xl font-black font-mono tracking-tighter">#{order.order_number}</h3>
                   <div className="flex items-center gap-2 mt-2 opacity-60">
                     <Clock className="w-3 h-3" />
@@ -142,7 +144,7 @@ export default function KitchenViewPage() {
                         <Users className="w-5 h-5 text-slate-400" />
                     </div>
                     <div className="flex-1">
-                        <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-1">Customer / Channel</span>
+                        <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-1">{t('orders.customer_channel')}</span>
                         <div className="flex items-center gap-2">
                           <span className="text-sm font-black text-slate-900 uppercase tracking-tight">{order.customer_name || "Guest"}</span>
                           {order.platform?.name && (
@@ -157,13 +159,13 @@ export default function KitchenViewPage() {
                         <CreditCard className="w-5 h-5 text-slate-400" />
                     </div>
                     <div className="flex-1">
-                        <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-1">Payment Method</span>
+                        <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-1">{t('pos.payment_method')}</span>
                         <div className="flex items-center gap-2">
                           <span className="text-sm font-black text-slate-900 uppercase tracking-tight">{order.paymentMethod?.name || order.payment_method || "CASH"}</span>
                           {order.status === 'PENDING' && (
                             <span className="text-[9px] font-black bg-rose-100 text-rose-600 px-2 py-0.5 rounded-md uppercase tracking-tighter flex items-center gap-1 animate-pulse">
                               <AlertCircle className="w-2.5 h-2.5" />
-                              WAITING FOR PAYMENT
+                              {t('pos.money_waiting')}
                             </span>
                           )}
                         </div>
@@ -172,7 +174,7 @@ export default function KitchenViewPage() {
                 </div>
 
                 <div className="space-y-3">
-                  <span className="text-[9px] font-black text-slate-400 uppercase tracking-[0.4em] block mb-4">Items</span>
+                  <span className="text-[9px] font-black text-slate-400 uppercase tracking-[0.4em] block mb-4">{t('pos.items')}</span>
                   {order.orderItems.map((item) => (
                     <div key={item.id} className="flex justify-between items-center bg-white p-4 rounded-2xl border border-slate-50 shadow-sm group/item">
                       <div className="flex gap-4 items-center">
@@ -198,7 +200,7 @@ export default function KitchenViewPage() {
                       className="flex-1 h-14 bg-slate-900 hover:bg-black text-white rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-xl active:scale-95 transition-all"
                       onClick={() => handleStatusChange(order.id, 'PROCESSING')}
                     >
-                      Start Cooking
+                      {t('kitchen.start_cooking')}
                     </Button>
                   )}
                   <Button 
@@ -211,7 +213,7 @@ export default function KitchenViewPage() {
                     variant={order.status === 'PROCESSING' ? "default" : "outline"}
                     onClick={() => handleStatusChange(order.id, 'COMPLETED')}
                   >
-                    Done
+                    {t('common.done')}
                   </Button>
                 </div>
               </div>

@@ -1,66 +1,147 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss/base";
+@import "tailwindcss/components";
+@import "tailwindcss/utilities";
 
 @layer base {
   :root {
-    --background: 140 10% 97%; /* #F6F8F7 */
-    --foreground: 222.2 47.4% 11.2%; /* #1F2937 */
+    /* Refined Emerald Design System - WCAG Compliant */
+    --background: 140 10% 98%;
+    --foreground: 222 47% 11%;
     --card: 0 0% 100%;
-    --card-foreground: 222.2 47.4% 11.2%;
-    --popover: 0 0% 100%;
-    --popover-foreground: 222.2 47.4% 11.2%;
-    --primary: 142 76% 14%; /* #166534 - Emerald 800 */
-    --primary-foreground: 142 70% 95%;
-    --secondary: 142 72% 45%; /* #22C55E - Green 500 */
-    --secondary-foreground: 142 76% 14%;
-    --muted: 140 10% 90%;
-    --muted-foreground: 215.4 16.3% 46.9%;
-    --accent: 142 72% 95%;
+    --card-foreground: 222 47% 11%;
+    --primary: 142 76% 14%;
+    --primary-foreground: 142 70% 96%;
+    --secondary: 142 72% 35%;
+    --secondary-foreground: 142 70% 98%;
+    --accent: 142 72% 94%;
     --accent-foreground: 142 76% 14%;
-    --destructive: 0 84.2% 60.2%;
+    --muted: 140 10% 94%;
+    --muted-foreground: 215 25% 40%;
+    --destructive: 0 84% 45%;
     --destructive-foreground: 210 40% 98%;
-    --border: 140 10% 90%;
-    --input: 140 10% 90%;
+    --border: 140 10% 88%;
+    --input: 140 10% 88%;
     --ring: 142 76% 14%;
-    --radius: 1.25rem;
+    --radius: 1.5rem;
+
+    /* Light mode surface tokens */
+    --surface-bg: #F6F8F7;
+    --surface-card: #ffffff;
+    --surface-sidebar: #ffffff;
+    --surface-header: rgba(255,255,255,0.85);
+    --surface-border: rgba(226,232,240,0.5);
+    --text-primary: #0f172a;
+    --text-secondary: #475569;
+    --text-muted: #94a3b8;
+  }
+
+  .dark {
+    --background: 222 47% 6%;
+    --foreground: 210 40% 95%;
+    --card: 222 40% 10%;
+    --card-foreground: 210 40% 95%;
+    --primary: 142 70% 45%;
+    --primary-foreground: 142 76% 6%;
+    --secondary: 142 60% 35%;
+    --secondary-foreground: 142 70% 98%;
+    --accent: 142 30% 15%;
+    --accent-foreground: 142 70% 80%;
+    --muted: 222 30% 14%;
+    --muted-foreground: 215 20% 55%;
+    --destructive: 0 84% 55%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 222 30% 18%;
+    --input: 222 30% 18%;
+    --ring: 142 70% 45%;
+
+    /* Dark mode surface tokens */
+    --surface-bg: #0d1117;
+    --surface-card: #161d25;
+    --surface-sidebar: #111820;
+    --surface-header: rgba(13,17,23,0.9);
+    --surface-border: rgba(255,255,255,0.06);
+    --text-primary: #e2e8f0;
+    --text-secondary: #8b949e;
+    --text-muted: #4b5563;
   }
 }
 
 html, body, :root {
   height: 100%;
-  font-family: 'Inter', 'Outfit', system-ui, -apple-system, sans-serif;
+  font-family: 'Outfit', 'Inter', system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 body {
-  background-color: #F6F8F7;
-  @apply text-slate-900 antialiased;
+  background-color: var(--surface-bg, #F6F8F7);
+  color: var(--text-primary, #0f172a);
+  font-size: 16px;
+  line-height: 1.5;
 }
 
-/* Modern Design System Utilities */
+.dark body {
+  background-color: var(--surface-bg, #0d1117);
+  color: var(--text-primary, #e2e8f0);
+}
+
+/* Modern Design System Utilities - Refined Glassmorphism */
 .glass-panel {
-  @apply bg-white/70 backdrop-blur-xl border border-white shadow-[0_8px_32px_0_rgba(22,101,52,0.05)] border-emerald-100/20;
+  background: var(--surface-card, white);
+  backdrop-filter: blur(24px);
+  border: 1px solid var(--surface-border, rgba(226,232,240,0.5));
+  box-shadow: 0 8px 32px rgba(22,101,52,0.06);
 }
 
 .glass-card {
-  @apply bg-white border border-slate-100/80 shadow-[0_4px_20px_-4px_rgba(22,101,52,0.08)] transition-all duration-500 hover:shadow-[0_20px_40px_-12px_rgba(22,101,52,0.12)] hover:-translate-y-1 rounded-[1.25rem];
+  background-color: var(--surface-card, white);
+  border: 1px solid var(--surface-border, rgba(226,232,240,0.5));
+  box-shadow: 0 4px 24px -4px rgba(22,101,52,0.08);
+  border-radius: 1.5rem;
+  transition: all 300ms ease-in-out;
+}
+
+.glass-card:hover {
+  box-shadow: 0 24px 48px -12px rgba(22,101,52,0.14);
+  transform: translateY(-6px);
+}
+
+.dark .glass-card {
+  background-color: #161d25;
+  border: 1px solid rgba(255,255,255,0.06);
+  box-shadow: 0 4px 24px -4px rgba(0,0,0,0.4);
+}
+
+.dark .glass-card:hover {
+  box-shadow: 0 24px 48px -12px rgba(16,185,129,0.15);
+  border-color: rgba(16,185,129,0.2);
 }
 
 .glass-sidebar {
-  @apply bg-white border-r border-slate-100 shadow-[4px_0_24px_rgba(22,101,52,0.02)];
+  background-color: var(--surface-sidebar, white);
+  border-right: 1px solid var(--surface-border, rgba(226,232,240,0.5));
+  box-shadow: 20px 0 40px rgba(22,101,52,0.025);
+}
+
+.dark .glass-sidebar {
+  background-color: #111820;
+  border-right: 1px solid rgba(255,255,255,0.05);
+  box-shadow: 20px 0 60px rgba(0,0,0,0.4);
 }
 
 /* Typography & Elements */
 h1, h2, h3, h4 {
-  @apply tracking-tight font-bold;
+  letter-spacing: -0.025em;
+  font-weight: 700;
+  color: var(--text-primary, #0f172a);
 }
 
 .premium-gradient {
-  @apply bg-gradient-to-br from-emerald-900 to-emerald-700;
+  @apply bg-gradient-to-br from-emerald-950 via-emerald-800 to-emerald-700;
 }
 
 .premium-gradient-light {
-  @apply bg-gradient-to-br from-[#F6F8F7] to-white;
+  @apply bg-gradient-to-tr from-[#F8FAF9] to-white;
 }
 
 /* Animation */
@@ -132,4 +213,33 @@ h1, h2, h3, h4 {
   20%, 80% { transform: translate3d(2px, 0, 0); }
   30%, 50%, 70% { transform: translate3d(-4px, 0, 0); }
   40%, 60% { transform: translate3d(4px, 0, 0); }
+}
+
+/* Scrollbar Utilities */
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+.scrollbar-hide {
+  -ms-overflow-style: none; /* IE and Edge */
+  scrollbar-width: none; /* Firefox */
+}
+
+/* Custom Scrollbar for other areas */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(15, 23, 42, 0.1);
+  border-radius: 10px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(15, 23, 42, 0.2);
 }

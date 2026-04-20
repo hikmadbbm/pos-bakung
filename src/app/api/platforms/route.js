@@ -33,7 +33,7 @@ export async function POST(req) {
     const { response } = await verifyAuth(req, ['OWNER', 'MANAGER']);
     if (response) return response;
     const body = await req.json();
-    const { name, type, commission_rate } = body;
+    const { name, type, commission_rate, additional_fee } = body;
 
     if (!name || typeof name !== 'string') {
       return NextResponse.json({ error: 'name is required' }, { status: 400 });
@@ -49,6 +49,7 @@ export async function POST(req) {
         name,
         type: type || 'OFFLINE',
         commission_rate: commission,
+        additional_fee: Number(additional_fee) || 0,
       },
     });
     return NextResponse.json(created, { status: 201 });

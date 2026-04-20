@@ -40,15 +40,40 @@ export async function deductStockForOrder(orderId, tx, providedOrder = null) {
   const flattenedRootIds = Array.from(recipeGroups.entries()).map(([id, mult]) => ({ id, multiplier: mult }));
   
   // BFS Fetch
-  const ingredientRequirements = await getRecipeTreeBatch(flattenedRootIds, tx);
+  const rawRequirements = await getRecipeTreeBatch(flattenedRootIds, tx);
 
-  if (ingredientRequirements.size === 0) return;
+  if (rawRequirements.size === 0) return;
 
-  // 3. Process each ingredient requirement
+  // 3. Resolve Generic Ingredients to Active Brands
+  const initialIds = Array.from(rawRequirements.keys());
+  const initialIngredients = await tx.ingredient.findMany({
+    where: { id: { in: initialIds } },
+    include: { subItems: { where: { is_active_brand: true }, take: 1 } }
+  });
+
+  const ingredientRequirements = new Map();
+  const resolvedIdMap = new Map(); // Old ID -> Actual ID to deduct from
+
+  for (const ing of initialIngredients) {
+    const qty = rawRequirements.get(ing.id);
+    if (!qty) continue;
+
+    if (ing.is_generic && ing.subItems && ing.subItems.length > 0) {
+      const activeBrand = ing.subItems[0];
+      const actualId = activeBrand.id;
+      ingredientRequirements.set(actualId, (ingredientRequirements.get(actualId) || 0) + qty);
+      resolvedIdMap.set(ing.id, actualId);
+    } else {
+      ingredientRequirements.set(ing.id, (ingredientRequirements.get(ing.id) || 0) + qty);
+      resolvedIdMap.set(ing.id, ing.id);
+    }
+  }
+
+  // 4. Process each ingredient requirement
   // SORT IDs to prevent deadlocks
   const sortedIngredientIds = Array.from(ingredientRequirements.keys()).sort((a, b) => a - b);
   
-  // Bulk fetch ingredient current states
+  // Bulk fetch ingredient current states (now correctly resolved to brands)
   const ingredients = await tx.ingredient.findMany({
     where: { id: { in: sortedIngredientIds } }
   });
@@ -135,4 +160,51 @@ async function getRecipeTreeBatch(rootContexts, tx) {
     depth++;
   }
   return aggregatedRequirements;
+}
+
+/**
+ * Restores stock for a cancelled order within a provided transaction.
+ * Should reverse the exact movements created during deductStockForOrder.
+ */
+export async function restoreStockForCancelledOrder(orderId, tx, providedOrder = null) {
+  // 1. Find all 'OUT' movements for this order
+  const movements = await tx.stockMovement.findMany({
+    where: { 
+      order_id: Number(orderId),
+      movement_type: 'OUT',
+      reference_type: 'ORDER'
+    }
+  });
+
+  if (!movements || movements.length === 0) return;
+
+  // 2. We need to do two things for each movement:
+  // a) Increment the ingredient stock
+  // b) Create a corresponding 'IN' movement to log the restoration
+  const restorePromises = movements.map(async (mov) => {
+    return [
+      tx.ingredient.update({
+        where: { id: mov.ingredient_id },
+        data: { stock: { increment: mov.quantity } }
+      }),
+      tx.stockMovement.create({
+         data: {
+            ingredient_id: mov.ingredient_id,
+            movement_type: 'IN',
+            quantity: mov.quantity,
+            unit: mov.unit,
+            reference_type: 'CANCELLED_ORDER',
+            order_id: Number(orderId),
+            note: 'Order cancelled, stock restored'
+         }
+      })
+    ];
+  });
+
+  const resolvedWaiters = await Promise.all(restorePromises);
+  const dbOps = resolvedWaiters.flat().filter(Boolean);
+  
+  if (dbOps.length > 0) {
+    await Promise.all(dbOps);
+  }
 }

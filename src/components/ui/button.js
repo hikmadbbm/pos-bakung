@@ -4,8 +4,8 @@ import { cn } from "../../lib/utils"
 const Button = React.forwardRef(({ className, variant = "default", size = "default", asChild = false, ...props }, ref) => {
   const Comp = "button"
   const variants = {
-    default: "bg-emerald-800 text-white hover:bg-emerald-900 shadow-sm",
-    destructive: "bg-red-500 text-white hover:bg-red-600 shadow-sm",
+    default: "bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm",
+    destructive: "bg-destructive text-destructive-foreground hover:bg-destructive/90 shadow-sm",
     outline: "border border-input bg-background hover:bg-accent hover:text-accent-foreground shadow-sm",
     secondary: "bg-secondary text-secondary-foreground hover:bg-secondary/80",
     ghost: "hover:bg-accent hover:text-accent-foreground",

@@ -11,7 +11,7 @@ export async function GET() {
       orderBy: { date: 'desc' },
       take: 50,
       include: {
-        orderItems: { include: { menu: true } },
+        orderItems: { include: { menu: { include: { category: true } } } },
         platform: true,
       },
     });

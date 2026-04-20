@@ -8,17 +8,40 @@ import { useToast } from "./ui/use-toast";
 import { useTranslation } from "../lib/language-context";
 import StopShiftButton from "./StopShiftButton";
 import { useFocusMode } from "../lib/focus-mode-context";
+import { useDarkMode } from "../lib/dark-mode-context";
+import { Sun, Moon } from "lucide-react";
 
 export default function UserMenu() {
   const { setIsFocusMode } = useFocusMode();
   const router = useRouter();
   const { error } = useToast();
   const { t } = useTranslation();
+  const { isDark, toggleDark } = useDarkMode();
   const [isOpen, setIsOpen] = useState(false);
   const [user, setUser] = useState(null);
+  const [hasActiveShift, setHasActiveShift] = useState(false);
   
+  const checkShiftStatus = async (currentUser) => {
+    if (!currentUser) return;
+    try {
+      const shift = await api.get(`/shifts/current/${currentUser.id}`);
+      setHasActiveShift(!!shift);
+    } catch (e) {
+      console.error("Shift check failed", e);
+    }
+  };
+
   useEffect(() => {
-    setUser(getAuth());
+    const u = getAuth();
+    setUser(u);
+    if (u) checkShiftStatus(u);
+
+    const handleShiftChange = () => {
+      if (u) checkShiftStatus(u);
+    };
+
+    window.addEventListener('shift-status-changed', handleShiftChange);
+    return () => window.removeEventListener('shift-status-changed', handleShiftChange);
   }, []);
   const menuRef = useRef(null);
 
@@ -54,7 +77,7 @@ export default function UserMenu() {
       try {
         const shift = await api.get(`/shifts/current/${user.id}`);
         if (shift) {
-          error("Active Shift Detected: You must stop your shift and reconcile cash before logging out.");
+          error(t('shift.logout_shift_warning'));
           setIsOpen(false);
           return;
         }
@@ -69,13 +92,13 @@ export default function UserMenu() {
 
   const getInitials = () => {
     if (!user) return "U";
-    const name = user.username || user.name || "User";
+    const name = user.username || user.name || t('common.user_fallback');
     return name.charAt(0).toUpperCase();
   };
 
   const getUserName = () => {
-      if (!user) return "Guest";
-      return user.username || user.name || "User";
+      if (!user) return t('common.guest_fallback');
+      return user.username || user.name || t('common.user_fallback');
   }
 
   const getRole = () => {
@@ -123,11 +146,11 @@ export default function UserMenu() {
               role="menuitem"
               onClick={() => {
                   setIsOpen(false);
-                  router.push("/settings"); // Assuming there is a profile/settings page
+                  router.push("/settings?tab=users"); // Directly to user management tab
               }}
             >
               <User className="mr-3 h-4 w-4 text-gray-400" />
-              {t('profile')}
+              {t('common.profile')}
             </button>
 
             {/* Focus Mode Toggle */}
@@ -140,22 +163,47 @@ export default function UserMenu() {
               }}
             >
               <Lock className="mr-3 h-4 w-4 text-slate-400" />
-              Focus Mode
+              {t('common.focus_mode')}
+            </button>
+
+            {/* Dark Mode Toggle */}
+            <button
+              className="flex items-center w-full px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 transition-colors"
+              role="menuitem"
+              onClick={() => {
+                  toggleDark();
+              }}
+            >
+              {isDark ? (
+                <>
+                  <Sun className="mr-3 h-4 w-4 text-amber-500" />
+                  <span>{t('common.light_mode')}</span>
+                </>
+              ) : (
+                <>
+                  <Moon className="mr-3 h-4 w-4 text-slate-400" />
+                  <span>{t('common.dark_mode')}</span>
+                </>
+              )}
             </button>
             
             {/* Shift Actions */}
-            <div className="border-t border-slate-50 my-1" />
-            <button
-                className="flex items-center w-full px-4 py-2 text-sm text-rose-600 hover:bg-rose-50 transition-colors"
-                role="menuitem"
-                onClick={() => {
-                   setIsOpen(false);
-                   window.dispatchEvent(new Event('trigger-stop-shift'));
-                }}
-            >
-                <StopCircle className="mr-3 h-4 w-4 text-red-500" />
-                <span className="font-bold">{t('stop_shift')}</span>
-            </button>
+            {hasActiveShift && (
+              <>
+                <div className="border-t border-slate-50 my-1" />
+                <button
+                    className="flex items-center w-full px-4 py-2 text-sm text-rose-600 hover:bg-rose-50 transition-colors"
+                    role="menuitem"
+                    onClick={() => {
+                       setIsOpen(false);
+                       window.dispatchEvent(new Event('trigger-stop-shift'));
+                    }}
+                >
+                    <StopCircle className="mr-3 h-4 w-4 text-red-500" />
+                    <span className="font-bold">{t('stop_shift')}</span>
+                </button>
+              </>
+            )}
 
             <button
               className="flex items-center w-full px-4 py-2 text-sm text-red-600 hover:bg-rose-50 transition-colors"

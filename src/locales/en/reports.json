@@ -1,0 +1,19 @@
+{
+  "title": "Sales Reports",
+  "subtitle": "Analysis of your business performance",
+  "from_date": "From Date",
+  "to_date": "To Date",
+  "update_view": "Update View",
+  "performance_summary": "Performance Summary",
+  "total_orders": "Total Orders",
+  "gross_revenue": "Gross Revenue",
+  "profit_analysis": "Profit Analysis",
+  "revenue": "Revenue",
+  "cogs": "Cost of Goods",
+  "net_profit": "Net Profit",
+  "best_sellers": "Best Sellers",
+  "qty_sold": "Qty Sold",
+  "gross_rev": "Gross Rev.",
+  "total_profit": "Total Profit",
+  "net_revenue": "Net Revenue"
+}

@@ -11,37 +11,51 @@ export async function GET(req) {
     const { user, response } = await verifyAuth(req, ['OWNER', 'MANAGER', 'CASHIER', 'KITCHEN']);
     if (response) return response;
 
-    const [menus, categories, platforms, paymentMethods, currentShift, storeConfig] = await Promise.all([
-      // 1. Active Menus with categorized prices
-      prisma.menu.findMany({
+    console.log("POS Init: DB Queries Starting...");
+    
+    let menus, categories, platforms, paymentMethods, currentShift, storeConfig;
+
+    try {
+      console.log("POS Init: Fetching menus...");
+      menus = await prisma.menu.findMany({
         where: { is_active: true },
         select: {
           id: true,
           name: true,
           price: true,
           categoryId: true,
-          category: { select: { name: true, color: true } },
+          category: { select: { id: true, name: true, color: true, type: true } },
           prices: { select: { platform_id: true, price: true } }
         },
         orderBy: { name: 'asc' }
-      }),
-      // 2. All Categories
-      prisma.menuCategory.findMany({ orderBy: { id: 'asc' } }),
-      // 3. All Platforms
-      prisma.platform.findMany({ orderBy: { id: 'asc' } }),
-      // 4. Active Payment Methods
-      prisma.paymentMethod.findMany({
+      });
+      
+      console.log("POS Init: Fetching categories...");
+      categories = await prisma.menuCategory.findMany({ orderBy: { id: 'asc' } });
+      
+      console.log("POS Init: Fetching platforms...");
+      platforms = await prisma.platform.findMany({ orderBy: { id: 'asc' } });
+      
+      console.log("POS Init: Fetching payment methods...");
+      paymentMethods = await prisma.paymentMethod.findMany({
         where: { is_active: true },
         orderBy: { display_order: 'asc' }
-      }),
-      // 5. Current User Shift
-      prisma.userShift.findFirst({
+      });
+      
+      console.log("POS Init: Fetching current shift...");
+      currentShift = await prisma.userShift.findFirst({
         where: { status: 'OPEN' }, 
         orderBy: { start_time: 'desc' }
-      }),
-      // 6. Store Configuration (Tax/Service)
-      prisma.storeConfig.findFirst()
-    ]);
+      });
+      
+      console.log("POS Init: Fetching store config...");
+      storeConfig = await prisma.storeConfig.findFirst();
+      
+      console.log("POS Init: All DB queries successful");
+    } catch (dbError) {
+      console.error("POS Init: DB Query Failed!", dbError);
+      throw dbError; // rethrow to be caught by the main catch block
+    }
 
     // Normalize prices for menus
     const normalizedMenus = menus.map(m => {
@@ -71,7 +85,17 @@ export async function GET(req) {
     });
 
   } catch (error) {
-    console.error('Failed to initialize POS data:', error);
-    return NextResponse.json({ error: 'Failed to initialize POS data' }, { status: 500 });
+    console.error('Failed to initialize POS data ERROR:', error);
+    // Log the actual error message and stack to the console
+    console.error('Error Details:', {
+      message: error.message,
+      code: error.code,
+      meta: error.meta,
+      stack: error.stack
+    });
+    return NextResponse.json({ 
+      error: 'Failed to initialize POS data',
+      details: error.message
+    }, { status: 500 });
   }
 }

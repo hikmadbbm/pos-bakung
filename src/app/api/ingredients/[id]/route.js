@@ -92,7 +92,8 @@ export async function PUT(req, { params }) {
     const body = await req.json();
     let { 
       category, item_name, brand, volume, unit, price, 
-      purchase_location, purchase_link, notes 
+      purchase_location, purchase_link, notes,
+      is_generic, parentId, is_active_brand
     } = body;
 
     // Normalization
@@ -105,20 +106,31 @@ export async function PUT(req, { params }) {
     const newCost = vol > 0 ? prc / vol : 0;
 
     const updated = await prisma.$transaction(async (tx) => {
+      // If setting this brand as active, deactivate others for same parent
+      if (is_active_brand && parentId) {
+        await tx.ingredient.updateMany({
+          where: { parentId: Number(parentId), id: { not: id } },
+          data: { is_active_brand: false }
+        });
+      }
+
       const ing = await tx.ingredient.update({
         where: { id },
         data: {
           category, item_name, brand, volume: vol, unit, price: prc,
           cost_per_unit: newCost, purchase_location, purchase_link, notes,
+          is_generic: !!is_generic,
+          parentId: parentId ? Number(parentId) : null,
+          is_active_brand: !!is_active_brand
         },
       });
 
-      if (oldIngredient && oldIngredient.price !== prc) {
-        await tx.ingredientPriceHistory.create({ data: { ingredient_id: id, price: prc } });
-      }
-
-      if (oldIngredient && oldIngredient.cost_per_unit !== newCost) {
-        // Trigger recursive refresh for all recipes using this ingredient
+      if (oldIngredient && (oldIngredient.price !== prc || oldIngredient.cost_per_unit !== newCost)) {
+        if (oldIngredient.price !== prc) {
+          await tx.ingredientPriceHistory.create({ data: { ingredient_id: id, price: prc } });
+        }
+        
+        // Trigger recursive refresh for all recipes using this specific brand
         const affectedRecipes = await tx.recipeItem.findMany({
           where: { ingredient_id: id },
           select: { recipe_id: true }
@@ -127,6 +139,28 @@ export async function PUT(req, { params }) {
         for (const affected of affectedRecipes) {
           await refreshRecipeHpp(affected.recipe_id, tx);
         }
+
+        // IMPORTANT: If this is an active brand, we MUST refresh recipes using the PARENT generic ingredient
+        if (ing.is_active_brand && ing.parentId) {
+          const parentUsages = await tx.recipeItem.findMany({
+            where: { ingredient_id: Number(ing.parentId) },
+            select: { recipe_id: true }
+          });
+          for (const usage of parentUsages) {
+            await refreshRecipeHpp(usage.recipe_id, tx);
+          }
+        }
+      }
+
+      // If we just toggled is_active_brand to true, refresh parent usages even if cost didn't change
+      if (is_active_brand && !oldIngredient.is_active_brand && parentId) {
+          const parentUsages = await tx.recipeItem.findMany({
+            where: { ingredient_id: Number(parentId) },
+            select: { recipe_id: true }
+          });
+          for (const usage of parentUsages) {
+            await refreshRecipeHpp(usage.recipe_id, tx);
+          }
       }
 
       return ing;

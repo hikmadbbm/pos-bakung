@@ -1,5 +1,6 @@
 "use client";
 import { useState, useEffect } from "react";
+import dynamic from "next/dynamic";
 import { Button } from "../../../components/ui/button";
 import { 
   Printer, RefreshCw, Smartphone, Globe, Plus, 
@@ -8,9 +9,11 @@ import {
   AlertCircle, Eye, ChefHat, CheckCircle2, X,
   Instagram, MessageCircle
 } from "lucide-react";
-import UsersSettings from "./users/UsersSettings";
-import PaymentMethodsSettings from "./PaymentMethodsSettings";
+const UsersSettings = dynamic(() => import("./users/UsersSettings"), { loading: () => <div className="h-96 animate-pulse bg-slate-100 rounded-2xl" /> });
+const SecuritySettings = dynamic(() => import("./SecuritySettings"), { loading: () => <div className="h-96 animate-pulse bg-slate-100 rounded-2xl" /> });
+const PaymentMethodsSettings = dynamic(() => import("./PaymentMethodsSettings"), { loading: () => <div className="h-96 animate-pulse bg-slate-100 rounded-2xl" /> });
 import { ReceiptPreview } from "../../../components/receipt-preview";
+import { useSearchParams } from "next/navigation";
 import { usePrinter } from "../../../lib/printer-context";
 import { api, getAuth } from "../../../lib/api";
 import { ESC_POS } from "../../../lib/printer-commands";
@@ -27,7 +30,15 @@ import { ResponsiveDataView } from "../../../components/ResponsiveDataView";
 export default function SettingsPage() {
   const { t, language, setLanguage } = useTranslation();
   const { device, isConnecting, connectionStatus, connect, disconnect, print } = usePrinter();
-  const [activeTab, setActiveTab] = useState("printer");
+  const searchParams = useSearchParams();
+  const tabParam = searchParams.get("tab");
+  const [activeTab, setActiveTab] = useState(tabParam || "printer");
+
+  useEffect(() => {
+    if (tabParam) {
+      setActiveTab(tabParam);
+    }
+  }, [tabParam]);
   const { success, error, confirm } = useToast();
   const currentUser = getAuth();
 
@@ -105,12 +116,19 @@ export default function SettingsPage() {
   };
 
   useEffect(() => {
-    if (activeTab === "platforms") loadPlatforms();
-    if (activeTab === "receipt" || activeTab === "language") {
-      loadReceiptConfig();
-      loadCategories();
-    }
-  }, [activeTab]);
+    const init = async () => {
+      try {
+        await Promise.all([
+          loadReceiptConfig(),
+          loadCategories(),
+          loadPlatforms()
+        ]);
+      } catch (err) {
+        console.error("Settings Initialization Failed:", err);
+      }
+    };
+    init();
+  }, []);
 
   const loadCategories = async () => {
     try {
@@ -178,21 +196,6 @@ export default function SettingsPage() {
     }
   };
 
-  const seedDummyData = async () => {
-    if (!(await confirm({
-      title: "Reset Demo Data?",
-      message: "This will reset your products and orders to demonstration data. This action cannot be undone.",
-      confirmText: "Reset Data",
-      variant: "warning"
-    }))) return;
-
-    try {
-      await api.post("/auth/seed-dummy");
-      success("Demo data reset successfully");
-    } catch (e) {
-      error(e?.response?.data?.error || "Failed to seed demo data");
-    }
-  };
   
   const handlePlatformSubmit = async (e) => {
     e.preventDefault();
@@ -238,21 +241,21 @@ export default function SettingsPage() {
   };
 
   const tabs = [
-    { id: "printer", label: t('printer'), icon: Printer },
-    { id: "platforms", label: t('platforms'), icon: Globe },
-    { id: "receipt", label: t('document_design'), icon: Receipt },
-    { id: "users", label: t('users'), icon: Users },
-    { id: "payments", label: t('payments'), icon: CreditCard },
-    { id: "tags", label: "Quick Tags", icon: Sparkles },
-    { id: "language", label: t('language'), icon: RefreshCw },
-    { id: "import", label: t('import_data'), icon: Upload },
+    { id: "printer", label: t('settings.printer'), icon: Printer },
+    { id: "platforms", label: t('platforms.title'), icon: Globe },
+    { id: "receipt", label: t('settings.document_design'), icon: Receipt },
+    { id: "users", label: t('settings.users'), icon: Users },
+    { id: "payments", label: t('settings.payments'), icon: CreditCard },
+    { id: "tags", label: t('settings.quick_tags'), icon: Sparkles },
+    { id: "language", label: t('settings.language'), icon: RefreshCw },
+    { id: "import", label: t('settings.import_data'), icon: Upload },
   ];
 
   return (
     <div className="max-w-7xl mx-auto space-y-12 animate-fade-in pb-20 px-4 md:px-0">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
         <div>
-          <h2 className="text-3xl font-black tracking-tight text-slate-900 uppercase italic">{t('system_orchestration')}</h2>
+          <h2 className="text-3xl font-black tracking-tight text-slate-900 uppercase italic">{t('settings.title')}</h2>
           <div className="flex items-center gap-2.5 mt-2">
             <span className="flex h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
             <p className="text-[10px] text-slate-400 font-black uppercase tracking-[0.2em]">Manage your store and device preferences</p>
@@ -292,8 +295,8 @@ export default function SettingsPage() {
                     <Printer className="w-8 h-8 text-emerald-400" />
                   </div>
                   <div>
-                    <h3 className="text-2xl font-black tracking-tight uppercase">Printer Settings</h3>
-                    <p className="text-[10px] text-emerald-400/60 font-black uppercase tracking-[0.2em] mt-1">Connect and test your thermal printer</p>
+                    <h3 className="text-2xl font-black tracking-tight uppercase text-white">{t('settings.printer_settings')}</h3>
+                    <p className="text-[10px] text-emerald-400 font-black uppercase tracking-[0.2em] mt-1 opacity-80">{t('settings.printer_subtitle')}</p>
                   </div>
                 </div>
               </div>
@@ -385,7 +388,7 @@ export default function SettingsPage() {
           <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 space-y-10">
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
               <div>
-                <h3 className="text-2xl font-black tracking-tight text-slate-900 uppercase italic">Sales Channels</h3>
+                <h3 className="text-2xl font-black tracking-tight text-slate-900 uppercase italic">{t('platforms.title')}</h3>
                 <p className="text-[10px] text-slate-400 font-black uppercase tracking-[0.2em] mt-1">Manage GoFood, GrabFood, etc.</p>
               </div>
               <Button 
@@ -504,8 +507,8 @@ export default function SettingsPage() {
                        <RefreshCw className="w-10 h-10 text-emerald-400" />
                      </div>
                      <div>
-                       <h3 className="text-3xl font-black tracking-tight uppercase">Language</h3>
-                       <p className="text-[10px] text-emerald-400/60 font-black uppercase tracking-[0.3em] mt-2">Select your interface language</p>
+                       <h3 className="text-3xl font-black tracking-tight uppercase text-white">{t('settings.language')}</h3>
+                       <p className="text-[10px] text-emerald-400 font-black uppercase tracking-[0.3em] mt-2 opacity-80">{t('settings.language_subtitle') || 'Select your interface language'}</p>
                      </div>
                    </div>
                 </div>
@@ -557,8 +560,8 @@ export default function SettingsPage() {
                     <Sparkles className="w-10 h-10 text-amber-400" />
                   </div>
                   <div className="flex-1">
-                    <h3 className="text-3xl font-black tracking-tight uppercase">Quick Order Tags</h3>
-                    <p className="text-[10px] text-amber-400/60 font-black uppercase tracking-[0.3em] mt-2">Customize predefined order requests</p>
+                    <h3 className="text-3xl font-black tracking-tight uppercase text-white">{t('settings.quick_tags')}</h3>
+                    <p className="text-[10px] text-amber-400 font-black uppercase tracking-[0.3em] mt-2 opacity-80">{t('settings.quick_tags_subtitle') || 'Customize predefined order requests'}</p>
                   </div>
                 </div>
               </div>
@@ -567,8 +570,8 @@ export default function SettingsPage() {
                    {/* Food Tags */}
                    <div className="space-y-6">
                       <div className="flex items-center justify-between">
-                        <Label className="text-[11px] font-black uppercase tracking-[0.3em] text-slate-400 flex items-center gap-4">
-                          <ChefHat className="w-4 h-4 text-orange-500" /> Food Tags
+                        <Label className="text-[11px] font-black uppercase tracking-[0.3em] text-slate-500 flex items-center gap-4">
+                          <ChefHat className="w-4 h-4 text-orange-500" /> {t('settings.tag_food')}
                         </Label>
                         <Button 
                           size="sm" 
@@ -603,7 +606,7 @@ export default function SettingsPage() {
                             </div>
                           ))
                         ) : (
-                          <p className="text-[10px] font-bold text-slate-300 uppercase tracking-widest text-center w-full py-10 opacity-30">No food tags defined</p>
+                          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest text-center w-full py-10 opacity-30">{t('settings.no_tags')}</p>
                         )}
                       </div>
                    </div>
@@ -611,8 +614,8 @@ export default function SettingsPage() {
                    {/* Drink Tags */}
                    <div className="space-y-6">
                       <div className="flex items-center justify-between">
-                        <Label className="text-[11px] font-black uppercase tracking-[0.3em] text-slate-400 flex items-center gap-4">
-                          <Smartphone className="w-4 h-4 text-blue-500" /> Drink Tags
+                        <Label className="text-[11px] font-black uppercase tracking-[0.3em] text-slate-500 flex items-center gap-4">
+                          <Smartphone className="w-4 h-4 text-blue-500" /> {t('settings.tag_drink')}
                         </Label>
                         <Button 
                           size="sm" 
@@ -751,8 +754,8 @@ export default function SettingsPage() {
                       <Receipt className="w-10 h-10 text-emerald-400" />
                     </div>
                     <div className="flex-1">
-                      <h3 className="text-3xl font-black tracking-tight uppercase">Receipt Design</h3>
-                      <p className="text-[10px] text-emerald-400/60 font-black uppercase tracking-[0.3em] mt-2">Customize your printed receipts</p>
+                      <h3 className="text-3xl font-black tracking-tight uppercase text-white">{t('settings.receipt_design')}</h3>
+                      <p className="text-[10px] text-emerald-400 font-black uppercase tracking-[0.3em] mt-2 opacity-80">{t('settings.receipt_subtitle')}</p>
                     </div>
                     <Button 
                      type="button"
@@ -1159,20 +1162,6 @@ export default function SettingsPage() {
         )}
       </div>
 
-      <div className="pt-16 border-t border-slate-100 flex flex-col items-center gap-6">
-         <div className="text-center">
-            <h4 className="text-[10px] font-black text-slate-900 uppercase tracking-[0.4em]">Maintenance</h4>
-            <p className="text-[8px] text-slate-400 uppercase tracking-widest font-black mt-2">For demo and testing only</p>
-         </div>
-         <Button 
-           variant="outline" 
-           size="sm" 
-           onClick={seedDummyData}
-           className="h-12 px-8 rounded-xl border-amber-200 bg-amber-50/30 text-amber-700 font-black text-[9px] uppercase tracking-widest hover:bg-amber-100 transition-all"
-         >
-           <Sparkles className="w-4 h-4 mr-3" /> Reset Demo Data
-         </Button>
-      </div>
 
       <ReceiptPreview 
         isOpen={isPreviewOpen}

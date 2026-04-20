@@ -1,0 +1,13 @@
+{
+  "title": "Antrian Dapur",
+  "subtitle": "Status Pesanan & Produksi Live",
+  "loading": "Memuat Dapur...",
+  "all_clear": "Dapur Bersih",
+  "empty_queue": "Belum ada antrian pesanan.",
+  "start_cooking": "Mulai Masak",
+  "ready_status": "Tersedia",
+  "sold_out_status": "Habis",
+  "unclassified": "Tanpa Kategori",
+  "not_found": "Data tidak ditemukan",
+  "cost": "HPP"
+}

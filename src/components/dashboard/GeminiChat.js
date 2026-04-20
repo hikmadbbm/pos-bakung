@@ -3,8 +3,10 @@ import React, { useState, useRef, useEffect } from "react";
 import { Sparkles, Send, X, MessageSquare, Loader2, Minimize2, Maximize2 } from "lucide-react";
 import { cn } from "../../lib/utils";
 import { api } from "../../lib/api";
+import { useTranslation } from "../../lib/language-context";
 
 export default function GeminiChat({ contextData }) {
+  const { t } = useTranslation();
   const [isOpen, setIsOpen] = useState(false);
   const [isMinimized, setIsMinimized] = useState(false);
   const [messages, setMessages] = useState([]);
@@ -73,22 +75,22 @@ export default function GeminiChat({ contextData }) {
                 <Sparkles className="w-4 h-4 text-white" />
               </div>
               <div>
-                <h4 className="text-[10px] font-black uppercase tracking-widest text-emerald-400">Gemini Assistant</h4>
-                <p className="text-[9px] font-bold text-slate-400 uppercase tracking-tight">AI Analyst</p>
+                <h4 className="text-[10px] font-black uppercase tracking-widest text-emerald-400">{t('dashboard.ai_assistant_title')}</h4>
+                <p className="text-[9px] font-bold text-slate-400 uppercase tracking-tight">{t('dashboard.ai_assistant_role')}</p>
               </div>
             </div>
             <div className="flex items-center gap-1 relative z-10">
               <button 
                 onClick={() => setIsMinimized(!isMinimized)}
                 className="p-1.5 hover:bg-white/10 rounded-lg text-slate-400 transition-colors"
-                title="Minimize"
+                title={t('common.minimize') || "Minimize"}
               >
                 {isMinimized ? <Maximize2 className="w-3.5 h-3.5" /> : <Minimize2 className="w-3.5 h-3.5" />}
               </button>
               <button 
                 onClick={() => setIsOpen(false)}
                 className="p-1.5 hover:bg-rose-500/20 rounded-lg text-slate-400 hover:text-rose-400 transition-all"
-                title="Close"
+                title={t('common.close')}
               >
                 <X className="w-3.5 h-3.5" />
               </button>
@@ -108,7 +110,7 @@ export default function GeminiChat({ contextData }) {
                        <MessageSquare className="w-6 h-6 text-emerald-800" />
                     </div>
                     <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest max-w-[150px]">
-                      Tanyakan data bisnis hari ini.
+                      {t('dashboard.chat_empty_state')}
                     </p>
                   </div>
                 )}

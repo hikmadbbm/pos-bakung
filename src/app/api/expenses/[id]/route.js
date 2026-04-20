@@ -22,7 +22,7 @@ export async function PUT(req, { params }) {
       data.item = body.item;
     }
     if (body.category !== undefined) {
-      data.category = body.category;
+      data.category = body.category || "OTHERS";
     }
     if (body.amount !== undefined) {
       const amt = Number(body.amount);
@@ -36,6 +36,12 @@ export async function PUT(req, { params }) {
     }
     if (body.date !== undefined) {
       data.date = new Date(body.date);
+    }
+    if (body.funding_source !== undefined) {
+      data.funding_source = body.funding_source;
+    }
+    if (body.is_cash !== undefined) {
+      data.is_cash = body.is_cash;
     }
 
     const updated = await prisma.expense.update({ where: { id }, data });

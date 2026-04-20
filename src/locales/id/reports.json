@@ -1,0 +1,19 @@
+{
+  "title": "Laporan Penjualan",
+  "subtitle": "Analisis performa bisnis Anda",
+  "from_date": "Dari Tanggal",
+  "to_date": "Sampai Tanggal",
+  "update_view": "Perbarui Tampilan",
+  "performance_summary": "Ringkasan Performa",
+  "total_orders": "Total Pesanan",
+  "gross_revenue": "Pendapatan Kotor",
+  "profit_analysis": "Analisis Laba",
+  "revenue": "Pendapatan",
+  "cogs": "Harga Pokok Penjualan",
+  "net_profit": "Laba Bersih",
+  "best_sellers": "Menu Terlaris",
+  "qty_sold": "Jumlah Terjual",
+  "gross_rev": "Pend. Kotor",
+  "total_profit": "Total Laba",
+  "net_revenue": "Pendapatan Bersih"
+}
