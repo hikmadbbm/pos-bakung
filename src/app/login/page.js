@@ -156,7 +156,7 @@ export default function LoginPage() {
         <div className="relative z-10 flex flex-col justify-between h-full p-8 lg:p-16">
           <div className="flex items-center justify-center lg:justify-start gap-4">
             <div className="bg-emerald-500/10 backdrop-blur-xl p-2 rounded-2xl border border-emerald-400/20 overflow-hidden">
-                <Image src={LogoB} alt="Bakung Logo" className="w-10 h-10 object-contain" />
+                <Image src={LogoB} alt="Bakung Logo" className="w-10 h-10 object-contain" priority />
             </div>
             <span className="text-white font-black tracking-widest text-lg uppercase italic">Bakung <span className="text-emerald-400">POS</span></span>
           </div>
@@ -218,7 +218,7 @@ export default function LoginPage() {
 
           <div className="flex flex-col mb-6 lg:mb-12 space-y-4">
             <div className="w-14 h-14 bg-emerald-50 rounded-2xl flex items-center justify-center border border-emerald-100 lg:hidden overflow-hidden p-2">
-                <Image src={LogoBBlack} alt="Logo" className="w-full h-full object-contain" />
+                <Image src={LogoBBlack} alt="Logo" className="w-full h-full object-contain" priority />
             </div>
             <div className="space-y-1">
                 <h2 className="text-3xl lg:text-4xl font-black text-slate-900 tracking-tight flex items-center gap-3">

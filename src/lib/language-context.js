@@ -1,173 +1,148 @@
 "use client";
-import React, { createContext, useContext, useState, useEffect } from 'react';
-import { api } from './api';
-import { TranslationGuard } from '../components/ui/translation-guard';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 
 const LanguageContext = createContext();
 
-export function LanguageProvider({ children }) {
-  const [language, setLanguage] = useState('en');
-  const [isLoaded, setIsLoaded] = useState(false);
+export const LanguageProvider = ({ children }) => {
+  const [language, setLangState] = useState('id');
   const [activeTranslations, setActiveTranslations] = useState({});
   const [fallbackTranslations, setFallbackTranslations] = useState({});
+  const [isLoaded, setIsLoaded] = useState(false);
+
+  // Deep merge utility
+  const deepMerge = (target, source) => {
+    for (const key in source) {
+      if (source[key] instanceof Object && key in target) {
+        Object.assign(source[key], deepMerge(target[key], source[key]));
+      }
+    }
+    Object.assign(target || {}, source);
+    return target;
+  };
 
   const loadTranslations = async (lang) => {
     try {
-      const res = await fetch(`/api/locales/${lang}`);
-      if (!res.ok) return {};
-      return await res.json();
-    } catch (e) {
-      console.error(`Failed to load ${lang} translations`, e);
+      const res = await fetch(`/api/locales?lang=${lang}`);
+      if (!res.ok) {
+        console.error(`[i18n] Failed to load ${lang}: ${res.status}`);
+        return {};
+      }
+      const data = await res.json();
+      return data;
+    } catch (error) {
+      console.error(`[i18n] Error loading ${lang}:`, error);
       return {};
     }
   };
 
-  useEffect(() => {
-    async function init() {
-      setIsLoaded(false);
-      let targetLang = 'en';
-      
-      const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
-      
-      if (token) {
-        try {
-          const config = await api.get('/settings/config');
-          if (config && config.language) {
-            targetLang = config.language;
-          }
-        } catch (e) {
-          if (e?.response?.status !== 401) {
-            console.error("Failed to load language config", e);
-          }
-          const saved = localStorage.getItem('app_language');
-          if (saved) targetLang = saved;
-        }
-      } else {
-        const saved = typeof window !== 'undefined' ? localStorage.getItem('app_language') : null;
-        if (saved) targetLang = saved;
-      }
+  const init = async () => {
+    try {
+      const savedLang = localStorage.getItem('app_language');
+      const targetLang = savedLang || 'id';
       
       const [active, fallback] = await Promise.all([
         loadTranslations(targetLang),
         targetLang !== 'en' ? loadTranslations('en') : Promise.resolve({})
       ]);
 
+      console.log(`[i18n] Loaded ${targetLang} with ${Object.keys(active).length} namespaces`);
+      
       setActiveTranslations(active);
       setFallbackTranslations(targetLang === 'en' ? active : fallback);
-      setLanguage(targetLang);
+      setLangState(targetLang);
       setIsLoaded(true);
-    }
-    init();
-  }, []);
-
-  const updateLanguage = async (newLang) => {
-    setIsLoaded(false);
-    const data = await loadTranslations(newLang);
-    setActiveTranslations(data);
-    if (newLang === 'en') setFallbackTranslations(data);
-    setLanguage(newLang);
-    localStorage.setItem('app_language', newLang);
-    try {
-      await api.put('/settings/config', { language: newLang });
-    } catch (e) {
-      console.error("Failed to persist language change", e);
-    } finally {
-      setIsLoaded(true);
+    } catch (error) {
+      console.error("[i18n] Init failed:", error);
+      setIsLoaded(true); // Don't block UI forever
     }
   };
 
-  const t = React.useCallback((keyStr) => {
-    if (!keyStr) return "";
-    
-    const parts = keyStr.split('.');
-    let value = activeTranslations;
-    
-    // 1. Try resolving in active language
-    for (const k of parts) {
-      if (value && typeof value === 'object' && k in value) {
-        value = value[k];
-      } else {
-        value = undefined;
-        break;
-      }
-    }
+  useEffect(() => {
+    init();
+  }, []);
 
-    if (value !== undefined && typeof value === 'string') return value;
+  const changeLanguage = async (newLang) => {
+    setIsLoaded(false);
+    const translations = await loadTranslations(newLang);
+    const enFallback = newLang !== 'en' ? await loadTranslations('en') : translations;
+    
+    setActiveTranslations(translations);
+    setFallbackTranslations(enFallback);
+    setLangState(newLang);
+    localStorage.setItem('app_language', newLang);
+    setIsLoaded(true);
+  };
 
-    // 2. Try resolving in English (Fallback)
-    if (language !== 'en') {
-      let enValue = fallbackTranslations;
-      for (const k of parts) {
-        if (enValue && typeof enValue === 'object' && k in enValue) {
-          enValue = enValue[k];
+  const t = useCallback((keyStr) => {
+    if (!keyStr) return '';
+    
+    // Resolve helper
+    const resolve = (obj, path) => {
+      const parts = path.split('.');
+      let current = obj;
+      for (const part of parts) {
+        if (current && typeof current === 'object' && part in current) {
+          current = current[part];
         } else {
-          enValue = undefined;
-          break;
+          return undefined;
         }
       }
-      if (enValue !== undefined && typeof enValue === 'string') return enValue;
+      return typeof current === 'string' ? current : undefined;
+    };
+
+    // 1. Try active language (Nested)
+    let result = resolve(activeTranslations, keyStr);
+    
+    // 2. Try active language (Flat search - sometimes keys are at root)
+    if (result === undefined) {
+      const parts = keyStr.split('.');
+      const lastPart = parts[parts.length - 1];
+      if (activeTranslations[lastPart] && typeof activeTranslations[lastPart] === 'string') {
+        result = activeTranslations[lastPart];
+      }
     }
 
-    // 3. Fallback logic: Format key as human readable string
-    const finalKeyName = parts[parts.length - 1];
-    const humanReadable = finalKeyName
-      .split('_')
-      .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
-      .join(' ');
-      
-    // 4. Developer debugging UI wrap
+    // 3. Try fallback language (Nested)
+    if (result === undefined) {
+      result = resolve(fallbackTranslations, keyStr);
+    }
+
+    // 4. Try fallback language (Flat search)
+    if (result === undefined) {
+      const parts = keyStr.split('.');
+      const lastPart = parts[parts.length - 1];
+      if (fallbackTranslations[lastPart] && typeof fallbackTranslations[lastPart] === 'string') {
+        result = fallbackTranslations[lastPart];
+      }
+    }
+
+    if (result !== undefined) return result;
+
+    // Last resort: human readable
+    const parts = keyStr.split('.');
+    const rawKey = parts[parts.length - 1];
+    const humanReadable = rawKey
+      .replace(/_/g, ' ')
+      .replace(/\b\w/g, l => l.toUpperCase());
+
     if (process.env.NODE_ENV === 'development' && isLoaded) {
-      console.warn(`[i18n] Missing key: ${keyStr}`);
+      console.warn(`[i18n] Missing key: ${keyStr} (Fallback: ${humanReadable})`);
     }
 
     return humanReadable;
-  }, [activeTranslations, fallbackTranslations, language, isLoaded]);
+  }, [activeTranslations, fallbackTranslations, isLoaded]);
 
-  const contextValue = React.useMemo(() => ({
-    language,
-    setLanguage: updateLanguage,
-    t,
-    isLoaded
-  }), [language, updateLanguage, t, isLoaded]);
-
-  const [shouldShowGuard, setShouldShowGuard] = useState(false);
-
-  useEffect(() => {
-    if (isLoaded) {
-      setShouldShowGuard(false);
-      return;
-    }
-
-    // Optimization: Don't show the sync screen for public pages or if no token exists
-    // especially during the initial app load/redirect to login.
-    const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
-    const isPublic = typeof window !== 'undefined' && (window.location.pathname === '/login' || window.location.pathname === '/');
-    
-    if (!token || isPublic) {
-      setShouldShowGuard(false);
-      return;
-    }
-
-    // Delay the visibility of the guard to prevent flickering on fast connections
-    const timer = setTimeout(() => {
-      setShouldShowGuard(true);
-    }, 600);
-
-    return () => clearTimeout(timer);
-  }, [isLoaded]);
+  const setLanguage = changeLanguage;
 
   return (
-    <LanguageContext.Provider value={contextValue}>
-      {shouldShowGuard && <TranslationGuard />}
+    <LanguageContext.Provider value={{ language, changeLanguage, setLanguage, t, isLoaded }}>
       {children}
     </LanguageContext.Provider>
   );
-}
+};
 
 export const useTranslation = () => {
   const context = useContext(LanguageContext);
-  if (!context) {
-    throw new Error('useTranslation must be used within a LanguageProvider');
-  }
+  if (!context) throw new Error('useTranslation must be used within a LanguageProvider');
   return context;
 };

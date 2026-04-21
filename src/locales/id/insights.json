@@ -30,5 +30,8 @@
   "star_menu": "MENU BINTANG",
   "profitable_menu": "MENU MENGUNTUNGKAN",
   "low_margin_menu": "MENU MARGIN RENDAH",
-  "underperforming_menu": "MENU KURANG PERFORMA"
+  "underperforming_menu": "MENU KURANG PERFORMA",
+  "ai_observation": "Observasi AI",
+  "neural_refresh_help": "BANTUAN REFRESH NEURAL",
+  "refresh_analysis": "REFRESH ANALISIS"
 }

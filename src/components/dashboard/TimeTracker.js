@@ -18,7 +18,7 @@ export default function TimeTracker() {
       if (!userStr) return;
       
       const user = JSON.parse(userStr);
-      const res = await api.get(`/shifts/current/${user.id}`);
+      const res = await api.get(`/shifts/current?userId=${user.id}`);
       
       if (res && res.status === 'OPEN') {
         const startTime = new Date(res.start_time).getTime();

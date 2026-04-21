@@ -24,7 +24,7 @@ export default function UserMenu() {
   const checkShiftStatus = async (currentUser) => {
     if (!currentUser) return;
     try {
-      const shift = await api.get(`/shifts/current/${currentUser.id}`);
+      const shift = await api.get(`/shifts/current?userId=${currentUser.id}`);
       setHasActiveShift(!!shift);
     } catch (e) {
       console.error("Shift check failed", e);
@@ -75,7 +75,7 @@ export default function UserMenu() {
     // Check for active shift
     if (user) {
       try {
-        const shift = await api.get(`/shifts/current/${user.id}`);
+        const shift = await api.get(`/shifts/current?userId=${user.id}`);
         if (shift) {
           error(t('shift.logout_shift_warning'));
           setIsOpen(false);

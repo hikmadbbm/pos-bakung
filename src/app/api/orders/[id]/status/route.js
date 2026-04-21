@@ -25,7 +25,7 @@ export async function PATCH(req, { params }) {
     }
 
     // PIN check for critical actions
-    if (status === 'CANCELLED' || (status === 'PAID' && user.role === 'CASHIER')) {
+    if (status === 'PAID' && user.role === 'CASHIER') {
       if (user.role !== 'MANAGER' && user.role !== 'OWNER') {
         if (!pin) {
           return NextResponse.json({ error: 'PIN is required for this action' }, { status: 403 });

@@ -99,8 +99,25 @@ export async function GET(req) {
         take: limit,
         skip: skip,
         include: {
-          orderItems: { include: { menu: { select: { name: true } } } },
-          platform: { select: { name: true } },
+          orderItems: { 
+            include: { 
+              menu: { 
+                include: { 
+                  prices: true
+                } 
+              } 
+            } 
+          },
+          orderPromotions: {
+            include: {
+              promotion: {
+                include: {
+                  conditions: true
+                }
+              }
+            }
+          },
+          platform: { select: { name: true, id: true } },
           paymentMethod: { select: { name: true, type: true } },
           user: { select: { id: true, name: true } },
         },

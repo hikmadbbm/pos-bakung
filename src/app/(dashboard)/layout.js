@@ -3,7 +3,7 @@ import React, { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion } from "framer-motion";
-import { LayoutDashboard, ShoppingCart, Utensils, DollarSign, BarChart, LogOut, Settings, Activity, Calendar, ClipboardList, Menu, X, Wallet, Smartphone, Users, Clock, Maximize2, Minimize2, RefreshCw, Sun, Moon, ShieldCheck } from "lucide-react";
+import { LayoutDashboard, ShoppingCart, Utensils, DollarSign, BarChart, LogOut, Settings, Activity, Calendar, ClipboardList, Menu, X, Wallet, Smartphone, Users, Clock, Maximize2, Minimize2, RefreshCw, Sun, Moon, ShieldCheck, Sparkles } from "lucide-react";
 import { setAuth, api, decodeAndValidateJwt } from "../../lib/api";
 import { useRouter } from "next/navigation";
 import { cn } from "../../lib/utils";
@@ -42,6 +42,7 @@ export function DashboardContent({ children }) {
       group: null,
       items: [
         { href: "/dashboard", label: t('nav.dashboard'), icon: LayoutDashboard },
+        { href: "/assistant", label: "Tje Strategic Assistant", icon: Sparkles },
       ]
     },
     {
@@ -124,9 +125,9 @@ export function DashboardContent({ children }) {
 
   // Define permissions mapping based on strict hierarchy
   const rolePermissions = {
-    OWNER: ["/dashboard", "/orders", "/order-history", "/products", "/expenses", "/finance", "/sales-reports", "/sales-insights", "/daily-shift", "/settings", "/kitchen", "/recipes", "/cashier-logs", "/raw-materials", "/add-stock", "/stock-room", "/promotions", "/settings/operational", "/audit-logs"],
-    ADMIN: ["/dashboard", "/orders", "/order-history", "/products", "/expenses", "/finance", "/sales-reports", "/sales-insights", "/daily-shift", "/kitchen", "/recipes", "/cashier-logs", "/raw-materials", "/add-stock", "/stock-room", "/promotions", "/settings/operational", "/audit-logs"],
-    MANAGER: ["/dashboard", "/orders", "/order-history", "/products", "/expenses", "/finance", "/sales-reports", "/sales-insights", "/daily-shift", "/kitchen", "/recipes", "/cashier-logs", "/raw-materials", "/add-stock", "/stock-room", "/promotions", "/settings/operational", "/audit-logs"],
+    OWNER: ["/dashboard", "/assistant", "/orders", "/order-history", "/products", "/expenses", "/finance", "/sales-reports", "/sales-insights", "/daily-shift", "/settings", "/kitchen", "/recipes", "/cashier-logs", "/raw-materials", "/add-stock", "/stock-room", "/promotions", "/settings/operational", "/audit-logs"],
+    ADMIN: ["/dashboard", "/assistant", "/orders", "/order-history", "/products", "/expenses", "/finance", "/sales-reports", "/sales-insights", "/daily-shift", "/kitchen", "/recipes", "/cashier-logs", "/raw-materials", "/add-stock", "/stock-room", "/promotions", "/settings/operational", "/audit-logs"],
+    MANAGER: ["/dashboard", "/assistant", "/orders", "/order-history", "/products", "/expenses", "/finance", "/sales-reports", "/sales-insights", "/daily-shift", "/kitchen", "/recipes", "/cashier-logs", "/raw-materials", "/add-stock", "/stock-room", "/promotions", "/settings/operational", "/audit-logs"],
     CASHIER: ["/orders", "/order-history", "/daily-shift", "/cashier-logs"],
     WAITER: ["/orders", "/order-history"],
     KITCHEN: ["/kitchen", "/order-history", "/products", "/raw-materials"],
@@ -174,7 +175,7 @@ export function DashboardContent({ children }) {
     try {
       if (user?.id) {
         try {
-          const shift = await api.get(`/shifts/current/${user.id}`);
+          const shift = await api.get(`/shifts/current?userId=${user.id}`);
           if (shift) {
             error("Active Shift Detected: You must stop your shift and reconcile cash before logging out.");
             return;

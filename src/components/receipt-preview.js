@@ -128,27 +128,60 @@ export function ReceiptPreview({ isOpen, onClose, order, config: propConfig, for
       data += ESC_POS.ALIGN_LEFT;
       data += `${t('receipt.ref')}: ${order.order_number}\n`;
       data += `${t('receipt.date')}: ${formatDate(order.date)}\n`;
+      if (order.platform?.name) {
+        data += `CHANNEL: ${order.platform.name.toUpperCase()}\n`;
+      }
       if (storeConfig.show_customer && order.customer_name) {
         data += `${t('common.guest')}: ${order.customer_name}\n`;
       }
       data += ESC_POS.separator(width);
       
+      let calculatedSubtotal = 0;
       order.orderItems.forEach(item => {
+        const orderPlatId = Number(order.platform_id);
+        const menuPriceOnPlatform = item.menu?.prices?.find(p => Number(p.platform_id) === orderPlatId)?.price;
+        const unitRefPrice = Math.max(
+          menuPriceOnPlatform || 0,
+          item.price || 0,
+          (order.platform_id ? 0 : (item.menu?.price || 0))
+        );
+        const refPriceTotal = unitRefPrice * item.qty;
+
+        let itemPromoDiscount = 0;
+        let itemPromoNames = [];
+        order.orderPromotions?.forEach(op => {
+          const pIds = op.promotion?.conditions?.[0]?.productIds || [];
+          if (pIds.length > 0 && pIds.includes(item.menu_id)) {
+            const totalEligibleItemsQty = order.orderItems
+              .filter(oi => pIds.includes(oi.menu_id))
+              .reduce((sum, oi) => sum + oi.qty, 0);
+            if (totalEligibleItemsQty > 0) {
+              itemPromoDiscount += (op.amount / totalEligibleItemsQty) * item.qty;
+              if (!itemPromoNames.includes(op.promotion.name)) itemPromoNames.push(op.promotion.name);
+            }
+          }
+        });
+
+        const finalItemPrice = refPriceTotal - itemPromoDiscount;
+        calculatedSubtotal += finalItemPrice;
+
         const itemTypeMark = item.menu?.productType === 'CONSIGNMENT' ? ' (Titipan)' : '';
         data += (item.menu?.name || "Unknown") + itemTypeMark + "\n";
-        data += ESC_POS.BOLD_Off;
- 
-        // Line 2: Note (Italic)
+        
+        if (itemPromoNames.length > 0) {
+          data += `[${itemPromoNames.join(', ')}]\n`;
+        }
+
         if (item.note) {
           data += ESC_POS.ITALIC_ON;
           data += `- ${item.note}\n`;
           data += ESC_POS.ITALIC_OFF;
         }
- 
-        // Line 3: Qty x Price and Total
-        const priceToUse = item.price || 0;
-        const qtyPrice = `${item.qty} x ${formatIDR(priceToUse).replace('Rp', '').trim()}`;
-        const itemTotal = formatIDR(item.qty * priceToUse).replace('Rp', '').trim();
+
+        const qtyStr = `${item.qty} x ${unitRefPrice.toLocaleString()}`;
+        const discMark = itemPromoDiscount > 0 ? ` (${(finalItemPrice/item.qty).toLocaleString()})` : '';
+        const qtyPrice = qtyStr + discMark;
+        const itemTotal = finalItemPrice.toLocaleString();
         data += ESC_POS.formatTwoColumns(qtyPrice, itemTotal, width);
       });
  
@@ -159,11 +192,9 @@ export function ReceiptPreview({ isOpen, onClose, order, config: propConfig, for
         data += order.note + "\n";
       }
       
-      data += ESC_POS.separator(width);
+      data += ESC_POS.formatTwoColumns(t('receipt.subtotal'), formatIDR(calculatedSubtotal), width);
       
-      data += ESC_POS.formatTwoColumns(t('receipt.subtotal'), formatIDR(order.total), width);
-      
-      let finalTotal = order.total;
+      let finalTotal = calculatedSubtotal;
       
       if (order.service_amount > 0) {
         data += ESC_POS.formatTwoColumns(`${t('receipt.service')} (${order.service_rate || storeConfig.service_charge}%)`, formatIDR(order.service_amount), width);
@@ -196,14 +227,17 @@ export function ReceiptPreview({ isOpen, onClose, order, config: propConfig, for
  
       data += ESC_POS.separator(width);
       const isUnpaid = order.status === 'UNPAID';
-      const receivedAmount = isUnpaid ? 0 : (order.money_received ?? finalTotal);
-      const changeAmount = Math.max(0, receivedAmount - finalTotal);
+      const isPlatform = !!order.platform_id;
+      const receivedAmount = isUnpaid ? 0 : (isPlatform ? finalTotal : (order.money_received ?? finalTotal));
+      const changeAmount = isPlatform ? 0 : Math.max(0, receivedAmount - finalTotal);
       
       if (isUnpaid) {
         data += ESC_POS.formatTwoColumns('TOTAL HUTANG', formatIDR(finalTotal), width);
       } else {
         data += ESC_POS.formatTwoColumns(t('receipt.paid'), formatIDR(receivedAmount), width);
-        data += ESC_POS.formatTwoColumns(t('receipt.change'), formatIDR(changeAmount), width);
+        if (!isPlatform) {
+          data += ESC_POS.formatTwoColumns(t('receipt.change'), formatIDR(changeAmount), width);
+        }
       }
       
       data += ESC_POS.separator(width);
@@ -409,6 +443,9 @@ export function ReceiptPreview({ isOpen, onClose, order, config: propConfig, for
                       <div className="space-y-1 py-1">
                         <div className="flex justify-between"><span>{t('receipt.ref')}:</span><span className="font-black">{order.order_number}</span></div>
                         <div className="flex justify-between"><span>{t('receipt.date')}:</span><span>{formatDate(order.date)}</span></div>
+                        {order.platform?.name && (
+                          <div className="flex justify-between"><span className="text-emerald-600 font-black">CHANNEL:</span><span className="font-black text-emerald-600">{order.platform.name.toUpperCase()}</span></div>
+                        )}
                         {storeConfig.show_customer && order.customer_name && (
                           <div className="flex justify-between"><span>{t('common.guest').toUpperCase()}:</span><span className="font-black">{order.customer_name}</span></div>
                         )}
@@ -417,24 +454,92 @@ export function ReceiptPreview({ isOpen, onClose, order, config: propConfig, for
                       <div className="border-b-[1.5px] border-dashed border-slate-200" />
                       
                       <div className="space-y-2 py-2">
-                        {order.orderItems?.map((item, idx) => (
-                          <div key={idx} className="space-y-0.5">
-                            <p className="font-black leading-tight">
-                              {item.menu?.name} {item.menu?.productType === 'CONSIGNMENT' && <span className="text-amber-600 italic">(Titipan)</span>}
-                            </p>
-                            {item.note && <p className="italic text-[8px] opacity-70">- {item.note}</p>}
-                            <div className="flex justify-between items-center text-[8px] opacity-80 pt-0.5">
-                              <span>{item.qty} x {formatIDR(item.price).replace('Rp', '').trim()}</span>
-                              <span className="font-bold">{formatIDR(item.qty * item.price).replace('Rp', '').trim()}</span>
-                            </div>
-                          </div>
-                        ))}
+                        {order.orderItems?.map((item, idx) => {
+                           const orderPlatId = Number(order.platform_id);
+                           const menuPriceOnPlatform = item.menu?.prices?.find(p => Number(p.platform_id) === orderPlatId)?.price;
+                           
+                           // If it's a platform order, we should try to find the platform price as the reference
+                           // If item.price is ALREADY higher than menuPriceOnPlatform, use item.price as reference (it might be the platform price)
+                           const unitRefPrice = Math.max(
+                             menuPriceOnPlatform || 0,
+                             item.price || 0,
+                             (order.platform_id ? 0 : (item.menu?.price || 0))
+                           );
+                           const refPriceTotal = unitRefPrice * item.qty;
+
+                           let itemPromoDiscount = 0;
+                           let itemPromoNames = [];
+                           order.orderPromotions?.forEach(op => {
+                             const pIds = op.promotion?.conditions?.[0]?.productIds || [];
+                             if (pIds.length > 0 && pIds.includes(item.menu_id)) {
+                               const totalEligibleItemsQty = order.orderItems
+                                 .filter(oi => pIds.includes(oi.menu_id))
+                                 .reduce((sum, oi) => sum + oi.qty, 0);
+                               if (totalEligibleItemsQty > 0) {
+                                 itemPromoDiscount += (op.amount / totalEligibleItemsQty) * item.qty;
+                                 if (!itemPromoNames.includes(op.promotion.name)) itemPromoNames.push(op.promotion.name);
+                               }
+                             }
+                           });
+
+                           const finalDisplayPrice = refPriceTotal - itemPromoDiscount;
+                           const isDiscounted = itemPromoDiscount > 0;
+
+                           return (
+                             <div key={idx} className="space-y-0.5">
+                               <p className="font-black leading-tight">
+                                 {item.menu?.name} {item.menu?.productType === 'CONSIGNMENT' && <span className="text-amber-600 italic">(Titipan)</span>}
+                               </p>
+                               {itemPromoNames.length > 0 && (
+                                 <p className="text-[7px] font-black uppercase text-emerald-600">[{itemPromoNames.join(', ')}]</p>
+                               )}
+                               {item.note && <p className="italic text-[8px] opacity-70">- {item.note}</p>}
+                               <div className="flex justify-between items-center text-[8px] opacity-80 pt-0.5">
+                                 <div className="flex items-center gap-1.5">
+                                   <span>{item.qty} x </span>
+                                   {isDiscounted ? (
+                                      <>
+                                        <span className="line-through">{unitRefPrice.toLocaleString()}</span>
+                                        <span className="font-bold">{(finalDisplayPrice/item.qty).toLocaleString()}</span>
+                                      </>
+                                   ) : (
+                                      <span>{unitRefPrice.toLocaleString()}</span>
+                                   )}
+                                 </div>
+                                 <span className="font-bold">{finalDisplayPrice.toLocaleString()}</span>
+                               </div>
+                             </div>
+                           );
+                        })}
                       </div>
                       
                       <div className="border-b-[1.5px] border-dashed border-slate-200" />
                       
-                      <div className="space-y-1.5 py-1">
-                        <div className="flex justify-between"><span>{t('receipt.subtotal')}</span><span className="tabular-nums">{formatIDR(order.total)}</span></div>
+                       <div className="space-y-1.5 py-1">
+                         <div className="flex justify-between"><span>{t('receipt.subtotal')}</span><span className="tabular-nums">
+                            {(() => {
+                               const sub = order.orderItems.reduce((acc, item) => {
+                                  const orderPlatId = Number(order.platform_id);
+                                  const menuPriceOnPlatform = item.menu?.prices?.find(p => Number(p.platform_id) === orderPlatId)?.price;
+                                  const unitRefPrice = menuPriceOnPlatform || item.menu?.price || item.price;
+                                  const refPriceTotal = unitRefPrice * item.qty;
+                                  let itemPromoDiscount = 0;
+                                  order.orderPromotions?.forEach(op => {
+                                    const pIds = op.promotion?.conditions?.[0]?.productIds || [];
+                                    if (pIds.length > 0 && pIds.includes(item.menu_id)) {
+                                      const totalEligibleItemsQty = order.orderItems
+                                        .filter(oi => pIds.includes(oi.menu_id))
+                                        .reduce((sum, oi) => sum + oi.qty, 0);
+                                      if (totalEligibleItemsQty > 0) {
+                                        itemPromoDiscount += (op.amount / totalEligibleItemsQty) * item.qty;
+                                      }
+                                    }
+                                  });
+                                  return acc + (refPriceTotal - itemPromoDiscount);
+                               }, 0);
+                               return formatIDR(sub);
+                            })()}
+                         </span></div>
                         
                         {order.service_amount > 0 ? (
                           <div className="flex justify-between opacity-80">
@@ -462,21 +567,34 @@ export function ReceiptPreview({ isOpen, onClose, order, config: propConfig, for
                           </div>
                         ) : null}
                         
-                        {order.discount > 0 && (
-                          <div className="flex justify-between font-bold">
-                            <span>{t('receipt.discount')}</span>
-                            <span className="tabular-nums">-{formatIDR(order.discount)}</span>
-                          </div>
-                        )}
+
                         
                         <div className="flex justify-between font-black text-sm pt-3 border-t-[1.5px] border-slate-900/5 mt-2">
                           <span className="tracking-tighter uppercase">{t('receipt.total')}</span>
-                          <span className="tabular-nums">{formatIDR(Math.max(0, 
-                            order.total + 
-                            (order.service_amount || (order.hasOwnProperty('service_amount') ? 0 : Math.round(order.total * (storeConfig.service_charge / 100 || 0)))) + 
-                            (order.tax_amount || (order.hasOwnProperty('tax_amount') ? 0 : Math.round((order.total + (order.total * (storeConfig.service_charge / 100 || 0))) * (storeConfig.tax_rate / 100 || 0)))) - 
-                            (order.discount || 0)
-                          ))}</span>
+                          <span className="tabular-nums">
+                            {(() => {
+                               const sub = order.orderItems.reduce((acc, item) => {
+                                  const orderPlatId = Number(order.platform_id);
+                                  const menuPriceOnPlatform = item.menu?.prices?.find(p => Number(p.platform_id) === orderPlatId)?.price;
+                                  const unitRefPrice = menuPriceOnPlatform || item.menu?.price || item.price;
+                                  const refPriceTotal = unitRefPrice * item.qty;
+                                  let itemPromoDiscount = 0;
+                                  order.orderPromotions?.forEach(op => {
+                                    const pIds = op.promotion?.conditions?.[0]?.productIds || [];
+                                    if (pIds.length > 0 && pIds.includes(item.menu_id)) {
+                                      const totalEligibleItemsQty = order.orderItems
+                                        .filter(oi => pIds.includes(oi.menu_id))
+                                        .reduce((sum, oi) => sum + oi.qty, 0);
+                                      if (totalEligibleItemsQty > 0) {
+                                        itemPromoDiscount += (op.amount / totalEligibleItemsQty) * item.qty;
+                                      }
+                                    }
+                                  });
+                                  return acc + (refPriceTotal - itemPromoDiscount);
+                               }, 0);
+                               return formatIDR(sub + (order.service_amount || 0) + (order.tax_amount || 0));
+                            })()}
+                          </span>
                         </div>
                       </div>
 
@@ -498,21 +616,30 @@ export function ReceiptPreview({ isOpen, onClose, order, config: propConfig, for
                           <>
                             <div className="flex justify-between opacity-80">
                               <span>{t('receipt.paid')}</span>
-                              <span>{formatIDR(order.money_received ?? (order.total + 
-                                (order.service_amount || 0) + 
-                                (order.tax_amount || 0) - 
-                                (order.discount || 0))
-                              )}</span>
+                              <span>
+                                {(() => {
+                                  const orderPlatId = Number(order.platform_id);
+                                  const sub = order.orderItems.reduce((acc, item) => {
+                                    const menuPriceOnPlat = item.menu?.prices?.find(p => Number(p.platform_id) === orderPlatId)?.price;
+                                    const unitRef = Math.max(menuPriceOnPlat || 0, item.price || 0, (order.platform_id ? 0 : (item.menu?.price || 0)));
+                                    let itemDisc = 0;
+                                    order.orderPromotions?.forEach(op => {
+                                      const pIds = op.promotion?.conditions?.[0]?.productIds || [];
+                                      if (pIds.includes(item.menu_id)) {
+                                          const totElig = order.orderItems.filter(oi => pIds.includes(oi.menu_id)).reduce((s, x) => s + x.qty, 0);
+                                          if (totElig > 0) itemDisc += (op.amount / totElig) * item.qty;
+                                      }
+                                    });
+                                    return acc + (unitRef * item.qty - itemDisc);
+                                  }, 0);
+                                  const finalT = sub + (order.service_amount || 0) + (order.tax_amount || 0);
+                                  return formatIDR(order.platform_id ? finalT : (order.money_received ?? finalT));
+                                })()}
+                              </span>
                             </div>
                             <div className="flex justify-between opacity-80 text-emerald-700">
                               <span>{t('receipt.change')}</span>
-                              <span>{formatIDR(Math.max(0, (order.money_received ?? (order.total + 
-                                (order.service_amount || 0) + 
-                                (order.tax_amount || 0) - 
-                                (order.discount || 0))) - (order.total + 
-                                (order.service_amount || 0) + 
-                                (order.tax_amount || 0) - 
-                                (order.discount || 0))))}</span>
+                              <span>{formatIDR(order.platform_id ? 0 : Math.max(0, (order.money_received ?? 0) - order.total))}</span>
                             </div>
                           </>
                         )}

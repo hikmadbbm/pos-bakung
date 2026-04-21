@@ -54,7 +54,7 @@ export async function syncDailySummary(targetDate = new Date()) {
   const revenue = orders.reduce((acc, o) => acc + Math.max(0, (o.total || 0) - (o.discount || 0)), 0);
   
   // Net Revenue: Revenue after platform commission (prioritize manual reconciliation)
-  const net_revenue = orders.reduce((acc, o) => acc + (o.platform_actual_net ?? o.net_revenue ?? 0), 0);
+  const net_revenue = orders.reduce((acc, o) => acc + (o.platform_actual_net || o.net_revenue || 0), 0);
   
   // COGS: Only for OWN_PRODUCTS
   const cogs = orders.reduce((acc, o) => {
@@ -100,7 +100,7 @@ export async function syncDailySummary(targetDate = new Date()) {
     const targetStatus = (!isStoreOpen && income === 0) ? 'NO_SALES' : 'PENDING';
 
     if (existing) {
-      if (existing.status === 'RECEIVED') return;
+      if (existing.status === 'RECEIVED' || existing.status === 'NO_SALES') return;
       return prisma.consignmentDailyLog.update({
         where: { id: existing.id },
         data: {

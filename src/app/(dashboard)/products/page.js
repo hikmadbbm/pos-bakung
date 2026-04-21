@@ -529,14 +529,28 @@ export default function MenuPage() {
               </div>
 
               <div className="flex justify-between items-end border-t border-slate-50 pt-4">
-                <div>
+                <div className="w-full">
                   <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1">{t('common.price')}</p>
-                  <p className="font-black text-slate-900 text-xl tabular-nums tracking-tighter">{formatIDR(m.price)}</p>
+                  <div className="flex items-end justify-between">
+                    <p className="font-black text-slate-900 text-xl tabular-nums tracking-tighter">{formatIDR(m.price)}</p>
+                    <div className="text-right">
+                      <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1">{t('orders.profit')}</p>
+                      <p className="font-black text-emerald-600 text-lg">{formatIDR(m.profit)}</p>
+                    </div>
+                  </div>
                 </div>
-                <div className="text-right">
-                  <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1">{t('orders.profit')}</p>
-                  <p className="font-black text-emerald-600 text-lg">{formatIDR(m.profit)}</p>
-                </div>
+              </div>
+
+              {/* Platform Selling Prices (Mobile) */}
+              <div className="grid grid-cols-2 gap-2 mt-1">
+                {platforms.map(p => (
+                  <div key={p.id} className="px-3 py-2 rounded-xl bg-slate-50/50 border border-slate-100 flex justify-between items-center">
+                    <span className="text-[8px] font-black text-slate-400 uppercase tracking-tight">{p.name}</span>
+                    <span className="text-[10px] font-black text-slate-900 tabular-nums">
+                      {m.prices && m.prices[p.id] ? formatIDR(m.prices[p.id]) : "-"}
+                    </span>
+                  </div>
+                ))}
               </div>
 
               <div className="flex gap-2 pt-4 border-t border-slate-50">

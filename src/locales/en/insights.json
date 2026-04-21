@@ -30,5 +30,8 @@
   "star_menu": "STAR MENU",
   "profitable_menu": "PROFITABLE MENU",
   "low_margin_menu": "LOW MARGIN MENU",
-  "underperforming_menu": "UNDERPERFORMING MENU"
+  "underperforming_menu": "UNDERPERFORMING MENU",
+  "ai_observation": "AI OBSERVATION",
+  "neural_refresh_help": "NEURAL REFRESH HELP",
+  "refresh_analysis": "REFRESH ANALYSIS"
 }

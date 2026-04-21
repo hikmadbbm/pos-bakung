@@ -28,7 +28,7 @@ export default function ShiftReportModal({ isOpen, shiftId, onFinish }) {
     if (!shiftId || loading) return;
     setLoading(true);
     try {
-      const res = await api.get(`/shifts/${shiftId}/report`);
+      const res = await api.get(`/shifts/report?shiftId=${shiftId}`);
       setReport(res);
       setHasAttempted(true);
     } catch (err) {

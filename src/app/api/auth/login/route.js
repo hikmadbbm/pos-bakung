@@ -6,8 +6,6 @@ import { generateToken } from '@/lib/auth';
 import { neon } from '@neondatabase/serverless';
 import { logActivity } from '@/lib/audit';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret';
-
 export const runtime = 'nodejs';
 
 export async function POST(req) {

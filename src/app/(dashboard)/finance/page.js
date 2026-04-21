@@ -65,6 +65,8 @@ export default function ConsignmentSettlementPage() {
 
   const loadPnL = async () => {
     setPnlLoading(true);
+    let startStr = "";
+    let endStr = "";
     try {
       // Calculate date range based on pnlRange
       const now = new Date();

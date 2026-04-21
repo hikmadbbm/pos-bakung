@@ -1,4 +1,8 @@
 {
+  "title": "Pesanan Baru",
+  "select_items": "Pilih Item",
+  "reauthorize": "Otorisasi Ulang",
+  "qris_scan": "Scan QRIS untuk bayar",
   "order_summary": "Ringkasan Pesanan",
   "empty_cart": "Kosongkan Keranjang",
   "cart_empty": "Keranjang Anda sepi",
@@ -8,6 +12,8 @@
   "service": "Biaya Layanan",
   "total_payable": "Total Bayar",
   "authorize_settlement": "Otorisasi Pembayaran",
+  "pay_now": "Bayar Sekarang",
+  "process_transaction": "Proses Transaksi",
   "checkout": "Checkout",
   "customer_name": "Nama Pelanggan",
   "payment_method": "Metode Pembayaran",

@@ -19,7 +19,7 @@ export default function DiagnosticPage() {
       // For now, we'll keep the existing one but ensure it handles potential 401/404 gracefully.
       const userStr = localStorage.getItem("user");
       const userId = userStr ? JSON.parse(userStr).id : "";
-      await api.get(`/shifts/current/${userId}`); // This endpoint requires authentication and a user ID.
+      await api.get(`/shifts/current?userId=${userId}`); // This endpoint requires authentication and a user ID.
       updateCheck("api", "success", `Connected in ${Date.now() - start}ms`);
     } catch (e) {
       // Handle specific error codes if needed, e.g., 401 for auth issues, 404 for not found.

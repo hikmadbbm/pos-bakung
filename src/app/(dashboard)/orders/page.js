@@ -3,7 +3,7 @@ import { useEffect, useState, useCallback, useMemo } from "react";
 import { api } from "../../../lib/api";
 import { formatIDR } from "../../../lib/format";
 import { Button } from "../../../components/ui/button";
-import { Plus, Minus, Trash2, ShoppingCart, CreditCard, Banknote, Smartphone, Receipt, Clock, Save, AlertCircle, RefreshCcw, ShoppingBag, Maximize2, FileText, X } from "lucide-react";
+import { Plus, Minus, Trash2, ShoppingCart, CreditCard, Banknote, Smartphone, Receipt, Clock, Save, AlertCircle, RefreshCcw, ShoppingBag, Maximize2, FileText, X, Zap, ChevronDown } from "lucide-react";
 
 import { cn } from "../../../lib/utils";
 import { Select } from "../../../components/ui/select";
@@ -198,7 +198,10 @@ export default function OrdersPage() {
 
   // Component UI State
   const [selectedCategory, setSelectedCategory] = useState("ALL");
-  const [selectedPlatform, setSelectedPlatform] = useState("");
+  const [selectedPlatform, setSelectedPlatform] = useState(() => {
+    if (typeof window !== 'undefined') return localStorage.getItem('pos_selected_platform') || "";
+    return "";
+  });
   const [completedOrder, setCompletedOrder] = useState(null);
   const [allActivePMs, setAllActivePMs] = useState(defaultPaymentMethods);
   const [isStartShiftOpen, setIsStartShiftOpen] = useState(false);
@@ -219,6 +222,7 @@ export default function OrdersPage() {
   const [isDeletingPending, setIsDeletingPending] = useState(false);
   const [cancelReason, setCancelReason] = useState("");
   const [isCancelReasonOpen, setIsCancelReasonOpen] = useState(false);
+  const [isPlatformMenuOpen, setIsPlatformMenuOpen] = useState(false);
 
   const { isFocusMode } = useFocusMode();
   const { connectionStatus, device, reconnect, connect } = usePrinter();
@@ -226,15 +230,20 @@ export default function OrdersPage() {
   // Promotion Engine State
   const [promoDiscount, setPromoDiscount] = useState(0);
   const [appliedPromos, setAppliedPromos] = useState([]);
+  const [itemDiscounts, setItemDiscounts] = useState({});
 
   // Derived Values & Platform Logic
   const platform = useMemo(() => platforms.find(p => p.id.toString() === selectedPlatform), [platforms, selectedPlatform]);
   const isDelivery = platform?.type === "DELIVERY";
 
   const getPrice = useCallback((menu) => {
-    if (!selectedPlatform) return menu.price;
-    if (menu.prices && menu.prices[selectedPlatform]) return menu.prices[selectedPlatform];
-    return menu.price;
+    // If no platform selected or no custom prices, return default base price
+    if (!selectedPlatform || !menu.prices) return menu.price;
+    
+    // Check both string and numeric keys for platform_id to be safe
+    const platformPrice = menu.prices[selectedPlatform] ?? menu.prices[Number(selectedPlatform)];
+    
+    return platformPrice ?? menu.price;
   }, [selectedPlatform]);
 
   const { subtotal, appliedDiscount, amountAfterDiscount, taxAmount, serviceAmount, total } = useMemo(() =>
@@ -289,6 +298,13 @@ export default function OrdersPage() {
       return { ...item, price: newPrice };
     }));
   }, [selectedPlatform, menus]); // We don't include cart here to avoid infinite loop, setCart functional update keeps it safe
+  
+  // Persist platform selection
+  useEffect(() => {
+    if (selectedPlatform) {
+      localStorage.setItem('pos_selected_platform', selectedPlatform);
+    }
+  }, [selectedPlatform]);
 
   // Auto-evaluate promotions
   useEffect(() => {
@@ -309,6 +325,7 @@ export default function OrdersPage() {
         });
         setPromoDiscount(res.totalDiscount || 0);
         setAppliedPromos(res.appliedPromos || []);
+        setItemDiscounts(res.itemDiscounts || {});
       } catch (e) {
         console.error("Promo evaluation failed", e);
       }
@@ -371,8 +388,13 @@ export default function OrdersPage() {
         }
 
         if (res.platforms?.length > 0) {
-          const defaultPlatform = res.platforms.find(plat => plat.name?.toLowerCase() === "take away") || res.platforms[0];
-          setSelectedPlatform(defaultPlatform?.id?.toString() || "");
+          const savedPlatform = localStorage.getItem('pos_selected_platform');
+          if (savedPlatform && res.platforms.some(p => p.id.toString() === savedPlatform)) {
+            setSelectedPlatform(savedPlatform);
+          } else {
+            const defaultPlatform = res.platforms.find(plat => plat.name?.toLowerCase() === "take away") || res.platforms[0];
+            setSelectedPlatform(defaultPlatform?.id?.toString() || "");
+          }
         }
       }
     } catch (e) {
@@ -569,8 +591,15 @@ export default function OrdersPage() {
                     {menu.name} {menu.productType === 'CONSIGNMENT' && <span className="text-amber-600 italic">(Titipan)</span>}
                   </h3>
                   <span className="text-[10px] sm:text-xs bg-slate-900/5 px-2 py-0.5 rounded text-slate-600 font-bold uppercase w-fit">{menu.category?.name}</span>
-                  <div className="mt-1">
-                    <div className="text-[13px] sm:text-lg font-black text-emerald-700 font-mono italic">{formatIDR(price)}</div>
+                  <div className="mt-1 flex flex-col gap-0.5">
+                    {price !== menu.price && (
+                      <div className="text-[10px] font-bold text-slate-400 line-through decoration-slate-300">
+                        {formatIDR(menu.price)}
+                      </div>
+                    )}
+                    <div className="text-[13px] sm:text-lg font-black text-emerald-700 font-mono italic">
+                      {formatIDR(price)}
+                    </div>
                   </div>
                 </div>
               </button>
@@ -582,10 +611,78 @@ export default function OrdersPage() {
       {/* RIGHT: Cart Section */}
       <div className="md:col-span-5 lg:col-span-4 flex flex-col min-h-0 h-full gap-4">
         <div className="flex-1 glass-card flex flex-col overflow-hidden shadow-2xl">
-          <div className="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
-            <div className="flex flex-col gap-0.5">
-               <h3 className="text-xs font-black uppercase tracking-[0.2em] flex items-center gap-2"><ShoppingCart className="w-4 h-4 text-emerald-600" /> {t('pos.order_summary')}</h3>
-               {currentOrderNumber && <p className="text-[10px] font-black text-rose-500 uppercase tracking-widest pl-6">ID: {currentOrderNumber}</p>}
+          <div className="p-4 border-b border-slate-100 flex justify-between items-center bg-white/80 backdrop-blur-md sticky top-0 z-10 px-6 h-16">
+            <div className="flex items-center gap-3">
+               <div className="p-2.5 bg-emerald-50 rounded-2xl flex-shrink-0">
+                 <ShoppingCart className="w-5 h-5 text-emerald-600" />
+               </div>
+               <div className="flex flex-col">
+                 <h3 className="text-xs font-black uppercase tracking-[0.2em] text-slate-800 leading-none">{t('pos.order_summary')}</h3>
+                 {currentOrderNumber && <span className="text-[10px] font-black text-rose-500 uppercase tracking-widest mt-1.5 flex items-center gap-1"><div className="w-1 h-1 rounded-full bg-rose-500 animate-pulse" /> #{currentOrderNumber}</span>}
+               </div>
+            </div>
+            
+            <div className="flex items-center">
+               <div className="relative">
+                 <button 
+                   onClick={() => setIsPlatformMenuOpen(!isPlatformMenuOpen)}
+                   className="relative group w-32 h-10 bg-emerald-50 border border-emerald-100/50 text-emerald-900 text-[10px] font-black uppercase px-4 rounded-2xl flex items-center justify-between hover:bg-emerald-100 transition-all shadow-sm active:scale-95"
+                 >
+                   <div className="flex items-center gap-2">
+                     <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                     <span className="truncate">{platform?.name || 'Platform'}</span>
+                   </div>
+                   <ChevronDown className={cn("w-4 h-4 text-emerald-600 transition-transform duration-300", isPlatformMenuOpen ? "rotate-180" : "")} />
+                 </button>
+
+                 {isPlatformMenuOpen && (
+                   <>
+                     <div className="fixed inset-0 z-40" onClick={() => setIsPlatformMenuOpen(false)} />
+                     <div className="absolute right-0 mt-3 w-48 bg-white border border-slate-200 rounded-[2rem] shadow-2xl z-50 overflow-hidden p-2 animate-in fade-in zoom-in-95 duration-200 origin-top-right">
+                       <div className="p-3 mb-1 border-b border-slate-50">
+                          <p className="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em] px-2 text-center">{t('orders.type')}</p>
+                       </div>
+                       {platforms.map(p => {
+                         const isActive = selectedPlatform === p.id.toString();
+                         const name = p.name?.toLowerCase() || '';
+                         const isShopee = name.includes('shopee');
+                         const isGrab = name.includes('grab');
+                         const isTakeAway = name.includes('take');
+                         
+                         return (
+                           <button 
+                             key={p.id}
+                             onClick={() => {
+                               setSelectedPlatform(p.id.toString());
+                               setIsPlatformMenuOpen(false);
+                             }}
+                             className={cn(
+                               "w-full flex items-center gap-3 px-4 py-3 rounded-[1.25rem] text-left transition-all active:scale-95 group",
+                               isActive 
+                                 ? "bg-emerald-50 text-emerald-700" 
+                                 : "text-slate-600 hover:bg-slate-50"
+                             )}
+                           >
+                             <div className={cn(
+                               "w-9 h-9 rounded-xl flex items-center justify-center transition-all shadow-sm",
+                               isShopee ? "bg-[#EE4D2D] text-white" :
+                               isGrab ? "bg-[#00B14F] text-white" :
+                               isTakeAway ? "bg-amber-500 text-white" :
+                               "bg-slate-900 text-white"
+                             )}>
+                               {isShopee ? <Zap className="w-5 h-5 fill-white" /> : 
+                                isGrab ? <Smartphone className="w-5 h-5" /> :
+                                isTakeAway ? <ShoppingBag className="w-5 h-5" /> :
+                                <Clock className="w-5 h-5" />}
+                             </div>
+                             <span className="text-[11px] font-black uppercase tracking-tight">{p.name}</span>
+                           </button>
+                         );
+                       })}
+                     </div>
+                   </>
+                 )}
+               </div>
             </div>
             <div className="flex items-center gap-1">
               {cart.length > 0 && (
@@ -632,28 +729,50 @@ export default function OrdersPage() {
                 <span className="text-xs font-black uppercase tracking-widest text-center">{t('pos.cart_empty')}</span>
               </div>
             ) : (
-              cart.map((item) => (
-                <div key={item.cartItemId} className="p-3 bg-white border border-slate-100 rounded-2xl space-y-2 group">
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <div className="font-black text-xs uppercase tracking-tight line-clamp-1">{item.name}</div>
-                      <div className="text-[10px] font-bold text-slate-500 font-mono">{formatIDR(item.price)} {item.note && <span className="text-amber-600">- {item.note}</span>}</div>
+              cart.map((item) => {
+                const thisItemDiscount = itemDiscounts[item.cartItemId] || 0;
+                
+                return (
+                  <div key={item.cartItemId} className="p-3 bg-white border border-slate-100 rounded-2xl space-y-2 group">
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <div className="font-black text-xs uppercase tracking-tight line-clamp-1">{item.name}</div>
+                        <div className="flex flex-col mt-0.5">
+                          {thisItemDiscount > 0 && (
+                            <div className="text-[9px] font-bold text-slate-300 line-through decoration-slate-200 leading-none mb-0.5">
+                              {formatIDR(item.price)}
+                            </div>
+                          )}
+                          <div className="text-[10px] font-bold text-slate-500 font-mono leading-none">
+                            {formatIDR(item.price - (thisItemDiscount / item.qty))} {item.note && <span className="text-amber-600 truncate max-w-[100px] inline-block align-bottom ml-1">- {item.note}</span>}
+                          </div>
+                        </div>
+                      </div>
+                      <button onClick={() => updateQty(item.cartItemId, -item.qty)} className="text-slate-300 hover:text-rose-500"><Trash2 className="w-3.5 h-3.5" /></button>
                     </div>
-                    <button onClick={() => updateQty(item.cartItemId, -item.qty)} className="text-slate-300 hover:text-rose-500"><Trash2 className="w-3.5 h-3.5" /></button>
+                    <div className="flex justify-between items-center">
+                      <div className="flex items-center gap-2 bg-slate-50 px-2 py-1 rounded-lg border">
+                        <button onClick={() => updateQty(item.cartItemId, -1)} className="hover:text-emerald-600"><Minus className="w-3 h-3" /></button>
+                        <span className="text-xs font-black w-6 text-center">{item.qty}</span>
+                        <button onClick={() => updateQty(item.cartItemId, 1)} className="hover:text-emerald-600"><Plus className="w-3 h-3" /></button>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <button onClick={() => { setEditingNoteItem(item); setTempNote(item.note || ""); }} className={cn("p-1.5 rounded-lg border shadow-sm", item.note ? "bg-amber-100 border-amber-300 text-amber-700" : "bg-white text-slate-400 hover:text-slate-600")}><FileText className="w-3 h-3" /></button>
+                        <div className="flex flex-col items-end">
+                          {thisItemDiscount > 0 && (
+                            <span className="text-[8px] font-black text-slate-300 line-through leading-none mb-0.5">
+                              {formatIDR(item.price * item.qty)}
+                            </span>
+                          )}
+                          <div className="text-xs font-black text-slate-900 font-mono leading-none">
+                            {formatIDR((item.price * item.qty) - thisItemDiscount)}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
                   </div>
-                  <div className="flex justify-between items-center">
-                    <div className="flex items-center gap-2 bg-slate-50 px-2 py-1 rounded-lg border">
-                      <button onClick={() => updateQty(item.cartItemId, -1)} className="hover:text-emerald-600"><Minus className="w-3 h-3" /></button>
-                      <span className="text-xs font-black w-6 text-center">{item.qty}</span>
-                      <button onClick={() => updateQty(item.cartItemId, 1)} className="hover:text-emerald-600"><Plus className="w-3 h-3" /></button>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <button onClick={() => { setEditingNoteItem(item); setTempNote(item.note || ""); }} className={cn("p-1.5 rounded-lg border shadow-sm", item.note ? "bg-amber-100 border-amber-300 text-amber-700" : "bg-white text-slate-400 hover:text-slate-600")}><FileText className="w-3 h-3" /></button>
-                      <div className="text-xs font-black text-slate-900 font-mono">{formatIDR(item.price * item.qty)}</div>
-                    </div>
-                  </div>
-                </div>
-              ))
+                );
+              })
             )}
           </div>
 
@@ -676,7 +795,7 @@ export default function OrdersPage() {
               <div className="flex justify-between text-[10px] font-black text-slate-400 uppercase tracking-widest border-t pt-1"><span>{t('pos.total_payable')}</span><span className="text-lg text-emerald-700">{formatIDR(total)}</span></div>
             </div>
             <Button className="w-full h-14 rounded-2xl font-black uppercase text-xs tracking-widest bg-emerald-600 hover:bg-emerald-700 text-white shadow-xl shadow-emerald-500/20" disabled={cart.length === 0 || !currentShift} onClick={handleProcess}>
-              {!currentShift ? t('shift.status') : t('pos.authorize_settlement')}
+              {!currentShift ? t('shift.status') : t('pos.pay_now')}
             </Button>
           </div>
         </div>
@@ -721,7 +840,7 @@ export default function OrdersPage() {
             <div className="flex gap-4 pt-4 border-t">
               <Button type="button" variant="ghost" className="h-14 flex-1 rounded-2xl font-black uppercase text-[10px]" onClick={handleSaveHold}>{t('pos.hold_order')}</Button>
               <Button type="button" className="h-14 flex-[2] rounded-2xl bg-emerald-600 hover:bg-emerald-700 font-black uppercase text-[10px] tracking-[0.2em] text-white" onClick={handleCheckout} disabled={processing || (currentPM?.type === "CASH" && change < 0) || (currentPM?.type === "PAY_LATER" && !customerName.trim())}>
-                {processing ? <RefreshCcw className="w-5 h-5 animate-spin" /> : (currentPM?.type === "PAY_LATER" && !customerName.trim() ? "NAMA WAJIB UNTUK KASBON" : t('pos.authorize_settlement'))}
+                {processing ? <RefreshCcw className="w-5 h-5 animate-spin" /> : (currentPM?.type === "PAY_LATER" && !customerName.trim() ? "NAMA WAJIB UNTUK KASBON" : t('pos.process_transaction'))}
               </Button>
             </div>
           </form>

@@ -17,11 +17,23 @@ export async function GET(req) {
     const menus = await prisma.menu.findMany({
       include: {
         category: true,
+        prices: true,
         orderItems: {
           where: {
             order: {
               status: { in: ['PAID', 'PROCESSING', 'COMPLETED'] },
               date: { gte: start, lte: end }
+            }
+          },
+          include: {
+            order: {
+              include: {
+                platform: true,
+                orderPromotions: {
+                  include: { promotion: true }
+                },
+                orderItems: true
+              }
             }
           }
         }
@@ -30,11 +42,52 @@ export async function GET(req) {
 
     // 1. Calculate basic metrics
     let metrics = menus.map(m => {
+      const isConsignment = m.productType === 'CONSIGNMENT';
       const total_qty = m.orderItems.reduce((acc, curr) => acc + curr.qty, 0);
-      const total_revenue = m.orderItems.reduce((acc, curr) => acc + (curr.price * curr.qty), 0);
-      const total_cost = m.orderItems.reduce((acc, curr) => acc + (curr.cost * curr.qty), 0);
-      const net_profit = total_revenue - total_cost;
       
+      // Calculate revenue and profit with platform context
+      let total_revenue = 0;
+      let total_cost = 0;
+      let net_profit = 0;
+
+      m.orderItems.forEach(it => {
+        const order = it.order;
+        if (!order) return;
+
+        // Platform Price context
+        const orderPlatId = Number(order.platform_id);
+        const platCommissionRate = order.platform?.commission_rate || 0;
+        
+        // Find platform specific price if available, otherwise use saved price
+        const platPrice = m.prices?.find(p => Number(p.platform_id) === orderPlatId)?.price || it.price;
+        
+        // Find promo attribution
+        let itemPromoDisc = 0;
+        if (order.orderPromotions) {
+          order.orderPromotions.forEach(op => {
+            const pIds = op.promotion?.conditions?.[0]?.productIds || [];
+            if (pIds.includes(m.id)) {
+              const totElig = order.orderItems.filter(oi => pIds.includes(oi.menu_id)).reduce((s, x) => s + x.qty, 0);
+              if (totElig > 0) itemPromoDisc += (op.amount / totElig) * it.qty;
+            }
+          });
+        }
+
+        const itemRevenue = (platPrice * it.qty) - itemPromoDisc;
+        const itemCost = it.cost * it.qty;
+        
+        total_revenue += itemRevenue;
+        total_cost += itemCost;
+
+        if (!isConsignment) {
+          // Commission attributable to this item
+          const itemCommission = itemRevenue * (platCommissionRate / 100);
+          net_profit += (itemRevenue - itemCost - itemCommission);
+        }
+      });
+      
+      if (isConsignment) net_profit = 0; // Consignment never counts as profit or loss here
+
       return {
         id: m.id,
         name: m.name,

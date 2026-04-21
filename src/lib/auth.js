@@ -3,7 +3,7 @@ import jwt from 'jsonwebtoken';
 import { prisma } from './prisma';
 import { hasPermission, PERMISSIONS } from './permissions';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret';
+const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-only';
 
 if (!process.env.JWT_SECRET && process.env.NODE_ENV === 'production') {
   console.error('---------------------------------------------------------');

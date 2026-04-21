@@ -3,7 +3,7 @@ import React from "react";
 import { cn } from "../lib/utils";
 import { Skeleton } from "./ui/skeleton";
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "./ui/table";
-import { ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
+import { ArrowUpDown, ArrowUp, ArrowDown, Search, Inbox } from "lucide-react";
 
 /**
  * ResponsiveDataView component
@@ -115,8 +115,17 @@ export function ResponsiveDataView({
 
   if (data.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center p-16 text-slate-500 bg-white rounded-2xl border border-dashed border-slate-300">
-        <p className="font-semibold text-sm">{emptyMessage}</p>
+      <div className="flex flex-col items-center justify-center p-16 sm:p-24 text-slate-500 bg-white/50 rounded-2xl border-2 border-dashed border-slate-100 animate-in fade-in zoom-in duration-700">
+        <div className="w-20 h-20 rounded-full bg-slate-50 flex items-center justify-center mb-6 shadow-2xl shadow-slate-200/50 border border-slate-100 relative group">
+           <div className="absolute inset-0 bg-emerald-500/5 rounded-full animate-pulse scale-125" />
+           <Inbox className="w-10 h-10 text-slate-200 group-hover:scale-110 group-hover:text-emerald-500/40 transition-all duration-500" />
+        </div>
+        <div className="text-center max-w-sm space-y-3">
+           <h3 className="font-[900] text-slate-900 uppercase tracking-tighter italic text-xl">No transactions found</h3>
+           <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] leading-relaxed px-4">
+             {emptyMessage || "We couldn't find any records for the selected filters. Try adjusting your search keywords or date range."}
+           </p>
+        </div>
       </div>
     );
   }

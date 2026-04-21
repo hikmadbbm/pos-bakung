@@ -33,7 +33,7 @@ export default function AnalyticsPage() {
       } else {
         const today = new Date();
         let f = new Date();
-        let t = new Date();
+        let t_end = new Date();
 
         if (range === "today") {
           // f is today
@@ -46,13 +46,13 @@ export default function AnalyticsPage() {
         }
         
         const fStr = f.toISOString().split('T')[0];
-        const tStr = t.toISOString().split('T')[0];
+        const tStr = t_end.toISOString().split('T')[0];
         qs = `?from=${fStr}&to=${tStr}`;
       }
 
       const [intel, forecast] = await Promise.all([
         api.get(`/analytics/menu-intelligence${qs}`),
-        api.get("/analytics/demand-forecast") // Forecast always uses last 7 days from now
+        api.get("/analytics/demand-forecast") 
       ]);
       setIntelligenceData(intel);
       setForecastData(forecast);
@@ -154,6 +154,29 @@ export default function AnalyticsPage() {
 
 function MenuIntelligence({ data, t }) {
   const [sortConfig, setSortConfig] = useState({ key: 'net_profit', direction: 'desc' });
+  const [aiInsight, setAiInsight] = useState("");
+  const [insightLoading, setInsightLoading] = useState(false);
+
+  useEffect(() => {
+    if (data && !aiInsight) {
+      loadAiInsight();
+    }
+  }, [data]);
+
+  const loadAiInsight = async () => {
+    setInsightLoading(true);
+    try {
+      const res = await api.post("/analytics/ai-observation", {
+        data: data.data,
+        thresholds: data.thresholds
+      });
+      setAiInsight(res.observation);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setInsightLoading(false);
+    }
+  };
 
   if (!data) return null;
 
@@ -248,6 +271,38 @@ function MenuIntelligence({ data, t }) {
              <p className="text-[8px] font-bold text-slate-400 uppercase mt-2 tracking-widest">{stat.sub}</p>
           </div>
         ))}
+      </div>
+
+      {/* AI Intelligence Sector - Minimalist Clean Version */}
+      <div className="bg-white rounded-[2rem] border border-slate-100 shadow-[0_15px_50px_-20px_rgba(0,0,0,0.05)] overflow-hidden transition-all duration-500">
+         <div className="flex flex-col md:flex-row divide-y md:divide-y-0 md:divide-x divide-slate-50">
+             {/* Full Width Insight Section */}
+             <div className="flex-1 p-8 md:p-10 space-y-6">
+                <div className="flex items-center gap-4">
+                   <div className="w-12 h-12 rounded-2xl bg-emerald-50 flex items-center justify-center border border-emerald-100">
+                      <Sparkles className="w-5 h-5 text-emerald-600" />
+                   </div>
+                   <div>
+                     <h3 className="text-lg font-black tracking-tight text-slate-800 uppercase italic leading-none">{t('insights.ai_observation') || "AI SYSTEM OBSERVATIONS"}</h3>
+                     <p className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-400 mt-1">Sistem memberikan satu masukan strategis setiap harinya.</p>
+                   </div>
+                </div>
+                
+                {insightLoading ? (
+                   <div className="space-y-3 animate-pulse">
+                      <div className="h-3 bg-slate-100 rounded-full w-full" />
+                      <div className="h-3 bg-slate-100 rounded-full w-[90%]" />
+                      <div className="h-3 bg-slate-100 rounded-full w-[80%]" />
+                   </div>
+                ) : (
+                   <div className="p-6 rounded-2xl bg-slate-50/50 border border-slate-100/50 italic">
+                      <p className="text-slate-900 font-bold leading-relaxed text-[15px] whitespace-pre-line">
+                         {aiInsight || "Sistem sedang mengumpulkan data untuk memberikan observasi neural..."}
+                      </p>
+                   </div>
+                )}
+             </div>
+         </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-8">
@@ -552,4 +607,3 @@ function DemandForecast({ data, t }) {
     </div>
   );
 }
-

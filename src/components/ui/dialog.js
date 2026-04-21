@@ -31,7 +31,8 @@ const DialogContent = ({ className, children, showCloseButton = true, disableBac
         onClick={() => !disableBackdropClick && onOpenChange(false)}
       />
       <div className={cn(
-        "relative z-[110] w-full sm:max-w-lg my-auto bg-white shadow-2xl rounded-[2rem] border border-slate-100 transition-all duration-300 animate-in zoom-in-95 slide-in-from-bottom-5 overflow-hidden",
+        "relative z-[110] w-full my-auto bg-white shadow-2xl rounded-[2rem] border border-slate-100 transition-all duration-300 animate-in zoom-in-95 slide-in-from-bottom-5 overflow-hidden",
+        !className?.includes('max-w-') && "sm:max-w-lg",
         className
       )}>
         {children}

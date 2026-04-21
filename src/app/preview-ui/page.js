@@ -47,7 +47,7 @@ export default function PreviewPage() {
       <StopShiftModal 
         isOpen={shiftOpen}
         onClose={() => setShiftOpen(false)}
-        currentUserId="mock-user-123"
+        currentUserId={1}
         authorizedManager={mockManager}
         onSuccess={() => console.log("Shift success")}
       />

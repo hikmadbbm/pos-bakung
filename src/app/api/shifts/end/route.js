@@ -10,6 +10,7 @@ export async function POST(req) {
     const { response } = await verifyAuth(req, ['OWNER', 'MANAGER', 'CASHIER']);
     if (response) return response;
     const body = await req.json();
+    const id = body.id ? Number(body.id) : null;
     const user_id = Number(body.user_id);
     const ending_cash = Number(body.ending_cash);
 
@@ -20,11 +21,29 @@ export async function POST(req) {
       return NextResponse.json({ error: 'ending_cash must be a non-negative number' }, { status: 400 });
     }
 
-    const shift = await prisma.userShift.findFirst({
-      where: { user_id, status: 'OPEN' },
-      orderBy: { id: 'desc' },
-    });
+    let shift = null;
+    if (id) {
+      shift = await prisma.userShift.findFirst({ where: { id, status: 'OPEN' } });
+    }
+
     if (!shift) {
+      // Fallback search by user
+      shift = await prisma.userShift.findFirst({
+        where: { user_id, status: 'OPEN' },
+        orderBy: { id: 'desc' },
+      });
+    }
+
+    if (!shift) {
+      // Final fallback: any open shift (matches summary inclusive logic)
+      shift = await prisma.userShift.findFirst({
+        where: { status: 'OPEN' },
+        orderBy: { id: 'desc' },
+      });
+    }
+
+    if (!shift) {
+      console.error(`[Shift-End] No open shift found for user ${user_id} or ID ${id}`);
       return NextResponse.json({ error: 'No open shift found' }, { status: 404 });
     }
 

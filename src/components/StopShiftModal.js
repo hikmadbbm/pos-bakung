@@ -54,7 +54,7 @@ export default function StopShiftModal({ isOpen, onClose, onSuccess, onReauthori
     if (!currentUserId) return;
     setLoading(true);
     try {
-      const summaryRes = await api.get(`/shifts/summary/${currentUserId}`);
+      const summaryRes = await api.get(`/shifts/summary?id=${currentUserId}`);
       setShiftSummary(summaryRes.summary);
       // Only set step to SALES if we don't have a summary yet (initial load)
       setStep(prev => prev === "" ? "SALES" : prev);
@@ -140,6 +140,7 @@ export default function StopShiftModal({ isOpen, onClose, onSuccess, onReauthori
       };
       
       const res = await api.post("/shifts/end", {
+        id: shiftSummary.id,
         user_id: currentUserId,
         ending_cash: totalCashCounted,
         total_sales: totalActualSales,

@@ -25,7 +25,7 @@ export default function PostLoginModal({ isOpen, user, onClose }) {
     try {
       // Clear previous shift data before fetching new one to avoid visual artifacts
       setActiveShift(null);
-      const res = await api.get(`/shifts/current/${userId}`);
+      const res = await api.get(`/shifts/current?userId=${userId}`);
       if (res && typeof res === 'object' && res.id) {
           setActiveShift(res);
       } else {

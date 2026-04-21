@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import crypto from 'crypto';
 
-const FONNTE_TOKEN = 'VsS87c5kAF1RdUvrMkzfS';
+const FONNTE_TOKEN = process.env.FONNTE_TOKEN;
 
 function formatToWA(phone) {
   if (!phone) return null;

@@ -13,7 +13,7 @@ export async function getPromoSuggestion(items, businessGoal, ...args) {
   
   const genAI = new GoogleGenerativeAI(apiKey);
   try {
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+    const model = genAI.getGenerativeModel({ model: "gemini-flash-latest" }, { apiVersion: "v1beta" });
     const prompt = `Suggest a bundle for: ${items.map(i => i.name).join(', ')}. Goal: ${businessGoal}. Format: JSON`;
     const result = await model.generateContent(prompt);
     return JSON.parse(result.response.text());
@@ -33,17 +33,33 @@ export async function getChatResponse(userMessage, history = [], context = {}) {
   if (apiKey && apiKey.startsWith("AIza")) {
     try {
       const genAI = new GoogleGenerativeAI(apiKey);
-      const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+      const model = genAI.getGenerativeModel({ model: "gemini-flash-latest" }, { apiVersion: "v1beta" });
       
-      const contextStr = `
-- Periode: ${context.range || 'Hari Ini'}
-- Revenue: Rp${context.grossRevenue || 0}
-- Orders: ${context.totalOrders || 0}
-- Active Shift: ${context.activeShift ? context.activeShift.user : 'None'}
-- Low Stock: ${context.lowStockItems?.length || 0} items
-      `.trim();
-
-      const prompt = `Context: ${contextStr}\nHistory: ${history.slice(-3).map(h=>h.text).join('|')}\nUser: ${userMessage}\nAnswer as business coach (Bahasa Indonesia, max 2 sentences).`;
+      const prompt = `
+        You are "Tje Strategic Assistant", a dedicated personal advisor for the Bakmie You-Tje brand.
+        
+        Business Context:
+        - Reporting Period: ${context.range || 'Hari Ini'}
+        - Gross Revenue: Rp${context.grossRevenue || 0}
+        - Total Orders: ${context.totalOrders || 0}
+        - HPP (COGS): Rp${context.cogs || 0}
+        - Top Products: ${context.topMenus?.map(m => `${m.name} (${m.qty})`).join(', ') || 'No data'}
+        - Active Staff: ${context.activeShift ? context.activeShift.user : 'None'}
+        - Inventory Alerts: ${context.lowStockItems?.length || 0} items critical.
+        
+        System Rules:
+        - Use professional yet encouraging Bahasa Indonesia.
+        - NEVER use bold text (**), asterisks, or markdown lists.
+        - Focus on providing strategic advice based on NET profit (Revenue - COGS).
+        - If inventory is low, suggest immediate action in a natural sentence.
+        - Write in clean, well-spaced paragraphs like a personal advisor.
+        - Keep response under 4 sentences.
+        
+        User Message: "${userMessage}"
+        History: ${history.slice(-3).map(h=>`${h.role}: ${h.text}`).join(' | ')}
+        
+        Answer naturally:
+      `;
       const result = await model.generateContent(prompt);
       return result.response.text();
     } catch (err) {
@@ -63,28 +79,28 @@ export async function getChatResponse(userMessage, history = [], context = {}) {
   }
 
   // B. FINANCIAL & REVENUE
-  if (msg.includes("untung") || msg.includes("cuan") || msg.includes("profit") || msg.includes("revenue") || msg.includes("pendapatan") || msg.includes("uang")) {
+  if (msg.includes("untung") || msg.includes("cuan") || msg.includes("profit") || msg.includes("revenue") || msg.includes("pendapatan") || msg.includes("uang") || msg.includes("omzet") || msg.includes("setoran")) {
     const profit = context.netProfit || 0;
     const rev = context.grossRevenue || 0;
     const cogs = context.cogs || 0;
-    if (rev === 0) return "📉 **Status Keuangan**: Belum ada transaksi masuk untuk hari ini. Cobalah tawarkan menu bundling untuk menarik pelanggan pertama!";
-    return `💰 **Laporan Finansial**: \n- Omzet: **Rp${rev.toLocaleString()}**\n- Modal Bahan (HPP): Rp${cogs.toLocaleString()}\n- Estimasi Laba Bersih: **Rp${profit.toLocaleString()}**.\nStatus: ${profit > 0 ? 'Positif (Profit)' : 'Kurang Sehat (Loss)'}.`;
+    if (rev === 0) return "Status Keuangan: Belum ada transaksi masuk untuk hari ini. Cobalah tawarkan menu bundling untuk menarik pelanggan pertama!";
+    return `Laporan Finansial: \n- Omzet: Rp${rev.toLocaleString()}\n- Modal Bahan (HPP): Rp${cogs.toLocaleString()}\n- Estimasi Laba Bersih: Rp${profit.toLocaleString()}.\n\nStatus bisnis Anda saat ini berada dalam kondisi ${profit > 0 ? 'positif' : 'perlu perhatian'}.`;
   }
 
   // C. STOCK & INGREDIENTS
-  if (msg.includes("stok") || msg.includes("habis") || msg.includes("kurang") || msg.includes("bahan") || msg.includes("bumbu") || msg.includes("kritis")) {
+  if (msg.includes("stok") || msg.includes("habis") || msg.includes("kurang") || msg.includes("bahan") || msg.includes("bumbu") || msg.includes("kritis") || msg.includes("gudang")) {
     const lowCount = context.lowStockItems?.length || 0;
-    if (lowCount === 0) return "✅ **Kondisi Inventaris**: Luar biasa! Semua bahan baku di gudang 'Vault' dalam kondisi aman dan siap untuk pesanan besar.";
+    if (lowCount === 0) return "Kondisi Inventaris: Luar biasa! Semua bahan baku di gudang dalam kondisi aman dan siap untuk pesanan besar.";
     const list = context.lowStockItems.map(i => i.item_name).join(', ');
-    return `⚠️ **Alert Bahan Baku**: Kita punya **${lowCount} bahan kritis** yang sudah di bawah batas minimum: **${list}**. Harap segera hubungi supplier!`;
+    return `Alert Bahan Baku: Kita punya ${lowCount} bahan kritis yang sudah di bawah batas minimum: ${list}. Harap segera lakukan pengadaan stok.`;
   }
 
   // D. BEST SELLERS & MENU PERFORMANCE
-  if (msg.includes("laris") || msg.includes("laku") || msg.includes("favorit") || msg.includes("menu") || msg.includes("makanan") || msg.includes("enak")) {
-    if (!context.topMenus || context.topMenus.length === 0) return "🍽️ **Analisis Menu**: Data belum cukup untuk menentukan favorit. Mari tunggu beberapa pesanan lagi!";
+  if (msg.includes("laris") || msg.includes("laku") || msg.includes("favorit") || msg.includes("menu") || msg.includes("makanan") || msg.includes("enak") || msg.includes("jual")) {
+    if (!context.topMenus || context.topMenus.length === 0) return "Analisis Menu: Data belum cukup untuk menentukan favorit. Mari tunggu beberapa pesanan lagi!";
     const top = context.topMenus[0];
     const top3 = context.topMenus.slice(0, 3).map(m => m.name).join(', ');
-    return `🍜 **Juara Hari Ini**: Menu **${top.name}** adalah yang paling laris (${top.qty} unit terjual). \nTop 3 saat ini: ${top3}.`;
+    return `Juara Hari Ini: Menu ${top.name} adalah yang paling laris (${top.qty} unit terjual). \n\nTop 3 saat ini adalah: ${top3}.`;
   }
 
   // E. PAYMENTS & TRANSACTIONS
@@ -114,12 +130,52 @@ export async function getChatResponse(userMessage, history = [], context = {}) {
     return "🛠️ **Diagnosa Masalah**: \n1. Jika data 0: Cek koneksi database atau pastikan shift sudah dibuka. \n2. Jika AI mati: Saya otomatis aktif dalam mode 'Local Analyst' untuk menjamin operasional tidak terhenti.";
   }
 
-  // Default Summary Response (If no keyword matches)
-  return `📋 **Ringkasan Bisnis [Offline Mode]**:
+  return `Berikut adalah ringkasan bisnis Anda saat ini:
 - Omzet: Rp${(context.grossRevenue || 0).toLocaleString()}
-- Pesanan: ${context.totalOrders || 0} (Status: AKTIF)
-- Petugas: ${context.activeShift ? context.activeShift.user : 'Belum Ada'}
+- Pesanan: ${context.totalOrders || 0}
+- Petugas Shift: ${context.activeShift ? context.activeShift.user : 'Belum Ada'}
 - Alerts: ${context.lowStockItems?.length || 0} bahan kritis.
 
-Anda bisa tanya spesifik soal stok, profit, atau siapa yang jaga shift!`;
+Tanyakan hal spesifik soal stok, profit, atau siapa yang jaga shift agar saya bisa membantu lebih detail.`;
+}
+
+/**
+ * VISION: OCR & Adjustment Extraction
+ * Extracts labels and values from delivery app screenshots
+ */
+export async function getVisionResponse(base64Data, mimeType = "image/jpeg") {
+  const apiKey = process.env.GEMINI_API_KEY || "";
+  if (!apiKey) throw new Error("GEMINI_API_KEY is not configured");
+
+  try {
+    const genAI = new GoogleGenerativeAI(apiKey);
+    const model = genAI.getGenerativeModel({ model: "gemini-flash-latest" }, { apiVersion: "v1beta" });
+
+    const prompt = `
+      Analyze this income report screenshot from a delivery app (GrabFood, GoFood, or ShopeeFood).
+      Extract any fees, commissions, or adjustments listed.
+      Return ONLY a JSON array of objects with "label" and "value" (positive numeric value for deductions/fees).
+      Example Output: [{"label": "Komisi Platform", "value": 4000}, {"label": "Biaya Small Order", "value": 2000}]
+      If no fees found, return empty array [].
+      Do not include any other text, just the JSON array.
+    `;
+
+    const result = await model.generateContent([
+      prompt,
+      {
+        inlineData: {
+          data: base64Data,
+          mimeType: mimeType
+        }
+      }
+    ]);
+
+    const text = result.response.text();
+    // Clean potential markdown code blocks
+    const cleanedText = text.replace(/```json/g, '').replace(/```/g, '').trim();
+    return JSON.parse(cleanedText);
+  } catch (error) {
+    console.error("Gemini Vision Error:", error);
+    throw new Error("Failed to process image: " + error.message);
+  }
 }

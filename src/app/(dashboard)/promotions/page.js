@@ -12,6 +12,10 @@ import {
   ShoppingBag, Percent, Minus, Clock, Calendar, AlertCircle,
   Check, PlayCircle, Package, ArrowRight, RefreshCw, Search
 } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+} from "../../../components/ui/dialog";
 import { formatIDR } from "../../../lib/format";
 import { cn } from "../../../lib/utils";
 
@@ -114,7 +118,7 @@ export default function PromotionsPage() {
   });
 
   return (
-    <div className="space-y-6 pb-24">
+    <div className="space-y-8 pb-32 px-4 sm:px-6 lg:px-10 max-w-[1600px] mx-auto">
       {/* ── Header ── */}
       <div className="flex flex-col sm:flex-row sm:items-center gap-4">
         <div className="flex-1">
@@ -166,15 +170,15 @@ export default function PromotionsPage() {
 
       {/* ── Summary Bar ── */}
       {!loading && promotions.length > 0 && (
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-3 gap-3 sm:gap-4">
           {[
-            { label: "Total Promo", val: promotions.length, color: "text-slate-900" },
-            { label: "Aktif", val: promotions.filter(p => p.status === "ACTIVE").length, color: "text-emerald-600" },
-            { label: "Nonaktif", val: promotions.filter(p => p.status !== "ACTIVE").length, color: "text-rose-500" },
+            { label: "Total", val: promotions.length, color: "text-slate-900" },
+            { label: "Active", val: promotions.filter(p => p.status === "ACTIVE").length, color: "text-emerald-600" },
+            { label: "Inactive", val: promotions.filter(p => p.status !== "ACTIVE").length, color: "text-rose-500" },
           ].map(s => (
-            <div key={s.label} className="bg-white border border-slate-100 rounded-2xl p-4 text-center">
-              <p className={cn("text-xl sm:text-2xl font-black", s.color)}>{s.val}</p>
-              <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mt-0.5">{s.label}</p>
+            <div key={s.label} className="bg-white border border-slate-100 rounded-2xl p-3 sm:p-4 text-center shadow-sm">
+              <p className={cn("text-lg sm:text-xl font-black italic tracking-tighter", s.color)}>{s.val}</p>
+              <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest mt-0.5">{s.label}</p>
             </div>
           ))}
         </div>
@@ -483,20 +487,28 @@ function PromoFormModal({ promo, onClose, onSaved }) {
     setTimeout(() => {
       try {
         const payload = buildPayload();
-        const subtotal = simCart.reduce((s, i) => s + i.price * i.qty, 0);
+        const platformId = form.platform ? Number(form.platform) : null;
+        
+        // Calculate item prices based on platform
+        const simCartWithPrices = simCart.map(item => {
+          const platformPrice = platformId && item.prices?.[platformId] ? item.prices[platformId] : item.price;
+          return { ...item, effectivePrice: platformPrice };
+        });
+
+        const subtotal = simCartWithPrices.reduce((s, i) => s + i.effectivePrice * i.qty, 0);
         let isValid = true;
         const cond = payload.conditions[0];
         
         // Check conditions
         if (cond.minTransactionAmount && subtotal < cond.minTransactionAmount) isValid = false;
-        const totalQty = simCart.reduce((s, i) => s + i.qty, 0);
+        const totalQty = simCartWithPrices.reduce((s, i) => s + i.qty, 0);
         if (cond.minItemQuantity && totalQty < cond.minItemQuantity) isValid = false;
         
         if (cond.productIds?.length > 0) {
-          if (!simCart.some(i => cond.productIds.includes(i.menu_id))) isValid = false;
+          if (!simCartWithPrices.some(i => cond.productIds.includes(i.menu_id))) isValid = false;
         }
         if (cond.categoryIds?.length > 0) {
-          if (!simCart.some(i => cond.categoryIds.includes(i.categoryId))) isValid = false;
+          if (!simCartWithPrices.some(i => cond.categoryIds.includes(i.categoryId))) isValid = false;
         }
         if (cond.paymentMethods?.length > 0) {
           if (!cond.paymentMethods.includes("CASH")) isValid = false;
@@ -515,23 +527,36 @@ function PromoFormModal({ promo, onClose, onSaved }) {
               explanation = `Diskon ${action.value}%`;
             }
           } else if (action.actionType === 'FIXED_DISCOUNT') {
-            discountAmount = action.value;
-            explanation = `Potongan harga ${formatIDR(action.value)}`;
+            const eligibleItems = (cond.productIds?.length || cond.categoryIds?.length) 
+               ? simCartWithPrices.filter(i => cond.productIds?.includes(i.menu_id) || cond.categoryIds?.includes(i.categoryId))
+               : simCartWithPrices;
+            
+            const eligibleQty = eligibleItems.reduce((s, i) => s + i.qty, 0);
+            
+            // If it's an ITEM-level promo, multiply discount by quantity
+            if (payload.type === 'ITEM' || cond.productIds?.length || cond.categoryIds?.length) {
+                discountAmount = action.value * eligibleQty;
+                explanation = `Potongan ${formatIDR(action.value)} per item (${eligibleQty}x)`;
+            } else {
+                discountAmount = action.value;
+                explanation = `Potongan harga ${formatIDR(action.value)}`;
+            }
           } else if (action.actionType === 'FREE_ITEM') {
             // Check simCart first, fallback to menus array to show potential discount
-            const inCart = simCart.find(i => i.menu_id === action.freeProductId);
+            const inCart = simCartWithPrices.find(i => i.menu_id === action.freeProductId);
             const menuRef = menus.find(m => m.id === action.freeProductId);
             const freeItem = inCart || menuRef;
             if (freeItem) {
-               discountAmount = freeItem.price;
+               const freePrice = platformId && freeItem.prices?.[platformId] ? freeItem.prices[platformId] : freeItem.price;
+               discountAmount = freePrice;
                explanation = `Gratis 1x ${freeItem.name}`;
             }
           } else if (action.actionType === 'BUY_X_GET_Y') {
              const X = action.triggerQty || 1;
              const Y = action.freeQty || 1;
              const eligibleItems = (cond.productIds?.length || cond.categoryIds?.length) 
-               ? simCart.filter(i => cond.productIds?.includes(i.menu_id) || cond.categoryIds?.includes(i.categoryId))
-               : simCart;
+               ? simCartWithPrices.filter(i => cond.productIds?.includes(i.menu_id) || cond.categoryIds?.includes(i.categoryId))
+               : simCartWithPrices;
                
              const eligibleQty = eligibleItems.reduce((s, i) => s + i.qty, 0);
              if (eligibleQty >= X) {
@@ -542,7 +567,7 @@ function PromoFormModal({ promo, onClose, onSaved }) {
                  let availableQtyToDiscount = freeUnits;
 
                  if (action.freeProductId) {
-                    const inCart = simCart.find(i => i.menu_id === action.freeProductId);
+                    const inCart = simCartWithPrices.find(i => i.menu_id === action.freeProductId);
                     if (inCart) {
                        freeProduct = inCart;
                        availableQtyToDiscount = Math.min(freeUnits, inCart.qty);
@@ -556,7 +581,8 @@ function PromoFormModal({ promo, onClose, onSaved }) {
                  }
 
                  if (freeProduct) {
-                     discountAmount = freeProduct.price * availableQtyToDiscount;
+                     const freePrice = platformId && freeProduct.prices?.[platformId] ? freeProduct.prices[platformId] : freeProduct.price;
+                     discountAmount = freePrice * availableQtyToDiscount;
                      explanation = `Beli ${X} Gratis ${availableQtyToDiscount}x ${freeProduct.name}`;
                  }
              }
@@ -582,8 +608,9 @@ function PromoFormModal({ promo, onClose, onSaved }) {
   const STEPS = ["Info", "Kondisi", "Aksi", "Jadwal"];
 
   return (
-    <div className="fixed inset-0 z-[999] flex items-end sm:items-center justify-center bg-slate-900/50 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="bg-white w-full max-w-lg sm:rounded-[2rem] rounded-t-[2rem] shadow-2xl flex flex-col max-h-[95dvh] overflow-hidden">
+    <Dialog open={true} onOpenChange={(open) => !open && onClose()}>
+      <DialogContent disableBackdropClick={true} className="max-w-xl p-0 overflow-hidden border-none shadow-none bg-transparent">
+        <div className="bg-white w-full rounded-[2.5rem] shadow-2xl flex flex-col max-h-[90dvh] overflow-hidden border border-white/20 animate-in zoom-in-95 duration-300">
 
         {/* Header */}
         <div className="px-6 py-5 border-b border-slate-100 flex items-center justify-between shrink-0">
@@ -939,7 +966,7 @@ function PromoFormModal({ promo, onClose, onSaved }) {
               )}
 
               {/* ── Simulation ── */}
-              <div className="mt-2 bg-slate-900 rounded-2xl p-4 space-y-4">
+              <div className="mt-2 bg-slate-900 rounded-3xl p-5 sm:p-6 space-y-4 shadow-inner border border-white/5">
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-xs font-black text-white uppercase tracking-widest">Simulasi Promo</p>
@@ -969,20 +996,30 @@ function PromoFormModal({ promo, onClose, onSaved }) {
 
                 {simCart.length > 0 && (
                   <div className="space-y-1.5">
-                    {simCart.map((item, i) => (
-                      <div key={i} className="flex items-center justify-between bg-slate-800 px-3 py-2 rounded-xl">
-                        <span className="text-[10px] font-black text-white uppercase">{item.name}</span>
-                        <div className="flex items-center gap-2">
-                          <span className="text-[9px] text-slate-400">{formatIDR(item.price)}</span>
-                          <button onClick={() => setSimCart(c => c.filter((_, j) => j !== i))} className="text-slate-600 hover:text-white">
-                            <X className="w-3.5 h-3.5" />
-                          </button>
+                    {simCart.map((item, i) => {
+                      const platformId = form.platform ? Number(form.platform) : null;
+                      const effectivePrice = platformId && item.prices?.[platformId] ? item.prices[platformId] : item.price;
+                      return (
+                        <div key={i} className="flex items-center justify-between bg-slate-800 px-3 py-2 rounded-xl">
+                          <span className="text-[10px] font-black text-white uppercase">{item.name}</span>
+                          <div className="flex items-center gap-2">
+                            <span className="text-[9px] text-slate-400">{formatIDR(effectivePrice)}</span>
+                            <button onClick={() => setSimCart(c => c.filter((_, j) => j !== i))} className="text-slate-600 hover:text-white">
+                              <X className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                     <div className="flex justify-between text-[10px] font-black text-slate-400 px-1 pt-1">
                       <span>Subtotal</span>
-                      <span>{formatIDR(simCart.reduce((s, i) => s + i.price * i.qty, 0))}</span>
+                      <span>
+                        {formatIDR(simCart.reduce((s, i) => {
+                           const platformId = form.platform ? Number(form.platform) : null;
+                           const p = platformId && i.prices?.[platformId] ? i.prices[platformId] : i.price;
+                           return s + p * i.qty;
+                        }, 0))}
+                      </span>
                     </div>
                   </div>
                 )}
@@ -1091,7 +1128,7 @@ function PromoFormModal({ promo, onClose, onSaved }) {
         </div>
 
         {/* Footer */}
-        <div className="px-6 py-4 border-t border-slate-100 flex gap-3 shrink-0">
+        <div className="px-6 pt-4 pb-8 sm:pb-6 border-t border-slate-100 flex gap-3 shrink-0 bg-white">
           {step > 1 ? (
             <button
               onClick={() => setStep(s => s - 1)}
@@ -1128,8 +1165,9 @@ function PromoFormModal({ promo, onClose, onSaved }) {
           )}
         </div>
       </div>
-    </div>
-  );
+    </DialogContent>
+  </Dialog>
+);
 }
 
 // ─── Tiny helpers ─────────────────────────────────────────────────────────────

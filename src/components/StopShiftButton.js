@@ -35,7 +35,7 @@ export default function StopShiftButton({ mode = "full" }) {
       const user = JSON.parse(userStr);
       setCurrentUserId(user.id);
 
-      const res = await api.get(`/shifts/current/${user.id}`);
+      const res = await api.get(`/shifts/current?userId=${user.id}`);
       if (res) {
         setHasActiveShift(true);
         setActiveShift(res);

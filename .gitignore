@@ -33,3 +33,5 @@ check_*.js
 # Backups
 backups/
 backup_ui/
+
+.vercel

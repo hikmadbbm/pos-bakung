@@ -161,7 +161,7 @@ export default function RecipesPage() {
            setRefreshKey(prev => prev + 1);
         }}
       />
-      <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+      <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6">
         <div>
             <h2 className="text-2xl font-black tracking-tight text-slate-900 uppercase italic">{t('recipes.title')}</h2>
             <span className="text-sm font-medium text-slate-500 mt-1 flex items-center gap-2">
@@ -279,7 +279,7 @@ function RecipeList({ recipes, loading, subTab, setSubTab, onAdd, onEdit, onPubl
 
   if (loading) return (
     <div className="space-y-12">
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8">
         {[1,2,3,4,5,6].map(i => (
           <div key={i} className="h-64 bg-slate-50 rounded-[2.5rem] animate-pulse shadow-inner border border-slate-100" />
         ))}
@@ -289,141 +289,180 @@ function RecipeList({ recipes, loading, subTab, setSubTab, onAdd, onEdit, onPubl
 
   return (
     <div className="space-y-10">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center glass-card p-6 rounded-[2rem] shadow-2xl border-none gap-6">
-        <div className="flex flex-col gap-3">
-          <h3 className="font-black text-slate-900 text-lg uppercase tracking-tight">{t('recipes.recipe_vault')}</h3>
-          <div className="flex bg-slate-100/50 p-1 rounded-xl">
-            <button 
-              onClick={() => setSubTab("STANDARD")}
-              className={cn(
-                "px-6 py-2 text-[10px] font-black uppercase rounded-lg transition-all tracking-widest",
-                subTab === "STANDARD" ? "bg-white text-emerald-600 shadow-lg shadow-emerald-100" : "text-slate-400 hover:text-slate-600"
-              )}
-            >
-              {t('recipes.menu_items')}
-            </button>
-            <button 
-              onClick={() => setSubTab("COMPONENT")}
-              className={cn(
-                "px-6 py-2 text-[10px] font-black uppercase rounded-lg transition-all tracking-widest",
-                subTab === "COMPONENT" ? "bg-white text-purple-600 shadow-lg shadow-purple-100" : "text-slate-400 hover:text-slate-600"
-              )}
-            >
-              {t('recipes.components')}
-            </button>
+      <div className="glass-card p-8 rounded-[2.5rem] shadow-2xl border-none space-y-8 bg-white/60">
+        <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6">
+          <div className="space-y-4">
+            <h3 className="font-black text-slate-900 text-2xl uppercase tracking-tight italic">{t('recipes.recipe_vault')}</h3>
+            <div className="flex bg-slate-100/80 p-1.5 rounded-2xl w-fit">
+              <button 
+                onClick={() => setSubTab("STANDARD")}
+                className={cn(
+                  "px-8 py-2.5 text-[10px] font-black uppercase rounded-xl transition-all tracking-widest",
+                  subTab === "STANDARD" ? "bg-white text-emerald-600 shadow-xl shadow-emerald-100" : "text-slate-400 hover:text-slate-600"
+                )}
+              >
+                {t('recipes.menu_items')}
+              </button>
+              <button 
+                onClick={() => setSubTab("COMPONENT")}
+                className={cn(
+                  "px-8 py-2.5 text-[10px] font-black uppercase rounded-xl transition-all tracking-widest",
+                  subTab === "COMPONENT" ? "bg-white text-purple-600 shadow-xl shadow-purple-100" : "text-slate-400 hover:text-slate-600"
+                )}
+              >
+                {t('recipes.components')}
+              </button>
+            </div>
           </div>
-        </div>
-        <div className="flex flex-1 max-w-xl items-center gap-4">
-           <div className="relative flex-1 group">
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-300 group-hover:text-emerald-500 transition-colors" />
+
+          <div className="flex flex-col sm:flex-row flex-1 w-full lg:max-w-4xl items-center gap-4">
+            <div className="relative flex-1 w-full group">
+              <Search className="absolute left-5 top-1/2 -translate-y-1/2 w-4.5 h-4.5 text-slate-300 group-hover:text-emerald-500 transition-colors" />
               <input 
                 placeholder="Search blueprints..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full h-12 bg-slate-50 border-none rounded-2xl pl-12 pr-4 font-black text-[10px] uppercase tracking-widest text-slate-800 outline-none focus:ring-4 focus:ring-emerald-500/5 transition-all shadow-inner"
+                className="w-full h-14 bg-white border border-slate-100 rounded-2xl pl-14 pr-4 font-black text-[10px] uppercase tracking-widest text-slate-800 outline-none focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 transition-all shadow-sm"
               />
-           </div>
-           
-           <select 
-             value={sortBy}
-             onChange={(e) => setSortBy(e.target.value)}
-             className="h-12 bg-slate-50 border-none rounded-2xl px-4 font-black text-[10px] uppercase tracking-widest text-slate-800 outline-none focus:ring-4 focus:ring-emerald-500/5 transition-all appearance-none cursor-pointer pr-10 relative"
-             style={{ backgroundImage: 'url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' fill=\'none\' viewBox=\'0 0 24 24\' stroke=\'%23cbd5e1\'%3E%3Cpath stroke-linecap=\'round\' stroke-linejoin=\'round\' stroke-width=\'2\' d=\'M19 9l-7 7-7-7\'%3E%3C/path%3E%3C/svg%3E")', backgroundRepeat: 'no-repeat', backgroundPosition: 'right 1rem center', backgroundSize: '1.5em' }}
-           >
+            </div>
+            
+            <select 
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value)}
+              className="h-14 min-w-[180px] bg-white border border-slate-100 rounded-2xl px-6 font-black text-[10px] uppercase tracking-widest text-slate-800 outline-none focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 transition-all appearance-none cursor-pointer pr-12 relative shadow-sm"
+              style={{ backgroundImage: 'url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' fill=\'none\' viewBox=\'0 0 24 24\' stroke=\'%23cbd5e1\'%3E%3Cpath stroke-linecap=\'round\' stroke-linejoin=\'round\' stroke-width=\'2\' d=\'M19 9l-7 7-7-7\'%3E%3C/path%3E%3C/svg%3E")', backgroundRepeat: 'no-repeat', backgroundPosition: 'right 1.25rem center', backgroundSize: '1.25em' }}
+            >
               <option value="name">Sort by Name</option>
               <option value="category">Sort by Category</option>
               <option value="hpp">Sort by COGS (HPP)</option>
-           </select>
+            </select>
 
-           {canEdit && (
-             <button 
-               onClick={() => onAdd(subTab)} 
-               className="flex items-center gap-3 bg-slate-900 hover:bg-black text-white px-8 py-4 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] shadow-2xl shadow-slate-200 transition-all active:scale-95"
-             >
-               <Plus className="w-4 h-4" /> {subTab === 'STANDARD' ? t('recipes.create_recipe') : t('recipes.add_component')}
-             </button>
-           )}
+            {canEdit && (
+              <button 
+                onClick={() => onAdd(subTab)} 
+                className="w-full sm:w-auto flex items-center justify-center gap-3 bg-slate-900 hover:bg-black text-white h-14 px-10 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] shadow-2xl shadow-slate-200 transition-all active:scale-95"
+              >
+                <Plus className="w-5 h-5" /> {subTab === 'STANDARD' ? t('recipes.create_recipe') : t('recipes.add_component')}
+              </button>
+            )}
+          </div>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 gap-6 sm:gap-8">
         {filteredRecipes.map(recipe => (
-          <div key={recipe.id} className="relative group">
-            <div className="glass-card hover:shadow-[0_20px_60px_-15px_rgba(0,0,0,0.1)] hover:-translate-y-2 transition-all duration-500 relative overflow-hidden rounded-[2.5rem] border-none shadow-2xl h-full flex flex-col p-8 bg-white/40">
-              <div className="flex justify-between items-start mb-6">
-                <div className="space-y-3">
-                  <div className={cn(
-                    "px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest inline-block border", 
-                    recipe.type === 'STANDARD' ? "bg-emerald-400/10 text-emerald-600 border-emerald-400/20" : "bg-purple-400/10 text-purple-600 border-purple-400/20"
-                  )}>
-                    {recipe.type === 'STANDARD' ? t('recipes.menu_items') : t('recipes.components')}
-                  </div>
-                  <h3 className="text-xl font-black text-slate-900 tracking-tight uppercase leading-tight group-hover:text-emerald-600 transition-colors">{recipe.name}</h3>
-                </div>
-                <div className="flex gap-2 transition-all">
-                  <div className="flex items-center gap-2">
-                    <button onClick={(e) => { e.stopPropagation(); setViewingRecipeId(recipe.id); }} className="w-10 h-10 rounded-2xl bg-white shadow-lg flex items-center justify-center hover:bg-slate-900 hover:text-white transition-all">
-                      <Eye className="w-4 h-4" />
-                    </button>
-                    {canEdit && (
-                      <>
-                        <button onClick={(e) => { e.stopPropagation(); handleDuplicate(recipe); }} className="w-10 h-10 rounded-2xl bg-white shadow-lg flex items-center justify-center hover:bg-slate-900 hover:text-white transition-all">
-                          <History className="w-4 h-4" />
-                        </button>
-                        <button onClick={(e) => { e.stopPropagation(); onEdit(recipe.id); }} className="w-10 h-10 rounded-2xl bg-white shadow-lg flex items-center justify-center hover:bg-slate-900 hover:text-white transition-all">
-                          <Edit2 className="w-4 h-4" />
-                        </button>
-                        <button onClick={(e) => { e.stopPropagation(); setPinModal({ open: true, action: 'DELETE', targetId: recipe.id }); }} className="w-10 h-10 rounded-2xl bg-rose-50 text-rose-500 shadow-lg flex items-center justify-center hover:bg-rose-900 hover:text-white transition-all">
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </>
-                    )}
-                    {canEdit && recipe.type === 'STANDARD' && !recipe.menu_id && (
-                     <button 
-                        onClick={(e) => { e.stopPropagation(); onPublish(recipe.id); }} 
-                        className="w-10 h-10 rounded-2xl bg-emerald-600 shadow-lg flex items-center justify-center text-white hover:bg-slate-900 transition-all"
-                        title="Publish to Product List"
-                      >
-                        <Rocket className="w-4 h-4" />
-                      </button>
-                    )}
-                  </div>
-                </div>
-              </div>
+          <div key={recipe.id} className="relative group h-full">
+            <div className="glass-card hover:shadow-[0_20px_60px_-15px_rgba(0,0,0,0.15)] transition-all duration-500 relative overflow-hidden rounded-[2.5rem] border-none shadow-2xl h-full flex flex-col bg-white">
+              {/* Top Accent line based on type */}
+              <div className={cn(
+                "h-2 w-full",
+                recipe.type === 'STANDARD' ? "bg-emerald-500" : "bg-purple-500"
+              )} />
 
-              <div className="flex-1">
-                <div className="flex justify-between items-end mt-4">
-                  <div>
-                    <div className="text-[10px] text-slate-400 uppercase font-black tracking-[0.2em] mb-2">{t('recipes.hpp_per_unit')}</div>
-                    <div className="text-3xl font-black text-slate-900 tracking-tighter tabular-nums">{formatIDR(recipe.total_hpp)}</div>
+              <div className="p-8 flex flex-col flex-1">
+                {/* Header Section: Badge + Title */}
+                <div className="mb-6 space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div className={cn(
+                      "px-3 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-widest border", 
+                      recipe.type === 'STANDARD' ? "bg-emerald-50 text-emerald-600 border-emerald-100" : "bg-purple-50 text-purple-600 border-purple-100"
+                    )}>
+                      {recipe.type === 'STANDARD' ? t('recipes.menu_items') : t('recipes.components')}
+                    </div>
+                    {recipe.cost_change_alert > 5 && (
+                      <div className="flex items-center gap-1.5 text-[10px] font-black text-rose-500 bg-rose-50 px-2 py-1 rounded-lg">
+                         <AlertTriangle className="w-3.5 h-3.5" />
+                         HIGH
+                      </div>
+                    )}
                   </div>
-                  {recipe.cost_change_alert !== 0 && (
-                     <div className={cn(
-                       "flex items-center gap-1.5 text-[10px] font-black px-3 py-1.5 rounded-xl shadow-sm border",
-                       recipe.cost_change_alert > 0 ? "bg-rose-50 text-rose-600 border-rose-100" : "bg-emerald-50 text-emerald-600 border-emerald-100"
-                     )}>
-                       {recipe.cost_change_alert > 0 ? <TrendingUp className="w-3.5 h-3.5" /> : <TrendingUp className="w-3.5 h-3.5 rotate-180" />}
-                       {Math.abs(recipe.cost_change_alert).toFixed(1)}%
-                     </div>
-                  )}
+                  
+                  <h3 className="text-xl font-black text-slate-900 tracking-tight uppercase leading-snug min-h-[56px] line-clamp-2">
+                    {recipe.name}
+                  </h3>
                 </div>
-                
-                <div className="mt-8 pt-6 border-t border-slate-100 flex items-center justify-between text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                   <div className="flex items-center gap-2">
+
+                {/* Financial Section */}
+                <div className="flex-1">
+                  <div className="text-[10px] text-slate-400 uppercase font-black tracking-[0.2em] mb-1">{t('recipes.hpp_per_unit')}</div>
+                  <div className="flex items-end justify-between gap-2">
+                    <div className="text-3xl font-black text-slate-900 tracking-tighter tabular-nums truncate">
+                      {formatIDR(recipe.total_hpp)}
+                    </div>
+                    {recipe.cost_change_alert !== 0 && (
+                       <div className={cn(
+                         "flex items-center gap-1.5 text-[10px] font-black px-3 py-1.5 rounded-xl shadow-sm border shrink-0",
+                         recipe.cost_change_alert > 0 ? "bg-rose-50 text-rose-600 border-rose-100" : "bg-emerald-50 text-emerald-600 border-emerald-100"
+                       )}>
+                         {recipe.cost_change_alert > 0 ? <TrendingUp className="w-3.5 h-3.5" /> : <TrendingUp className="w-3.5 h-3.5 rotate-180" />}
+                         {Math.abs(recipe.cost_change_alert).toFixed(1)}%
+                       </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Metadata Row */}
+                <div className="mt-8 pt-6 border-t border-slate-50 flex items-center justify-between text-[9px] font-black text-slate-400 uppercase tracking-widest">
+                   <div className="flex items-center gap-2 shrink-0">
                      <Scale className="w-3.5 h-3.5 text-slate-300" /> 
                      <span>{t('recipes.yield')}: {recipe.base_quantity}</span>
                    </div>
-                   <div className="flex items-center gap-2 max-w-[220px] truncate">
-                     <Sparkles className="w-3.5 h-3.5 text-emerald-300" />
-                     <span>{recipe.menu?.name || t('kitchen.unclassified')}</span>
+                   <div className="flex items-center gap-2 max-w-[50%]">
+                     <Sparkles className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                     <span className="truncate">{recipe.menu?.name || t('kitchen.unclassified')}</span>
                    </div>
                 </div>
+
+                {/* Actions Footer - Structure Icons into a clean bar */}
+                <div className="mt-6 pt-4 border-t border-slate-50 flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <button 
+                      onClick={(e) => { e.stopPropagation(); setViewingRecipeId(recipe.id); }} 
+                      className="w-10 h-10 rounded-xl bg-slate-50 flex items-center justify-center hover:bg-slate-900 hover:text-white transition-all group/btn"
+                      title={t('common.view')}
+                    >
+                      <Eye className="w-4.5 h-4.5" />
+                    </button>
+                    {canEdit && recipe.type === 'STANDARD' && !recipe.menu_id && (
+                      <button 
+                        onClick={(e) => { e.stopPropagation(); onPublish(recipe.id); }} 
+                        className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center hover:bg-emerald-600 hover:text-white transition-all"
+                        title="Publish to Product List"
+                      >
+                        <Rocket className="w-4.5 h-4.5" />
+                      </button>
+                    )}
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    {canEdit && (
+                      <>
+                        <button 
+                          onClick={(e) => { e.stopPropagation(); handleDuplicate(recipe); }} 
+                          className="w-10 h-10 rounded-xl bg-slate-50 flex items-center justify-center hover:bg-slate-900 hover:text-white transition-all"
+                          title="Duplicate"
+                        >
+                          <History className="w-4.5 h-4.5" />
+                        </button>
+                        <button 
+                          onClick={(e) => { e.stopPropagation(); onEdit(recipe.id); }} 
+                          className="w-10 h-10 rounded-xl bg-slate-50 flex items-center justify-center hover:bg-slate-900 hover:text-white transition-all"
+                          title={t('common.edit')}
+                        >
+                          <Edit2 className="w-4.5 h-4.5" />
+                        </button>
+                        <button 
+                          onClick={(e) => { e.stopPropagation(); setPinModal({ open: true, action: 'DELETE', targetId: recipe.id }); }} 
+                          className="w-10 h-10 rounded-xl bg-rose-50 text-rose-500 flex items-center justify-center hover:bg-rose-600 hover:text-white transition-all"
+                          title={t('common.delete')}
+                        >
+                          <Trash2 className="w-4.5 h-4.5" />
+                        </button>
+                      </>
+                    )}
+                  </div>
+                </div>
               </div>
-
-              {recipe.cost_change_alert > 5 && (
-                <div className="absolute top-0 left-0 w-full h-1.5 bg-rose-500 animate-pulse" />
-              )}
-
             </div>
           </div>
         ))}
@@ -748,7 +787,7 @@ function RecipeForm({ id, onClose }) {
   return (
     <div className="space-y-12 max-w-6xl mx-auto pb-32 animate-in fade-in slide-in-from-bottom-4 duration-700">
       {/* Premium Header */}
-      <div className="flex flex-col md:flex-row items-start md:items-center justify-between sticky top-0 z-[100] bg-slate-50/80 backdrop-blur-xl py-6 -mx-4 px-4 sm:mx-0 sm:px-0 border-b border-slate-200/50 mb-10">
+      <div className="flex flex-col md:flex-row items-start md:items-center justify-between sticky top-0 z-[100] bg-slate-50/90 backdrop-blur-xl py-6 -mx-4 px-6 sm:mx-0 sm:px-0 border-b border-slate-200/50 mb-10">
         <div className="flex items-center gap-6">
           <button 
             onClick={onClose} 
@@ -782,9 +821,9 @@ function RecipeForm({ id, onClose }) {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
+      <div className="grid grid-cols-1 md:grid-cols-12 gap-8 lg:gap-12">
         {/* Main Section */}
-        <div className="lg:col-span-8 space-y-10">
+        <div className="md:col-span-8 space-y-10">
           {/* Identity Block */}
           <div className="glass-card rounded-[2.5rem] p-10 bg-white/60">
              <div className="flex items-center gap-4 mb-8">
@@ -1112,7 +1151,7 @@ function RecipeForm({ id, onClose }) {
         </div>
 
         {/* Sidebar Intelligence */}
-        <div className="lg:col-span-4">
+        <div className="md:col-span-4">
           <div className="sticky top-32 space-y-6 overflow-y-auto max-h-[90dvh] pr-1 scrollbar-hide pb-20">
 
             {/* Cost Breakdown Panel */}

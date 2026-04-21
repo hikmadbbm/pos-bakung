@@ -32,5 +32,7 @@
   "monthly_fixed_cost_desc": "Total sewa, listrik, & gaji",
   "production_volume_label": "Target Produksi (Qty/Bulan)",
   "production_volume_desc": "Estimasi unit yang diproduksi per bulan",
-  "not_found_help": "Mulai buat resep untuk melihat rincian di sini."
+  "not_found_help": "Mulai buat resep untuk melihat rincian di sini.",
+  "save_success": "Resep berhasil disimpan",
+  "delete_success": "Resep berhasil dihapus"
 }

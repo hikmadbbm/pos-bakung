@@ -1,0 +1,23 @@
+{
+  "title": "Products",
+  "subtitle": "Product Classification & Pricing",
+  "new_item": "New Item",
+  "edit_item": "Edit Item",
+  "item_details": "Item Details",
+  "categories": "Categories",
+  "item_name": "Item Name",
+  "price_idr": "Price (IDR)",
+  "cost_idr": "Cost (IDR)",
+  "selling_prices": "Selling Prices",
+  "ai_recommendation": "AI Recommendation",
+  "ready_status": "Ready",
+  "sold_out_status": "Sold Out",
+  "unclassified": "Unclassified",
+  "purge": "Purge",
+  "not_found": "Product not found",
+  "category_name": "Category Name",
+  "classification": "Classification",
+  "theme_color": "Theme Color",
+  "master_database": "Master Database",
+  "cost": "Cost"
+}

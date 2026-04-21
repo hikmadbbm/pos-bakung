@@ -60,11 +60,22 @@ export default function ShiftPage() {
     } else {
       setLoading(false);
     }
+
+    // Listen for shift status changes from other components (like PostLoginModal)
+    const handleStatusChange = () => {
+      const u = JSON.parse(localStorage.getItem("user"));
+      if (u) {
+        loadCurrentShift(u.id);
+        loadHistory(u.id);
+      }
+    };
+    window.addEventListener('shift-status-changed', handleStatusChange);
+    return () => window.removeEventListener('shift-status-changed', handleStatusChange);
   }, [mounted]);
 
   const loadCurrentShift = async (userId) => {
     try {
-      const res = await api.get(`/shifts/current/${userId}`);
+      const res = await api.get(`/shifts/current?userId=${userId}`);
       setCurrentShift(res);
     } catch (e) {
       console.error(e);
@@ -93,7 +104,7 @@ export default function ShiftPage() {
         user_id: currentUser.id,
         starting_cash: parseInt(startCash)
       });
-      setCurrentShift(res.shift);
+      setCurrentShift(res);
       success(t('shift.shift_started'));
       
       // Dispatch global event

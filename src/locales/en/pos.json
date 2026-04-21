@@ -8,6 +8,7 @@
   "customer_name": "Customer Name",
   "payment_method": "Payment Method",
   "money_received": "Money Received",
+  "money_waiting": "Awaiting payment",
   "change": "Change",
   "subtotal": "Subtotal",
   "discount": "Discount",
@@ -16,6 +17,8 @@
   "total_payable": "Total Payable",
   "authorize_settlement": "Authorize Settlement",
   "order_summary": "Order Summary",
+  "pay_now": "Pay Now",
+  "process_transaction": "Process Transaction",
   "empty_cart": "Empty Cart",
   "pending_queue": "Pending Queue",
   "syncing": "Syncing POS Station...",
@@ -37,5 +40,22 @@
   "async_archive": "Async Archive",
   "selling_price": "Selling Price",
   "move_to_pending": "Move to Pending",
-  "move_to_pending_help": "Move this transaction to the pending queue for later processing?"
+  "move_to_pending_help": "Move this transaction to the pending queue for later processing?",
+  "tags": {
+    "spicy": "SPICY",
+    "medium": "MEDIUM",
+    "not_spicy": "NOT SPICY",
+    "take_away": "TAKE AWAY",
+    "separate_soup": "SEPARATE SOUP",
+    "extra_meatball": "EXTRA MEATBALL",
+    "no_veggie": "NO VEGGIES",
+    "cold": "COLD",
+    "hot": "HOT",
+    "less_sugar": "LESS SUGAR",
+    "normal_ice": "NORMAL ICE",
+    "extra_ice": "EXTRA ICE",
+    "no_sugar": "NO SUGAR",
+    "sweet": "SWEET",
+    "salty": "SALTY"
+  }
 }

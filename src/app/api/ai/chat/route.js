@@ -1,18 +1,25 @@
-import { NextResponse } from "next/server";
-import { getChatResponse } from "../../../../lib/gemini";
+import { NextResponse } from 'next/server';
+import { getChatResponse } from '@/lib/gemini';
+import { verifyAuth } from '@/lib/auth';
+
+export const dynamic = 'force-dynamic';
 
 export async function POST(req) {
   try {
+    const { response: authResponse } = await verifyAuth(req, ['OWNER', 'MANAGER', 'CASHIER']);
+    if (authResponse) return authResponse;
+
     const { message, history, context } = await req.json();
 
     if (!message) {
-      return NextResponse.json({ error: "No message provided" }, { status: 400 });
+      return NextResponse.json({ error: 'Message is required' }, { status: 400 });
     }
 
-    const response = await getChatResponse(message, history, context);
-    return NextResponse.json({ response });
+    const aiResponse = await getChatResponse(message, history, context || {});
+
+    return NextResponse.json({ response: aiResponse });
   } catch (error) {
-    console.error("AI Chat API Error:", error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    console.error('AI Chat Error:', error);
+    return NextResponse.json({ error: 'DeepMind Analysis Failed' }, { status: 500 });
   }
 }

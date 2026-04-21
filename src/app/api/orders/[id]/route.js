@@ -205,10 +205,26 @@ export async function DELETE(req, { params }) {
     // Security PIN check for Cashiers
     if (user.role !== 'MANAGER' && user.role !== 'OWNER') {
       if (!pin) return NextResponse.json({ error: 'PIN is required to delete orders' }, { status: 403 });
-      const approver = await prisma.user.findFirst({
-        where: { pin, status: 'ACTIVE', role: { in: ['MANAGER', 'OWNER'] } }
+      
+      const approvers = await prisma.user.findMany({
+        where: { status: 'ACTIVE', role: { in: ['MANAGER', 'OWNER', 'ADMIN'] } }
       });
-      if (!approver) return NextResponse.json({ error: 'Invalid PIN' }, { status: 403 });
+
+      const bcrypt = await import('bcryptjs');
+      let isValidPin = false;
+      for (const approver of approvers) {
+        if (approver.pin) {
+          const isMatch = approver.pin.startsWith('$2') 
+            ? await bcrypt.compare(pin, approver.pin)
+            : approver.pin === pin;
+          if (isMatch) {
+            isValidPin = true;
+            break;
+          }
+        }
+      }
+
+      if (!isValidPin) return NextResponse.json({ error: 'Invalid PIN' }, { status: 403 });
     }
 
     await prisma.$transaction(async (tx) => {

@@ -15,7 +15,7 @@ export async function GET(req) {
     const [orders, expenses, fixedCosts] = await Promise.all([
       prisma.order.findMany({
         where: { status: { in: ['PAID', 'PROCESSING', 'COMPLETED'] }, date: { gte: start, lte: end } },
-        include: { orderItems: true },
+        include: { orderItems: { include: { menu: true } } },
       }),
       prisma.expense.findMany({
         where: { date: { gte: start, lte: end } },
@@ -27,9 +27,17 @@ export async function GET(req) {
       }),
     ]);
 
-    const revenue = orders.reduce((acc, o) => acc + Math.max(0, (o.total || 0) - (o.discount || 0)), 0);
+    const revenue = orders.reduce((acc, o) => {
+      // Prioritize platform settlement if available
+      return acc + (o.platform_actual_net || o.net_revenue || (o.total - (o.discount || 0) - (o.commission || 0)));
+    }, 0);
+
     const cogs = orders.reduce((acc, o) => {
-      const itemsCogs = (o.orderItems || []).reduce((s, it) => s + (it.cost || 0) * (it.qty || 0), 0);
+      // Exclude consignment costs from our own COGS
+      const itemsCogs = (o.orderItems || []).reduce((s, it) => {
+        if (it.menu?.productType === 'CONSIGNMENT') return s;
+        return s + (it.cost || 0) * (it.qty || 0);
+      }, 0);
       return acc + itemsCogs;
     }, 0);
 
@@ -38,9 +46,10 @@ export async function GET(req) {
     const dailyOverhead = getDailyOverhead(fixedCosts);
     const days = daysBetweenInclusive(start, end);
     const overheadTotal = dailyOverhead * days;
-    const expensesTotal = expenses.reduce((acc, e) => acc + (e.amount || 0), 0) + overheadTotal;
+    const itemsExpenses = expenses.reduce((acc, e) => acc + (e.amount || 0), 0);
+    const totalDeductions = itemsExpenses + overheadTotal;
 
-    const netProfit = Math.round(grossProfit - expensesTotal);
+    const netProfit = Math.round(grossProfit - totalDeductions);
 
     return NextResponse.json({
       revenue,
